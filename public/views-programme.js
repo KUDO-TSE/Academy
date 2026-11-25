@@ -53,6 +53,20 @@ function timeline(data, st) {
     h('i', { class: 'tl-you', style: `left:calc(${((st.week - 0.5) / W) * 100}% - 1px)` }, h('span', null, `You: week ${st.week}`))));
 }
 
+// The module's explainer video: played in the page when the link is an embed link (SharePoint or Stream embed,
+// YouTube no-cookie), otherwise opened in a new tab. Admins paste the link from the Curriculum page.
+function videoBlock(m, admin) {
+  const url = m.video;
+  const embeddable = (u) => { try { const x = new URL(u); return (/\.sharepoint\.com$/.test(x.hostname) && /\/_layouts\/15\/embed\.aspx/i.test(x.pathname)) || (x.hostname === 'www.youtube-nocookie.com' && x.pathname.startsWith('/embed/')); } catch { return false; } };
+  const view = url ? (embeddable(url) ? h('div', { class: 'video' }, h('iframe', { src: url, title: `Explainer video: ${m.title}`, allow: 'fullscreen', loading: 'lazy' }))
+    : h('a', { class: 'btn', href: url, target: '_blank', rel: 'noopener' }, '▶ Watch the explainer video')) : null;
+  if (!admin) return view;
+  const input = h('input', { type: 'url', value: url || '', placeholder: 'Paste the video link (a SharePoint embed link plays in the page)', style: 'flex:1;min-width:240px' });
+  return h('div', { class: 'stack', style: 'margin-bottom:10px' }, view, h('div', { class: 'row', style: 'gap:6px' }, input,
+    h('button', { class: 'btn sm', on: { click: async () => { try { await api('PUT', `/api/admin/curriculum/${m.key}/video`, { url: input.value }); toast(input.value ? 'Video link saved' : 'Video link removed'); } catch (e) { toast(e.message, true); } } } }, 'Save video link')),
+    h('div', { class: 'muted small' }, 'In SharePoint: open the video, Share, Embed, and copy the link inside src="…". Trainees need access to the file.'));
+}
+
 // Warm-up before a recorded check: the formats on neutral content, marked in the browser, never stored.
 function warmUp() {
   const items = [
@@ -225,7 +239,10 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
       h('div', { class: 'stack' },
         h('div', { class: 'card' }, h('h2', null, 'By the end you can'), h('ol', { class: 'obj' }, m.objectives.map((o) => h('li', null, o)))),
         h('div', { class: 'card' }, h('div', { class: 'eyebrow dark' }, 'Step 1 · Learn'), h('h2', null, 'The lesson'),
+          videoBlock(m, admin),
           m.sections.map((s) => h('div', { class: 'les' }, h('h3', null, s.title), h('ul', null, s.points.map((p) => h('li', null, p))))),
+          m.caseStudy ? h('div', { class: 'case' }, h('h3', null, 'Worked example'), h('p', null, m.caseStudy.example), h('div', { class: 'muted small' }, 'An illustrative case built from the lesson.')) : null,
+          m.caseStudy?.mistakes?.length ? h('div', { class: 'mistakes' }, h('h3', null, 'Common mistakes'), h('ul', null, m.caseStudy.mistakes.map((x) => h('li', null, x)))) : null,
           lessonItem ? markBtn(lessonItem, 'I have worked through the lesson') : null),
         (m.practiceTask || m.practiceFull) ? h('div', { class: 'card' }, h('div', { class: 'eyebrow dark' }, 'Step 2 · Practise'), h('h2', null, 'Do it for real'),
           practiceItem?.done ? h('div', { class: 'ok', style: 'margin-bottom:8px' }, practiceItem.signed_off ? 'Practice passed and signed off.' : 'Practice done.') : !practiceItem && !admin ? h('p', { class: 'muted small' }, 'Optional for you: not in your plan.') : null,

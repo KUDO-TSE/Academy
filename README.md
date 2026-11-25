@@ -135,3 +135,15 @@ Trainees can no longer tick practice by hand. Jack only spot-checks (flagged, ga
 The first attempt in the current assessment cycle is the score of record, for module checks, spaced reviews, the baseline check, decision walkthroughs, explain-it recordings and practice tasks.
 Retakes and new submissions are practice: they get full feedback but never change levels, plans, reports, item statistics or sign-offs, and they are not sent to Jack unless the trainee asks.
 A cycle starts with each knowledge test round (`rounds.kind = 'live'`): importing the 3-month retest starts a new cycle, levels restart from the new results and the first attempt in the new cycle becomes the new record.
+
+## Learning design (v4)
+
+- **This week first**: the programme page opens on the steps due this week (with the time they take). Only the current phase is open; growth since the start shows on each level, and scenarios that reached their target are called out.
+- **Spaced review**: questions a trainee missed or guessed on come back after 1 week and again after 3 weeks (`/api/me/review`). Practice only.
+- **Trainee choice**: the trainee can swap the third focus area for one of the next two in priority. It becomes a draft that Jack approves. Jack's own focus override always wins.
+- **Teach-back pairs**: in weeks 8 to 10, the board suggests pairing trainees who share a focus scenario, with a message to copy. Jack makes the introduction, so no trainee sees another's results.
+- **Warm-up**: before a first recorded check, three neutral questions show the formats. Marked in the browser, never stored.
+- **Worked example and common mistakes** per module (`CASES` in `server/curriculum-bank.js`). The examples are illustrative, built from the lesson facts; replace them with real cases when available.
+- **Videos in the page**: on the Curriculum page, paste each module's video link. A SharePoint embed link (Share, Embed, the link inside src) plays in the page; any other https link opens in a new tab. The CSP allows frames from *.sharepoint.com and youtube-nocookie.com only.
+- **Objectives** use observable verbs (no "Know ...").
+

@@ -246,6 +246,12 @@ test('programme: built automatically, approved by an admin, graded on the server
   assert.equal((await adm('POST', '/api/admin/board/tasks', { key: 'nudge:1:2026-11-23', action: 'snooze' })).status, 200);
   assert.equal((await adm('POST', '/api/admin/board/group-done', { itemKey: 'kickoff', userIds: [annId] })).status, 200);
   assert.equal((await ann('GET', '/api/me/programme')).json.state.items.find((i) => i.key === 'kickoff').done, true);
+  // Videos and worked examples on the module page.
+  assert.equal((await adm('PUT', '/api/admin/curriculum/teams/video', { url: 'javascript:alert(1)' })).status, 400);
+  assert.equal((await ann('PUT', '/api/admin/curriculum/teams/video', { url: 'https://kudolive.sharepoint.com/x' })).status, 403);
+  assert.equal((await adm('PUT', '/api/admin/curriculum/teams/video', { url: 'https://kudolive.sharepoint.com/_layouts/15/embed.aspx?UniqueId=abc' })).status, 200);
+  const tm = (await ann('GET', '/api/me/modules/teams')).json;
+  assert.ok(tm.video.includes('embed.aspx')); assert.ok(tm.caseStudy.example.length > 50 && tm.caseStudy.mistakes.length >= 2);
   // The trainee may choose the third focus area; it becomes a draft for Jack.
   await adm('POST', `/api/admin/trainees/${annId}/programme/approve`);
   const opt = await ann('GET', '/api/me/plan/options'); assert.equal(opt.status, 200);
