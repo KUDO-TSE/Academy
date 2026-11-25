@@ -5,6 +5,7 @@ import * as P from './views-admin-programme.js';
 import { programmeView, moduleRoute, missedView } from './views-programme.js';
 import { surveyView } from './assess-ui.js';
 import { boardView } from './views-board.js';
+import { sessionsView, sessionView } from './views-sessions.js';
 import { startTour, tourFor } from './tour.js';
 
 const root = document.getElementById('app');
@@ -12,7 +13,7 @@ let me = null;
 
 const NAV_TRAINEE = [['programme', 'My programme', 'plan'], ['results', 'My results', 'chart'], ['progress', 'My progress', 'trend']];
 const NAV_ME = [['me-programme', 'My programme', 'plan'], ['me-results', 'My results', 'chart'], ['me-progress', 'My progress', 'trend']];
-const NAV_ADMIN = [['board', 'My board', 'flag'], ['overview', 'Overview', 'home'], ['team', 'Team', 'team'], ['priorities', 'Priorities', 'flag'], ['programme', 'Programme', 'plan'], ['reviews', 'Reviews', 'flag'], ['feedback', 'Feedback', 'chart'], ['curriculum', 'Curriculum', 'info'], ['try', 'Try as a trainee', 'user'], ['SEP', 'Admin'], ['imports', 'Imports', 'upload'], ['users', 'Users & access', 'key'], ['audit', 'Activity log', 'log'], ['logic', 'Logic notes', 'info']];
+const NAV_ADMIN = [['board', 'My board', 'flag'], ['overview', 'Overview', 'home'], ['team', 'Team', 'team'], ['priorities', 'Priorities', 'flag'], ['programme', 'Programme', 'plan'], ['reviews', 'Reviews', 'flag'], ['sessions', 'Sessions', 'upload'], ['feedback', 'Feedback', 'chart'], ['curriculum', 'Curriculum', 'info'], ['try', 'Try as a trainee', 'user'], ['SEP', 'Admin'], ['imports', 'Imports', 'upload'], ['users', 'Users & access', 'key'], ['audit', 'Activity log', 'log'], ['logic', 'Logic notes', 'info']];
 
 async function boot() {
   try { me = (await api('GET', '/api/auth/me')).user; } catch { me = null; }
@@ -88,7 +89,7 @@ async function logout() { try { await api('POST', '/api/auth/logout'); } catch {
 
 // ------------------------------------------------------------ Shell
 function shell() {
-  const nav = me.role === 'admin' ? [...NAV_ADMIN.slice(0, 9), ...(me.isTrainee ? [['SEP', 'My Academy'], ...NAV_ME] : []), ...NAV_ADMIN.slice(9)] : NAV_TRAINEE;
+  const nav = me.role === 'admin' ? [...NAV_ADMIN.slice(0, 10), ...(me.isTrainee ? [['SEP', 'My Academy'], ...NAV_ME] : []), ...NAV_ADMIN.slice(10)] : NAV_TRAINEE;
   const list = h('ul', { class: 'nav' }, nav.map(([k, l, ic]) => k === 'SEP' ? h('li', { class: 'sep' }, l) : h('li', null, h('a', { href: `#${k}`, 'data-r': k }, icon(ic), l))),
     h('li', { class: 'nav-tour' }, h('a', { href: '#', class: 'tour-link', on: { click: (e) => { e.preventDefault(); runTour(); } } }, icon('info'), 'Guided tour')));
   const menu = h('div', { class: 'menu', role: 'menu', hidden: true }, h('button', { role: 'menuitem', on: { click: () => { menu.hidden = true; changePasswordModal(); } } }, 'Change password'), h('button', { class: 'out', role: 'menuitem', on: { click: logout } }, 'Log out'));
@@ -101,9 +102,9 @@ function shell() {
 
 // ------------------------------------------------------------ Router
 const TRAINEE_ROUTES = { programme: null, results: resultsView, progress: progressView };
-const ADMIN_ROUTES = { try: () => P.tryView(me), board: boardView, overview: A.overviewView, team: A.teamView, priorities: A.prioritiesView, programme: P.programmeOverview, reviews: P.reviewsView, feedback: P.feedbackView, curriculum: () => P.curriculumView(), imports: A.importView, users: A.usersView, audit: A.auditView, logic: A.logicView };
+const ADMIN_ROUTES = { try: () => P.tryView(me), board: boardView, overview: A.overviewView, team: A.teamView, priorities: A.prioritiesView, programme: P.programmeOverview, reviews: P.reviewsView, sessions: sessionsView, feedback: P.feedbackView, curriculum: () => P.curriculumView(), imports: A.importView, users: A.usersView, audit: A.auditView, logic: A.logicView };
 const isTraineeDyn = (r) => r.startsWith('module-') || r === 'missed' || r === 'survey';
-const isAdminDyn = (r) => r.startsWith('person-') || r.startsWith('preview') || r.startsWith('pview-') || r.startsWith('curriculum-');
+const isAdminDyn = (r) => r.startsWith('session-') || r.startsWith('person-') || r.startsWith('preview') || r.startsWith('pview-') || r.startsWith('curriculum-');
 
 async function route() {
   if (!me || me.mustChange) return;
@@ -119,12 +120,13 @@ async function route() {
   if (meMode && !okTrainee(r)) r = 'programme';
   if (isAdmin && !meMode && !(r in ADMIN_ROUTES) && !isAdminDyn(r)) r = 'overview';
   const navKey = meMode ? `me-${r}` : r;
-  document.querySelectorAll('.nav a').forEach((a) => a.classList.toggle('active', a.dataset.r === navKey || (r.startsWith('person-') && a.dataset.r === 'team') || (r.startsWith('curriculum-') && a.dataset.r === 'curriculum') || (isTraineeDyn(r) && a.dataset.r === (meMode ? 'me-programme' : 'programme'))));
+  document.querySelectorAll('.nav a').forEach((a) => a.classList.toggle('active', a.dataset.r === navKey || (r.startsWith('person-') && a.dataset.r === 'team') || (r.startsWith('curriculum-') && a.dataset.r === 'curriculum') || (r.startsWith('session-') && a.dataset.r === 'sessions') || (isTraineeDyn(r) && a.dataset.r === (meMode ? 'me-programme' : 'programme'))));
   main.replaceChildren(h('div', { class: 'page muted' }, 'Loading…'));
   try {
     let view;
     if (isAdmin && !meMode) {
-      if (r.startsWith('person-')) view = await A.personView(Number(r.slice(7)));
+      if (r.startsWith('session-')) view = await sessionView(Number(r.slice(8)));
+      else if (r.startsWith('person-')) view = await A.personView(Number(r.slice(7)));
       else if (r.startsWith('pview-')) { const [, id, d] = r.split('-'); view = await P.previewProgramme(Number(id), d === 'draft'); }
       else if (r.startsWith('preview')) view = A.previewView(r.split('-')[1]);
       else if (r.startsWith('curriculum-')) view = await P.curriculumView(r.slice(11));

@@ -240,3 +240,40 @@ UPDATE quiz_attempts a SET counts = (x.rn = 1) FROM (
 UPDATE submissions s SET counts = (x.rn = 1) FROM (
   SELECT id, row_number() OVER (PARTITION BY user_id, module_key, kind, cycle ORDER BY created_at, id) rn FROM submissions) x
   WHERE s.id = x.id AND s.counts IS NULL;
+
+-- ---- Sessions (v5): recordings or transcripts of 1:1 and group sessions, and what the Academy learns from them
+CREATE TABLE IF NOT EXISTS sessions (
+  id SERIAL PRIMARY KEY,
+  kind TEXT NOT NULL CHECK (kind IN ('one_to_one','group')),
+  title TEXT NOT NULL,
+  happened_on DATE NOT NULL DEFAULT CURRENT_DATE,
+  host_name TEXT,
+  user_ids INT[] NOT NULL DEFAULT '{}',
+  filename TEXT,
+  status TEXT NOT NULL DEFAULT 'uploaded' CHECK (status IN ('uploaded','processing','ready','failed')),
+  progress INT NOT NULL DEFAULT 0,
+  error TEXT,
+  duration_s INT,
+  transcript TEXT,
+  utterances JSONB,
+  findings JSONB NOT NULL DEFAULT '[]',
+  signals JSONB NOT NULL DEFAULT '[]',
+  created_by INT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  processed_at TIMESTAMPTZ
+);
+CREATE TABLE IF NOT EXISTS field_notes (
+  id SERIAL PRIMARY KEY,
+  module_key TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('faq','item')),
+  question TEXT NOT NULL,
+  answer TEXT,
+  item JSONB,
+  session_id INT REFERENCES sessions(id) ON DELETE SET NULL,
+  finding_id INT,
+  status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('published','withdrawn')),
+  created_by INT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  published_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS field_notes_module ON field_notes (module_key, status);

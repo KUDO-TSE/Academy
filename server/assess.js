@@ -18,6 +18,17 @@ const CBM = { 1: [1, 0], 2: [2, -2], 3: [3, -6] };
 export const POOLS = Object.fromEntries(MODULES.map((m) => [m.key, [...m.quiz, ...(EXTRA_ITEMS[m.key] || []), ...(BANK[m.key] || [])].map((x, i) => ({ t: 'mcq', ...x, id: `${m.key}.${i}`, module: m.key, scenario: m.scenario }))]));
 const BY_ID = new Map(Object.values(POOLS).flat().map((x) => [x.id, x]));
 export const itemById = (id) => BY_ID.get(id) || null;
+// Questions written by an admin from a session recording ("field" questions) join the pool of their module.
+export function registerItem(x) {
+  const m = MODULE_BY_KEY[x.module]; if (!m || !POOLS[x.module]) return null;
+  unregisterItem(x.id);
+  const it = { t: 'mcq', ...x, scenario: m.scenario, field: true };
+  POOLS[x.module].push(it); BY_ID.set(it.id, it); return it;
+}
+export function unregisterItem(id) {
+  const it = BY_ID.get(id); if (!it || !it.field) return;
+  const p = POOLS[it.module]; const i = p.indexOf(it); if (i >= 0) p.splice(i, 1); BY_ID.delete(id);
+}
 
 // ------------------------------------------------------------------ sealed option order
 const SEAL_KEY = crypto.createHash('sha256').update(`${process.env.SESSION_SECRET || 'dev-only-secret-not-for-production'}|option-order`).digest();

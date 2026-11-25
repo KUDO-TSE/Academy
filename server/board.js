@@ -102,6 +102,15 @@ export async function buildBoard() {
     }
   }
 
+  // Sessions: questions from recordings that the Academy does not cover yet, waiting for Jack's decision.
+  const sess = (await q("SELECT id,title,happened_on,findings FROM sessions WHERE status='ready'")).rows;
+  for (const se of sess) {
+    const open = (se.findings || []).filter((f) => f.status === 'open' && f.coverage !== 'covered');
+    if (!open.length) continue;
+    const gaps = open.filter((f) => f.coverage === 'gap').length;
+    add({ key: `session:${se.id}:${open.length}`, type: 'learning', title: `Turn ${open.length} session question${open.length > 1 ? 's' : ''} into content`, person: se.title, detail: `${gaps ? `${gaps} not covered by the lessons yet` : 'Partly covered by the lessons'}. Add a FAQ entry or a check question, or dismiss.`, minutes: Math.min(45, 4 * open.length), due: iso(today), urgency: 'later_ok', link: `#session-${se.id}`, canHandle: true });
+  }
+
   // 5. Explain-it recordings waiting
   for (const s of subs.rows) {
     const u = users.get(s.user_id); if (!u) continue;
@@ -124,7 +133,7 @@ export async function buildBoard() {
 
   // Suggested week: fill the owner's available days with this week's work, most urgent first.
   const rank = { overdue: 0, now: 1, this_week: 2, next_week: 4, later_ok: 5 };
-  const typeRank = { session: 0, milestone: 0, approval: 1, review: 2, signoff: 3, nudge: 3, pairing: 4, content: 6 };
+  const typeRank = { session: 0, milestone: 0, approval: 1, review: 2, signoff: 3, nudge: 3, pairing: 4, learning: 5, content: 6 };
   // Scheduling order: overdue sessions, then sessions, then what blocks trainees (approvals, reviews), then the rest.
   const work = tasks.filter((t) => t.urgency !== 'next_week' && !t.demo).sort((a, b) => ((a.urgency === 'overdue' ? 0 : 1) - (b.urgency === 'overdue' ? 0 : 1)) || (typeRank[a.type] - typeRank[b.type]) || (rank[a.urgency] - rank[b.urgency]) || a.due.localeCompare(b.due));
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

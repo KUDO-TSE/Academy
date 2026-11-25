@@ -397,3 +397,13 @@ details.phase[open] > summary::after{content:'▾'}
 .tour-actions{display:flex;justify-content:space-between;align-items:center}
 .tour-loading{color:var(--ink-400);padding:12px}
 @media (prefers-reduced-motion:reduce){.tour-spot,.tour-pop{transition:none}}
+/* Sessions */
+.finding{border-top:1px solid var(--border-soft);padding:12px 0}
+.finding.settled{opacity:.65}
+.f-q{font-weight:700;font-size:15px;margin:8px 0 4px;color:var(--primary-600)}
+.f-a{font-size:13.5px;margin-bottom:4px;color:var(--ink-700)}
+select.sm{padding:4px 8px;font-size:12.5px;max-width:240px}
+.faq{margin-top:14px}
+.faq details{border-top:1px solid var(--border-soft);padding:8px 0}
+.faq summary{cursor:pointer;font-weight:600}
+.faq p{margin:6px 0 0}

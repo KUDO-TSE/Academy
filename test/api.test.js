@@ -35,7 +35,8 @@ let server, base;
 function client() {
   let cookie = '';
   return async (method, url, body, headers = {}) => {
-    const res = await fetch(base + url, { method, headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'academy', ...(cookie ? { cookie } : {}), ...headers }, body: body === undefined ? undefined : JSON.stringify(body), redirect: 'manual' });
+    const raw = Buffer.isBuffer(body);
+    const res = await fetch(base + url, { method, headers: { 'Content-Type': raw ? 'application/octet-stream' : 'application/json', 'X-Requested-With': 'academy', ...(cookie ? { cookie } : {}), ...headers }, body: body === undefined ? undefined : raw ? body : JSON.stringify(body), redirect: 'manual' });
     const sc = res.headers.get('set-cookie'); if (sc) cookie = sc.split(';')[0];
     let json = null; try { json = await res.json(); } catch { /* */ }
     return { status: res.status, json };
@@ -398,3 +399,55 @@ test('scoring: shuffled options are graded by meaning, order questions get credi
   assert.equal(sc([...ord.steps.slice(1), ord.steps[0]]), (ord.steps.length - 2) / (ord.steps.length - 1), 'one step out of place keeps the rest of the sequence');
   assert.equal(sc([...ord.steps].reverse()), 0);
 });
+
+test('sessions: a transcript is analysed, and Jack turns questions into a FAQ entry and a check question', async () => {
+  const adm = client(); await adm('POST', '/api/auth/login', { email: 'boss@test.local', password: 'Quiet-harbor-pass-55' });
+  const tid = (await q("SELECT id FROM users WHERE email='dana@test.local'")).rows[0].id;
+  const vtt = `WEBVTT
+
+00:00:01.000 --> 00:00:05.000
+<v Jack Admin>Good morning, can you hear me?</v>
+
+00:00:06.000 --> 00:00:12.000
+<v Dana Four>Yes. Why does the KUDO bot wait in the Teams lobby even when the lobby is open to everyone?</v>
+
+00:00:13.000 --> 00:00:25.000
+<v Jack Admin>That is expected. Teams holds detected bots in the lobby, so the host opens People and admits the KUDO AI Translator.</v>
+
+00:00:26.000 --> 00:00:33.000
+<v Dana Four>And how do we invoice a client in Brazil for interpretation in local currency through the billing portal?</v>
+
+00:00:34.000 --> 00:00:40.000
+<v Jack Admin>Finance handles that, ask the account manager to raise it with them.</v>
+`;
+  assert.equal((await adm('POST', '/api/admin/sessions', { kind: 'one_to_one', title: 'Test 1:1', user_ids: [], filename: 'a.vtt' })).status, 400, 'a 1:1 needs its trainee');
+  assert.equal((await adm('POST', '/api/admin/sessions', { kind: 'group', title: 'x', filename: 'a.exe' })).status, 400, 'only transcripts and recordings');
+  const cr = await adm('POST', '/api/admin/sessions', { kind: 'one_to_one', title: 'Test 1:1', user_ids: [tid], filename: 'meeting.vtt', host_name: 'Jack Admin' });
+  assert.equal(cr.status, 200);
+  const tr = client(); await tr('POST', '/api/auth/login', { email: 'dana@test.local', password: 'Quiet-valley-pass-73' });
+  assert.equal((await tr('GET', '/api/admin/sessions')).status, 403, 'trainees never see sessions');
+  assert.equal((await adm('PUT', `/api/admin/sessions/${cr.json.id}/file`, Buffer.from(vtt))).status, 200);
+  let s; for (let k = 0; k < 50; k++) { s = (await adm('GET', `/api/admin/sessions/${cr.json.id}`)).json; if (s.status === 'ready' || s.status === 'failed') break; await new Promise((r) => setTimeout(r, 100)); }
+  assert.equal(s.status, 'ready', s.error);
+  assert.ok(s.transcript.includes('Dana Four: Yes.'));
+  const lobby = s.findings.find((f) => /lobby/.test(f.q));
+  assert.ok(lobby, 'the product question is found'); assert.equal(lobby.module, 'teams'); assert.equal(lobby.asker, 'Dana Four'); assert.ok(/admits/.test(lobby.answer), 'with the answer given');
+  assert.ok(!s.findings.some((f) => /hear me/.test(f.q)), 'small talk is ignored');
+  // FAQ entry
+  const faq = await adm('POST', '/api/admin/field-notes', { kind: 'faq', module: 'teams', question: lobby.q, answer: 'It is expected: the host admits the bot from People.', session_id: s.id, finding_id: lobby.id });
+  assert.equal(faq.status, 200);
+  const mod = (await tr('GET', '/api/me/modules/teams')).json;
+  assert.ok(mod.faq.some((f) => /lobby/.test(f.question)), 'trainees see it in the lesson'); assert.ok(!JSON.stringify(mod.faq).includes('Dana'), 'without names');
+  // New check question
+  assert.equal((await adm('POST', '/api/admin/field-notes', { kind: 'item', module: 'teams', question: 'Who admits the bot?', options: ['The host', 'The host', 'x', 'y'], correct: 0 })).status, 400, 'four different options');
+  const it = await adm('POST', '/api/admin/field-notes', { kind: 'item', module: 'teams', question: 'The KUDO bot waits in the Teams lobby. Who lets it in?', options: ['The host, from People', 'KUDO support, remotely', 'Any attendee, from chat', 'Nobody: it joins after 10 minutes'], correct: 0, answer: 'The host admits it from People.' });
+  assert.equal(it.status, 200);
+  assert.ok(POOLS.teams.some((x) => x.id === it.json.itemId), 'the question joins the module checks');
+  assert.equal((await adm('GET', `/api/admin/sessions/${s.id}`)).json.findings.find((f) => f.id === lobby.id).status, 'faq');
+  const ins = (await adm('GET', '/api/admin/sessions-insights')).json; assert.equal(ins.sessions, 1); assert.ok(ins.published >= 2);
+  // Withdrawing takes it out again.
+  assert.equal((await adm('DELETE', `/api/admin/field-notes/${faq.json.id}`)).status, 200);
+  assert.ok(!(await tr('GET', '/api/me/modules/teams')).json.faq.some((f) => /lobby/.test(f.question)));
+  assert.equal((await adm('DELETE', `/api/admin/sessions/${s.id}`)).status, 200);
+});
+

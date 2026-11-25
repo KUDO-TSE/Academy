@@ -13,6 +13,7 @@ import { meProgramme, adminProgramme } from './programme.js';
 import { ensureDemo } from './demo.js';
 import { boardRouter } from './board.js';
 import { warmUp, resumePending } from './autoreview.js';
+import { sessionsRouter, loadFieldItems, failInterrupted } from './sessions.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const prod = process.env.NODE_ENV === 'production';
@@ -22,6 +23,7 @@ export async function createApp() {
   await migrate();
   await ensureAdmins();
   await ensureDemo();
+  await loadFieldItems(); await failInterrupted();
   if (process.env.AUTO_REVIEW !== 'off') { warmUp(); resumePending().catch((e) => console.error(e)); }
 
   const app = express();
@@ -146,6 +148,7 @@ export async function createApp() {
   app.use('/api/admin', requireAdmin, adminRouter);
   app.use('/api/admin', requireAdmin, adminProgramme);
   app.use('/api/admin', requireAdmin, boardRouter);
+  app.use('/api/admin', requireAdmin, sessionsRouter);
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found.' }));
 
   // Browsers revalidate the app files on every visit (cheap 304s via ETag), so a new version shows up straight away.
@@ -162,5 +165,5 @@ export async function createApp() {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT) || 3000;
-  createApp().then((app) => app.listen(port, () => console.log(`KUDO Academy listening on ${port}`))).catch((e) => { console.error(e); process.exit(1); });
+  createApp().then((app) => { const srv = app.listen(port, () => console.log(`KUDO Academy listening on ${port}`)); srv.requestTimeout = 30 * 60 * 1000; /* large session recordings */ }).catch((e) => { console.error(e); process.exit(1); });
 }

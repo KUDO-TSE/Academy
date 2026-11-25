@@ -151,3 +151,12 @@ A cycle starts with each knowledge test round (`rounds.kind = 'live'`): importin
 ## Guided tour
 
 `public/tour.js`. Two scripts: trainees (12 steps: the programme page, a module, results) and admins (11 steps: one per menu area). It opens automatically the first time someone signs in (after the password change), with Skip at every step; Done or Skip both record `users.tour_seen_at`. "Guided tour" at the bottom of the menu replays it at any time. Admins acting as a test trainee see the trainee tour. Keyboard: arrows to move, Esc to close. A step whose element is missing shows as a centred card, so the tour never gets stuck.
+
+## Sessions: the Academy learns from 1:1 and group sessions
+
+Admin menu, **Sessions** (`server/sessions.js`, `public/views-sessions.js`).
+
+- **Upload** a Teams transcript (.vtt, .docx; best: instant, knows who spoke) or a recording (.mp4, .m4a, .mp3, .wav, .webm, .mov, up to `SESSION_MAX_MB`, default 500). Files are streamed to disk; recordings are transcribed with the same free Whisper model, in 10-minute windows (about a third of real time on the current server), then deleted. The transcript is kept until the session is deleted.
+- **Analysis**: questions (with who asked and the answer that followed), mapped to a module with sentence embeddings plus module names, and compared with what the Academy already teaches and asks (lessons, objectives, check questions, published FAQ): covered, partly covered or not covered. Questions that came up in earlier sessions are marked. For a 1:1, level signals are suggested from what the trainee said, and can be added to their inputs in one click.
+- **Improve the content**: on each question, Jack can publish a lesson FAQ entry ("Asked in sessions", no names) or a new check question (four options, his wording). New questions join the module checks immediately (`registerItem`) and are marked "From a session" on the Curriculum page. Both can be withdrawn. The board shows a task per session with questions to review.
+- No language model writes content: the Academy finds and sorts; Jack decides and words it.

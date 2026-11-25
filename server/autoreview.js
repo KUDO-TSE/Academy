@@ -66,6 +66,30 @@ export async function transcribe(buf) {
   return { text: brand(String(out.text || '').trim()), seconds: pcm.length / 16000 };
 }
 
+// For other analyses (session recordings): an embedding function, or null when the models are switched off or failed.
+export async function embedder() {
+  if (process.env.AUTO_REVIEW === 'off') return null;
+  try { const { emb } = await loadModels(); return async (t) => Array.from((await emb(t, { pooling: 'mean', normalize: true })).data); } catch { return null; }
+}
+/** Transcribe a long audio or video file from disk, in 10-minute windows so memory stays low. onProgress(0..1). */
+export async function transcribeFile(file, onProgress = () => {}) {
+  const { asr } = await loadModels();
+  const { default: ffmpeg } = await import('ffmpeg-static');
+  const probe = spawnSync(ffmpeg, ['-i', file], { encoding: 'utf8' });
+  const m = /Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/.exec(probe.stderr || '');
+  const total = m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) : 0;
+  if (!total) throw new Error('Could not read the length of the recording.');
+  const WIN = 600, parts = [];
+  for (let off = 0; off < total; off += WIN) {
+    const r = spawnSync(ffmpeg, ['-loglevel', 'error', '-ss', String(off), '-t', String(WIN), '-i', file, '-vn', '-ac', '1', '-ar', '16000', '-f', 'f32le', 'pipe:1'], { maxBuffer: 64 * 1024 * 1024 });
+    if (r.status !== 0) throw new Error(`Could not decode the recording: ${String(r.stderr || '').slice(0, 200)}`);
+    const pcm = new Float32Array(r.stdout.buffer, r.stdout.byteOffset, Math.floor(r.stdout.byteLength / 4));
+    if (pcm.length > 16000) { const out = await asr(pcm, { chunk_length_s: 30, stride_length_s: 5, language: 'english', task: 'transcribe' }); parts.push(String(out.text || '').replace(/[♪♫\[\]]/g, ' ').replace(/\.{3,}/g, ' ').replace(/\s+/g, ' ').trim()); }
+    onProgress(Math.min(1, (off + WIN) / total));
+  }
+  return { text: brand(parts.join(' ')), seconds: total };
+}
+
 const sentences = (t) => { const s = t.split(/(?<=[.!?])\s+|\n+/).map((x) => x.trim()).filter((x) => x.length > 3); const w = [...s]; for (let i = 0; i < s.length - 1; i++) w.push(`${s[i]} ${s[i + 1]}`); return w.length ? w : [t]; };
 const cos = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
 

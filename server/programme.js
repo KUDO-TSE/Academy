@@ -5,6 +5,7 @@ import { MODULES, MODULE_BY_KEY, MODULE_FOR_SCENARIO, DEPTH, SOURCE_DECISIONS, A
 import { POOLS, draw, drawMixed, publicItem, grade, walk, walkthroughIntro, itemById } from './assess.js';
 import { EXPLAIN, RUBRIC, SURVEY, WALKTHROUGHS, PRACTICE } from './curriculum-extra.js';
 import { CASES } from './curriculum-bank.js';
+import { faqFor } from './sessions.js';
 async function videoLinks() { return (await q("SELECT value FROM app_settings WHERE key='videos'")).rows[0]?.value || {}; }
 import { enqueue } from './autoreview.js';
 import { DEMO_FILTER, resetDemo, createDemo } from './demo.js';
@@ -61,7 +62,7 @@ meProgramme.get('/modules/:key', async (req, res, next) => {
       progress: prog.rows, feedbackGiven: fb.rowCount > 0,
       walkthrough: walkthroughIntro(key), explain: EXPLAIN[key] ? { prompt: EXPLAIN[key].prompt } : null, submissions: subs.rows.filter((x) => x.kind !== 'practice'), rubric: RUBRIC,
       practiceTask: PRACTICE[key] ? { prompt: PRACTICE[key].prompt, type: PRACTICE[key].type } : null, practiceSubmissions: subs.rows.filter((x) => x.kind === 'practice'),
-      caseStudy: CASES[key] || null, video: (await videoLinks())[key] || null,
+      caseStudy: CASES[key] || null, video: (await videoLinks())[key] || null, faq: (await faqFor(key)).map(({ question, answer }) => ({ question, answer })),
       scenarioLabel: SCENARIOS.find((s) => s.key === m.scenario)?.label || null, related: (m.related || []).map((s) => SCENARIOS.find((x) => x.key === s)?.short || s),
     });
   } catch (e) { next(e); }
@@ -416,7 +417,7 @@ adminProgramme.put('/curriculum/:key/video', async (req, res, next) => {
     res.json({ ok: true, video: v[key] || null });
   } catch (e) { next(e); }
 });
-adminProgramme.get('/curriculum', async (_req, res) => { const vids = await videoLinks(); res.json({ modules: MODULES.map((m) => ({ ...m, caseStudy: CASES[m.key] || null, video: vids[m.key] || null, pool: POOLS[m.key], walkthroughFull: WALKTHROUGHS[m.key] || null, explainFull: EXPLAIN[m.key] || null, practiceFull: PRACTICE[m.key] || null })), rubric: RUBRIC, decisions: SOURCE_DECISIONS, depth: DEPTH, folder: ACADEMY_FOLDER, baseline: BASELINE.length }); });
+adminProgramme.get('/curriculum', async (_req, res) => { const vids = await videoLinks(); const faqs = (await q("SELECT id,module_key,question,answer FROM field_notes WHERE status='published' AND kind='faq'")).rows; res.json({ modules: MODULES.map((m) => ({ ...m, faq: faqs.filter((f) => f.module_key === m.key), caseStudy: CASES[m.key] || null, video: vids[m.key] || null, pool: POOLS[m.key], walkthroughFull: WALKTHROUGHS[m.key] || null, explainFull: EXPLAIN[m.key] || null, practiceFull: PRACTICE[m.key] || null })), rubric: RUBRIC, decisions: SOURCE_DECISIONS, depth: DEPTH, folder: ACADEMY_FOLDER, baseline: BASELINE.length }); });
 
 adminProgramme.get('/trainees/:id/programme', async (req, res, next) => {
   try {
