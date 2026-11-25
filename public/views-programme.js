@@ -1,8 +1,9 @@
 import { h, api, toast, fmtDate, svg } from './ui.js';
+import { checkForm, resultView, walkthroughCard, explainCard, feedbackCard, challengeCard } from './assess-ui.js';
 
 // ------------------------------------------------------------------ shared bits
-export const KIND_LABEL = { lesson: 'Lesson', practice: 'Practice', check: 'Check', review: 'Spaced review', baseline: 'Baseline check', one_to_one: 'With Jack', milestone: 'Milestone', missed: 'Review', teach: 'Teach-back' };
-const KIND_CHIP = { lesson: 'blue', practice: 'amber', check: 'green', review: 'green', baseline: 'green', one_to_one: 'coral', milestone: 'coral', missed: 'blue', teach: 'amber' };
+export const KIND_LABEL = { scenario: 'Decision walkthrough', explain: 'Explain it', survey: 'Survey', lesson: 'Lesson', practice: 'Practice', check: 'Check', review: 'Spaced review', baseline: 'Baseline check', one_to_one: 'With Jack', milestone: 'Milestone', missed: 'Review', teach: 'Teach-back' };
+const KIND_CHIP = { scenario: 'amber', explain: 'coral', survey: 'grey', lesson: 'blue', practice: 'amber', check: 'green', review: 'green', baseline: 'green', one_to_one: 'coral', milestone: 'coral', missed: 'blue', teach: 'amber' };
 export const DEPTH_LABEL = { know: 'Know', setup: 'Set up', handover: 'Hand over' };
 const BAND_CHIP = { ready: 'green', nearly: 'blue', developing: 'amber', gap: 'coral', none: 'grey' };
 const SOURCE = { test: 'Knowledge test', estimated: 'Estimated', self: 'Self Assessment (estimate)', check: 'Updated by your checks', coach: 'Updated by Jack', none: 'No data yet' };
@@ -13,10 +14,11 @@ const first = (n) => String(n || '').split(' ')[0];
 function itemHref(it) {
   if (it.kind === 'baseline') return '#module-baseline';
   if (it.kind === 'missed') return '#missed';
+  if (it.kind === 'survey') return '#survey';
   if (it.module) return `#module-${it.module}${it.kind === 'review' ? `~${it.key}` : ''}`;
   return null;
 }
-const ACTION = { lesson: 'Open lesson', practice: 'Open task', check: 'Take the check', review: 'Take the review', baseline: 'Start', missed: 'Open', teach: 'Open' };
+const ACTION = { scenario: 'Start', explain: 'Record it', survey: 'Answer', lesson: 'Open lesson', practice: 'Open task', check: 'Take the check', review: 'Take the review', baseline: 'Start', missed: 'Open', teach: 'Open' };
 
 function itemRow(it, { readOnly, compact } = {}) {
   const href = itemHref(it);
@@ -88,6 +90,7 @@ export function programmeView(data, { readOnly = false, banner = null } = {}) {
         plan.focus.length ? plan.focus.map((s) => { const l = st.levels.find((x) => x.scenario === s); return h('div', { class: 'focus-why' }, h('div', { class: 'row spread' }, h('b', null, l.label), h('span', { class: `chip ${BAND_CHIP[l.band.key]}` }, `${l.now}% → ${l.target}%`)), h('div', { class: 'muted small' }, `Because ${plan.focusReasons[s]}.`)); }) : h('div', { class: 'muted' }, 'You are already at target on every scenario: your plan keeps it sharp and proves it.'),
         plan.tip ? h('div', { class: 'tip' }, h('b', null, 'How you like to learn: '), plan.tip) : null)),
 
+    readOnly ? null : h('div', { style: 'margin-top:16px' }, challengeCard()),
     h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Your level, scenario by scenario'), h('p', { class: 'sub' }, 'The light bar is where you started in October, the dark bar is where you are now, the line is your target. Targets depend on what your role needs: Set up 80%, Hand over 70%.'), levelBars(st.levels)),
 
     h('h2', { class: 'sec-h' }, 'Your plan, week by week'),
@@ -120,33 +123,32 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
     return h('div', { class: 'stack', style: 'margin-top:10px' }, note, h('button', { class: 'btn primary', on: { click: async () => { try { await api('POST', `/api/me/items/${it.key}/done`, { note: note.value }); toast('Nice work. Ticked off.'); onDone?.(); } catch (e) { toast(e.message, true); } } } }, label));
   };
 
-  // Quiz
+  // Check: a fresh random draw of mixed formats each time.
   const quizBox = h('div');
-  const drawQuiz = () => {
-    const picks = new Array(m.quiz.length).fill(null);
-    const form = h('form', { class: 'quiz', novalidate: true, on: { submit: async (e) => {
-      e.preventDefault();
-      if (picks.some((p) => p == null)) return toast('Answer every question first.', true);
-      try {
-        const r = await api('POST', `/api/me/modules/${m.key}/attempt`, { answers: picks, item_key: reviewKey });
-        showResult(r);
-      } catch (err) { toast(err.message, true); }
-    } } },
-    m.quiz.map((x, qi) => h('fieldset', { class: 'qq' }, h('legend', null, `${qi + 1}. ${x.q}`), x.scenario && m.key === 'baseline' ? h('span', { class: 'chip grey' }, x.scenarioShort || x.scenario) : null,
-      x.o.map((opt, oi) => h('label', { class: 'opt' }, h('input', { type: 'radio', name: `q${qi}`, value: oi, disabled: admin, checked: admin && x.a === oi, on: { change: () => { picks[qi] = oi; } } }), h('span', null, opt))),
-      admin && x.why ? h('div', { class: 'why' }, x.why) : null)),
-    admin ? null : h('button', { class: 'btn primary', type: 'submit' }, 'Check my answers'));
-    quizBox.replaceChildren(form);
+  const fbBox = h('div');
+  const drawQuiz = async (fresh) => {
+    let items = m.check;
+    if (fresh && !admin) { try { items = (await api('GET', `/api/me/modules/${m.key}`)).check; } catch { /* keep */ } }
+    quizBox.replaceChildren(checkForm(items, { url: `/api/me/modules/${m.key}/attempt`, itemKey: reviewKey, certainty: true, onResult: (r, its) => {
+      quizBox.replaceChildren(resultView(r, its, { pass: m.pass || 0.8, baseline: m.key === 'baseline', onRetry: () => drawQuiz(true) }));
+      if (m.key !== 'baseline' && !m.feedbackGiven && !admin) fbBox.replaceChildren(feedbackCard(m.key));
+    } }));
   };
-  const showResult = (r) => {
-    const pass = r.passed;
-    quizBox.replaceChildren(h('div', null,
-      h('div', { class: `result ${pass ? 'pass' : 'fail'}` }, h('div', { class: 'big' }, `${r.correct}/${r.total}`), h('div', null, h('b', null, m.key === 'baseline' ? 'Baseline recorded. Your plan has been updated.' : pass ? 'Passed. This module check is complete.' : `Not yet: you need ${Math.ceil(r.total * (m.pass || 0.8))} correct.`), h('div', { class: 'muted' }, r.planChanged ? 'Your results changed your levels. Jack will review any change to your plan.' : 'Your levels are updated.'))),
-      r.results.map((x, i) => h('div', { class: `qres ${x.ok ? 'qres-ok' : 'qres-no'}` }, h('b', null, `${i + 1}. ${m.quiz[i].q}`), h('div', null, x.ok ? 'Correct: ' : `Your answer: ${m.quiz[i].o[x.choice]}. Correct: `, h('b', null, m.quiz[i].o[x.a])), h('div', { class: 'muted small' }, x.why))),
-      h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'btn', on: { click: drawQuiz } }, pass ? 'Try again for practice' : 'Try again'), h('a', { class: 'btn', href: '#programme' }, 'Back to my programme'))));
-    onDone?.({ silent: true });
-  };
-  drawQuiz();
+  if (admin) {
+    quizBox.append(h('p', { class: 'muted small' }, `Pool of ${m.pool.length} items; each attempt draws ${Math.min(6, m.pool.length)}, with at least one of each format.`),
+      ...m.pool.map((x, i) => h('div', { class: 'qq' }, h('b', null, `${i + 1}. ${x.q}`), h('span', { class: 'chip grey', style: 'margin-left:6px' }, { mcq: 'Single answer + certainty', multi: 'Pick all that fit', match: 'Match', order: 'Order' }[x.t]),
+        x.t === 'mcq' || x.t === 'multi' ? h('ul', null, x.o.map((o, oi) => h('li', { class: (x.t === 'mcq' ? x.a === oi : x.a.includes(oi)) ? 'right' : '' }, o))) : null,
+        x.t === 'match' ? h('ul', null, x.pairs.map((p) => h('li', null, `${p[0]} → `, h('b', null, p[1])))) : null,
+        x.t === 'order' ? h('ol', null, x.steps.map((st) => h('li', null, st))) : null,
+        h('div', { class: 'why' }, x.why))));
+  } else drawQuiz(false);
+  const walkItem = mine.find((i) => i.kind === 'scenario');
+  const walkCard = m.walkthrough || m.walkthroughFull ? h('div', { class: 'card', style: 'margin-top:16px' }, h('div', { class: 'eyebrow dark' }, 'Decide'), h('h2', null, `Walkthrough: ${(m.walkthrough || m.walkthroughFull).title}`),
+    admin ? h('div', null, h('p', null, m.walkthroughFull.intro), m.walkthroughFull.steps.map((st, si) => h('div', { class: 'qq' }, h('b', null, `${si + 1}. ${st.text}`), h('ul', null, st.choices.map((c) => h('li', null, h('span', { class: `chip ${['coral', 'amber', 'green'][c.q]}` }, ['Wrong', 'OK', 'Best'][c.q]), ' ', c.t, h('div', { class: 'muted small' }, c.fb)))))))
+      : walkthroughCard(m.key, m.walkthrough, { done: !!(walkItem?.done || m.walkAttempts?.length) })) : null;
+  const ex = m.explain || m.explainFull;
+  const explainBox = ex ? h('div', { class: 'card', style: 'margin-top:16px' }, h('div', { class: 'eyebrow dark' }, 'Explain it'), h('h2', null, 'Say it like you would to the client'),
+    admin ? h('div', null, h('div', { class: 'explain-prompt' }, ex.prompt), h('b', null, 'Key points'), h('ul', null, ex.points.map((p) => h('li', null, p)))) : explainCard(m.key, ex, m.submissions || [], m.rubric || [], { onDone })) : null;
 
   const last = m.attempts?.[0];
   return h('div', { class: 'page lesson' },
@@ -168,7 +170,8 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
           m.learn.map((r) => h('a', { class: 'res', href: r.url, target: '_blank', rel: 'noopener noreferrer' }, h('span', { class: `chip ${r.type === 'video' ? 'coral' : r.type === 'guide' ? 'amber' : 'blue'}` }, { video: 'Video', guide: 'Guide', article: 'Help Center' }[r.type]), h('span', null, r.title, r.note ? h('span', { class: 'muted small' }, ` · ${r.note}`) : null)))),
         h('div', { class: 'card' }, h('h2', null, 'When to hand over'), h('ul', { class: 'esc' }, m.escalate.map((e) => h('li', null, e)))))),
     h('div', { class: 'card', style: 'margin-top:16px' }, h('div', { class: 'eyebrow dark' }, m.key === 'baseline' ? 'Baseline' : 'Step 3 · Check'), h('div', { class: 'row spread' }, h('h2', null, m.key === 'baseline' ? 'One question per scenario' : 'Prove it'), last ? h('span', { class: 'muted small' }, `Last attempt ${last.correct}/${last.total} · ${fmtDate(last.created_at)}`) : null),
-      h('p', { class: 'sub' }, m.key === 'baseline' ? 'No pass mark: answer honestly, it aims your plan at the right gaps.' : `Pass with ${Math.round((m.pass || 0.8) * 100)}%. You see why each answer is right straight after.`), quizBox),
+      h('p', { class: 'sub' }, m.key === 'baseline' ? 'No pass mark: answer honestly, it aims your plan at the right gaps.' : `Pass with ${Math.round((m.pass || 0.8) * 100)}%. A new mix of questions each time, and you see why each answer is right straight after.`), quizBox),
+    walkCard, explainBox, fbBox,
   );
 }
 

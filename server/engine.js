@@ -12,6 +12,7 @@ import { q } from './db.js';
 import { SCENARIOS, SCENARIO_KEYS, CRITICAL_STEPS } from './scenarios.js';
 import { MODULES, MODULE_BY_KEY, MODULE_FOR_SCENARIO, DEPTH } from './curriculum.js';
 import { computePriorities, latestByUser } from './scoring.js';
+import { WALKTHROUGHS, EXPLAIN } from './curriculum-extra.js';
 
 export const PASS = 0.8;
 export const WEEKS = 12;
@@ -49,18 +50,20 @@ export async function getSettings() {
 
 /** Load everything the engine needs, for one user or for all trainees. */
 export async function loadContext(userId = null) {
-  const [users, scoreRows, rounds, qres, attempts, inputs, progress, crit, settings] = await Promise.all([
+  const [users, scoreRows, rounds, qres, attempts, inputs, progress, crit, settings, subs, surveys] = await Promise.all([
     q(`SELECT id,name,email,region,team,weight,demand_scenario,struggle_scenarios,profile,plan_overrides,is_demo,role,is_trainee
          FROM users WHERE (role='trainee' OR is_trainee) AND active ORDER BY name`),
     q(`SELECT s.user_id,s.scenario,s.pct,s.correct,s.total,r.kind,r.sort,r.id AS round_id,r.taken_on FROM scores s JOIN rounds r ON r.id=s.round_id`),
     q('SELECT id,key,label,kind,taken_on,sort FROM rounds ORDER BY sort,id'),
     q(`SELECT qr.user_id, qr.round_id, qr.qnum, qr.correct, qu.scenario, qu.question, qu.answer
          FROM question_results qr JOIN questions qu ON qu.round_id=qr.round_id AND qu.qnum=qr.qnum`),
-    q(`SELECT id,user_id,module_key,item_key,correct,total,answers,created_at FROM quiz_attempts ${userId ? 'WHERE user_id=$1' : ''} ORDER BY created_at`, userId ? [userId] : undefined),
+    q(`SELECT id,user_id,module_key,item_key,correct::float AS correct,total,knowledge::float AS knowledge,kind,answers,created_at FROM quiz_attempts ${userId ? 'WHERE user_id=$1' : ''} ORDER BY created_at`, userId ? [userId] : undefined),
     q(`SELECT id,user_id,kind,happened_on,title,link,signals,item_key,shared_summary,created_at FROM inputs ${userId ? 'WHERE user_id=$1' : ''} ORDER BY happened_on, id`, userId ? [userId] : undefined),
     q(`SELECT user_id,item_key,status,note,signed_off_at,completed_at FROM plan_progress ${userId ? 'WHERE user_id=$1' : ''}`, userId ? [userId] : undefined),
     q('SELECT key, critical_steps FROM scenario_settings'),
     getSettings(),
+    q(`SELECT id,user_id,module_key,status,rubric,created_at FROM submissions ${userId ? 'WHERE user_id=$1' : ''} ORDER BY created_at`, userId ? [userId] : undefined),
+    q(`SELECT user_id,created_at FROM survey_responses ${userId ? 'WHERE user_id=$1' : ''}`, userId ? [userId] : undefined),
   ]);
   const critical = { ...CRITICAL_STEPS }; for (const r of crit.rows) critical[r.key] = r.critical_steps;
   const real = users.rows.filter((u) => !u.is_demo);
@@ -76,7 +79,7 @@ export async function loadContext(userId = null) {
   const by = (rows) => { const m = new Map(); for (const r of rows) { if (!m.has(r.user_id)) m.set(r.user_id, []); m.get(r.user_id).push(r); } return m; };
   return {
     users: users.rows, self, live, rounds: rounds.rows, teamPriority, calibration, teamLive, settings, latestRound,
-    qres: by(qres.rows), attempts: by(attempts.rows), inputs: by(inputs.rows), progress: by(progress.rows),
+    qres: by(qres.rows), attempts: by(attempts.rows), inputs: by(inputs.rows), progress: by(progress.rows), subs: by(subs.rows), surveys: new Set(surveys.rows.map((r) => r.user_id)),
   };
 }
 
@@ -112,16 +115,19 @@ export function computeLevels(u, ctx, { forPlanning = false } = {}) {
         for (const s of SCENARIO_KEYS) {
           const mine = (a.answers || []).filter((x) => x.scenario === s);
           if (!mine.length) continue;
-          const sc = (mine.filter((x) => x.ok).length / mine.length) * 100;
+          const sc = (mine.reduce((t, x) => t + (x.knowledge ?? (x.ok ? 1 : 0)), 0) / mine.length) * 100;
           per[s].est = 0.65 * per[s].est + 0.35 * sc; per[s].history.push({ at: a.created_at, what: 'Baseline check', v: round(per[s].est) });
           if (per[s].source !== 'test') { per[s].source = 'check'; per[s].note = 'Updated by your baseline check'; }
         }
         continue;
       }
-      const s = MODULE_BY_KEY[a.module_key]?.scenario; if (!s || forPlanning) continue;
-      const sc = (a.correct / a.total) * 100;
-      per[s].est = 0.4 * per[s].est + 0.6 * sc; per[s].source = 'check'; per[s].note = `Updated by your ${MODULE_BY_KEY[a.module_key].title} check (${a.correct}/${a.total})`;
-      per[s].history.push({ at: a.created_at, what: 'Module check', v: round(per[s].est) });
+      const s = MODULE_BY_KEY[a.module_key]?.scenario; if (!s || forPlanning || a.kind === 'challenge') continue;
+      // The level uses the certainty-adjusted score: a lucky low-certainty answer counts half.
+      const sc = ((a.knowledge ?? a.correct) / a.total) * 100;
+      const w = a.kind === 'scenario' ? 0.4 : 0.6;
+      per[s].est = (1 - w) * per[s].est + w * sc; per[s].source = 'check';
+      per[s].note = a.kind === 'scenario' ? `Updated by your ${short(s)} decision walkthrough` : `Updated by your ${MODULE_BY_KEY[a.module_key].title} check`;
+      per[s].history.push({ at: a.created_at, what: a.kind === 'scenario' ? 'Walkthrough' : 'Module check', v: round(per[s].est) });
     } else if (e.type === 'input') {
       for (const sig of e.i.signals || []) {
         if (!per[sig.scenario] || !SIGNAL_EFFECT[sig.rating]) continue;
@@ -193,6 +199,8 @@ export function buildPlan(u, ctx) {
     const lesson = { key: `${mkey}.lesson`, kind: 'lesson', module: mkey, scenario: s, phase, week, title: `Learn: ${m.title}`, why, tip, minutes: m.minutes, mandatory: focusItem };
     const practice = { key: `${mkey}.practice`, kind: 'practice', module: mkey, scenario: s, phase, week, title: `Practise: ${m.title}`, why: practiceFirst && priBy[s]?.over ? 'Try it first: doing the task shows where the gaps are before you read.' : focusItem ? 'Do it for real, then tell Jack what you did. He signs it off.' : 'Do it for real, then tick it off with a line on what you learned.', minutes: 30, mandatory: focusItem, signoff: focusItem };
     if (focusItem || m.depth === 'setup') { if (practiceFirst) add(practice), add(lesson); else add(lesson), add(practice); } else add(lesson);
+    if (WALKTHROUGHS[mkey] && (focusItem || m.depth === 'setup')) add({ key: `${mkey}.scenario`, kind: 'scenario', module: mkey, scenario: s, phase, week, title: `Decide: ${WALKTHROUGHS[mkey].title}`, why: 'A realistic client situation. Your choices get feedback straight away.', minutes: 10, mandatory: focusItem });
+    if (EXPLAIN[mkey] && focusItem) add({ key: `${mkey}.explain`, kind: 'explain', module: mkey, scenario: s, phase, week, title: `Explain it: ${m.title}`, why: 'Record yourself (or write it) explaining this to a client. Jack reviews it and it counts towards your level.', minutes: 15, mandatory: true });
     add({ key: `${mkey}.check`, kind: 'check', module: mkey, scenario: s, phase, week, title: `Check: ${m.title}`, why: `Pass with ${Math.round(PASS * 100)}% to complete the module.`, minutes: 10, mandatory: focusItem });
   };
 
@@ -229,6 +237,7 @@ export function buildPlan(u, ctx) {
   // Phase 4: Prove it
   const lead = focus[0];
   add({ key: 'mock', kind: 'one_to_one', phase: 4, week: 11, title: `Mock client call with Jack${lead ? `: ${short(lead)}` : ''}`, why: 'Jack plays the client. You set up the scenario, answer the hard questions and say when you would hand over.', owner: 'jack', minutes: 30, mandatory: true });
+  add({ key: 'survey', kind: 'survey', phase: 4, week: 12, title: 'Tell us how the programme worked for you', why: 'Ten questions. Your answers shape the next round of the Academy.', minutes: 5 });
   add({ key: 'retest', kind: 'milestone', phase: 4, week: 12, title: 'Retest: the January knowledge test', why: 'Same format as October, so your progress is measured like for like.', owner: 'jack', minutes: 45, mandatory: true });
 
   const skip = new Set(Array.isArray(ov.skip) ? ov.skip : []);
@@ -301,18 +310,22 @@ export function liveState(u, planRow, ctx) {
   const attempts = ctx.attempts.get(u.id) || [], prog = new Map((ctx.progress.get(u.id) || []).map((p) => [p.item_key, p]));
   const inputs = ctx.inputs.get(u.id) || [];
   const start = planRow.started_on ? new Date(planRow.started_on) : null;
-  const passed = (mk, itemKey) => attempts.some((a) => a.module_key === mk && a.correct / a.total >= PASS && (!itemKey || a.item_key === itemKey));
+  const passed = (mk, itemKey) => attempts.some((a) => a.module_key === mk && (a.kind || 'check') === 'check' && a.correct / a.total >= PASS && (!itemKey || a.item_key === itemKey));
+  const subs = ctx.subs?.get(u.id) || [];
   const latestLive = ctx.latestRound(u.id, 'live');
   const items = data.items.map((it) => {
     let done = false, how = null;
     if (it.kind === 'check') done = passed(it.module);
     else if (it.kind === 'review') done = passed(it.module, it.key);
     else if (it.kind === 'baseline') done = attempts.some((a) => a.module_key === 'baseline');
+    else if (it.kind === 'scenario') done = attempts.some((a) => a.module_key === it.module && a.kind === 'scenario');
+    else if (it.kind === 'explain') { const sb = subs.filter((x) => x.module_key === it.module); done = sb.length > 0; how = sb.some((x) => x.status === 'reviewed') ? 'Reviewed by Jack' : sb.length ? 'Waiting for Jack\'s review' : null; }
+    else if (it.kind === 'survey') done = !!ctx.surveys?.has(u.id);
     else if (it.kind === 'one_to_one') { const inp = inputs.find((i) => i.item_key === it.key); done = !!inp || prog.has(it.key); how = inp ? `Logged by Jack on ${new Date(inp.happened_on).toISOString().slice(0, 10)}` : null; }
     else if (it.kind === 'milestone') done = !!(latestLive && data.baseline_round && latestLive.id !== data.baseline_round) || prog.has(it.key);
     else done = prog.has(it.key);
     const p = prog.get(it.key);
-    const best = ['check', 'review'].includes(it.kind) ? attempts.filter((a) => a.module_key === it.module && (it.kind === 'check' || a.item_key === it.key)).reduce((m, a) => Math.max(m, round((a.correct / a.total) * 100)), -1) : -1;
+    const best = ['check', 'review'].includes(it.kind) ? attempts.filter((a) => a.module_key === it.module && (a.kind || 'check') === 'check' && (it.kind === 'check' || a.item_key === it.key)).reduce((m, a) => Math.max(m, round((a.correct / a.total) * 100)), -1) : -1;
     return { ...it, done, how, note: p?.note || null, signed_off: !!p?.signed_off_at, best: best >= 0 ? best : null };
   });
   const week = start ? clamp(Math.floor((Date.now() - start.getTime()) / (7 * 864e5)) + 1, 1, WEEKS) : 1;

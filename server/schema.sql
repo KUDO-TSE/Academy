@@ -167,3 +167,44 @@ CREATE TABLE IF NOT EXISTS inputs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS inputs_user ON inputs (user_id, happened_on);
+
+-- ---- Assessment v3: mixed formats, certainty, walkthroughs, explain-it, feedback
+ALTER TABLE quiz_attempts ALTER COLUMN correct TYPE NUMERIC;
+ALTER TABLE quiz_attempts ADD COLUMN IF NOT EXISTS knowledge NUMERIC;
+ALTER TABLE quiz_attempts ADD COLUMN IF NOT EXISTS cbm NUMERIC;
+ALTER TABLE quiz_attempts ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'check';
+
+CREATE TABLE IF NOT EXISTS module_feedback (
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  module_key TEXT NOT NULL,
+  clear INT NOT NULL CHECK (clear BETWEEN 1 AND 5),
+  relevant INT NOT NULL CHECK (relevant BETWEEN 1 AND 5),
+  confidence INT NOT NULL CHECK (confidence BETWEEN 1 AND 5),
+  comment TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, module_key)
+);
+
+CREATE TABLE IF NOT EXISTS survey_responses (
+  user_id INT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  answers JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS submissions (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  module_key TEXT NOT NULL,
+  text_answer TEXT,
+  audio BYTEA,
+  audio_mime TEXT,
+  audio_seconds INT,
+  self_points JSONB NOT NULL DEFAULT '[]',
+  status TEXT NOT NULL DEFAULT 'submitted' CHECK (status IN ('submitted','reviewed')),
+  rubric JSONB,
+  review_comment TEXT,
+  reviewer_id INT REFERENCES users(id) ON DELETE SET NULL,
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS submissions_user ON submissions (user_id, module_key);

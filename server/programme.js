@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { q, audit } from './db.js';
 import { SCENARIOS, SCENARIO_KEYS } from './scenarios.js';
 import { MODULES, MODULE_BY_KEY, MODULE_FOR_SCENARIO, DEPTH, SOURCE_DECISIONS, ACADEMY_FOLDER } from './curriculum.js';
+import { POOLS, draw, drawMixed, publicItem, grade, walk, walkthroughIntro, itemById } from './assess.js';
+import { EXPLAIN, RUBRIC, SURVEY, WALKTHROUGHS } from './curriculum-extra.js';
 import { loadContext, refreshPlan, refreshAll, approvePlan, diffPlans, liveState, buildPlan, getSettings, PASS, PHASES } from './engine.js';
 
 const bad = (res, msg) => res.status(400).json({ error: msg });
@@ -9,8 +11,8 @@ const SELF_TICK = ['lesson', 'practice', 'missed', 'teach'];
 const moduleMeta = () => MODULES.map(({ key, title, scenario, track, depth, minutes, delivery, summary }) => ({ key, title, scenario, track, depth, minutes, delivery, summary }));
 
 // Baseline check: the first question of every scenario module.
-export const BASELINE = MODULES.filter((m) => m.scenario).map((m) => ({ ...m.quiz[0], module: m.key, scenario: m.scenario }));
-const publicQuiz = (qs) => qs.map((x, i) => ({ i, q: x.q, o: x.o, scenario: x.scenario || null, scenarioShort: SCENARIOS.find((s) => s.key === x.scenario)?.short || null }));
+export const BASELINE = MODULES.filter((m) => m.scenario).map((m) => POOLS[m.key][0]);
+const BASELINE_IDS = new Set(BASELINE.map((x) => x.id));
 
 async function plansOf(userId) {
   const r = await q("SELECT id,version,status,data,signature,created_at,approved_at,started_on FROM plans WHERE user_id=$1 AND status IN ('draft','approved') ORDER BY version DESC", [userId]);
@@ -38,30 +40,150 @@ meProgramme.get('/programme', async (req, res, next) => { try { res.json(await p
 
 meProgramme.get('/modules/:key', async (req, res, next) => {
   try {
-    const key = req.params.key;
-    if (key === 'baseline') return res.json({ key, title: 'Baseline check', summary: 'One question per scenario. It replaces estimates with real answers so your plan is aimed at the right gaps.', quiz: publicQuiz(BASELINE), attempts: (await q("SELECT correct,total,created_at FROM quiz_attempts WHERE user_id=$1 AND module_key='baseline' ORDER BY created_at DESC", [req.user.id])).rows });
+    const key = req.params.key, uid = req.user.id;
+    if (key === 'baseline') return res.json({ key, title: 'Baseline check', summary: 'One question per scenario. It replaces estimates with real answers so your plan is aimed at the right gaps.', check: BASELINE.map(publicItem), attempts: (await q("SELECT correct::float AS correct,total,created_at FROM quiz_attempts WHERE user_id=$1 AND module_key='baseline' ORDER BY created_at DESC", [uid])).rows });
     const m = MODULE_BY_KEY[key]; if (!m) return res.status(404).json({ error: 'Not found.' });
-    const { quiz, ...rest } = m;
-    const at = await q('SELECT correct,total,item_key,created_at FROM quiz_attempts WHERE user_id=$1 AND module_key=$2 ORDER BY created_at DESC', [req.user.id, key]);
-    const prog = await q('SELECT item_key,note,completed_at,signed_off_at FROM plan_progress WHERE user_id=$1 AND item_key LIKE $2', [req.user.id, `${key}.%`]);
-    res.json({ ...rest, quiz: publicQuiz(quiz), pass: PASS, attempts: at.rows, progress: prog.rows, scenarioLabel: SCENARIOS.find((s) => s.key === m.scenario)?.label || null, related: (m.related || []).map((s) => SCENARIOS.find((x) => x.key === s)?.short || s) });
+    const { quiz, ...rest } = m; void quiz;
+    const [at, prog, fb, subs] = await Promise.all([
+      q("SELECT correct::float AS correct,total,knowledge::float AS knowledge,kind,item_key,created_at FROM quiz_attempts WHERE user_id=$1 AND module_key=$2 ORDER BY created_at DESC", [uid, key]),
+      q('SELECT item_key,note,completed_at,signed_off_at FROM plan_progress WHERE user_id=$1 AND item_key LIKE $2', [uid, `${key}.%`]),
+      q('SELECT 1 FROM module_feedback WHERE user_id=$1 AND module_key=$2', [uid, key]),
+      q('SELECT id,status,rubric,review_comment,text_answer,audio_seconds,(audio IS NOT NULL) AS has_audio,self_points,created_at,reviewed_at FROM submissions WHERE user_id=$1 AND module_key=$2 ORDER BY created_at DESC', [uid, key]),
+    ]);
+    res.json({
+      ...rest, check: draw(key).map(publicItem), poolSize: POOLS[key].length, pass: PASS,
+      attempts: at.rows.filter((a) => a.kind === 'check'), walkAttempts: at.rows.filter((a) => a.kind === 'scenario'),
+      progress: prog.rows, feedbackGiven: fb.rowCount > 0,
+      walkthrough: walkthroughIntro(key), explain: EXPLAIN[key] ? { prompt: EXPLAIN[key].prompt, points: subs.rowCount ? EXPLAIN[key].points : null } : null, submissions: subs.rows, rubric: RUBRIC,
+      scenarioLabel: SCENARIOS.find((s) => s.key === m.scenario)?.label || null, related: (m.related || []).map((s) => SCENARIOS.find((x) => x.key === s)?.short || s),
+    });
   } catch (e) { next(e); }
 });
+
+function validAnswers(body, allowed) {
+  const ans = body?.answers;
+  if (!Array.isArray(ans) || ans.length < 1 || ans.length > 15) return null;
+  const ids = new Set();
+  for (const a of ans) { if (typeof a?.id !== 'string' || ids.has(a.id) || !itemById(a.id) || !allowed(itemById(a.id))) return null; ids.add(a.id); }
+  return ans;
+}
+const compact = (g) => JSON.stringify(g.results.map((r) => ({ id: r.id, score: r.score, knowledge: r.knowledge, conf: r.conf ?? null, scenario: r.scenario || null })));
 
 meProgramme.post('/modules/:key/attempt', async (req, res, next) => {
   try {
     const key = req.params.key;
-    const qs = key === 'baseline' ? BASELINE : MODULE_BY_KEY[key]?.quiz;
-    if (!qs) return res.status(404).json({ error: 'Not found.' });
-    const ans = req.body?.answers;
-    if (!Array.isArray(ans) || ans.length !== qs.length || ans.some((a) => !Number.isInteger(a) || a < 0 || a > 5)) return bad(res, 'Answer every question first.');
+    if (key !== 'baseline' && !MODULE_BY_KEY[key]) return res.status(404).json({ error: 'Not found.' });
+    const allowed = key === 'baseline' ? (x) => BASELINE_IDS.has(x.id) : (x) => x.module === key;
+    const ans = validAnswers(req.body, allowed);
+    if (!ans || (key === 'baseline' && ans.length !== BASELINE.length) || (key !== 'baseline' && ans.length < Math.min(3, POOLS[key].length))) return bad(res, 'Answer every question first.');
+    const g = grade(ans, allowed);
+    if (g.error) return bad(res, g.error);
     const itemKey = typeof req.body?.item_key === 'string' && /^[a-z0-9.]{1,40}$/.test(req.body.item_key) ? req.body.item_key : null;
-    const results = qs.map((x, i) => ({ i, choice: ans[i], ok: ans[i] === x.a, a: x.a, why: x.why, scenario: x.scenario || MODULE_BY_KEY[key]?.scenario || null }));
-    const correct = results.filter((r) => r.ok).length;
-    await q('INSERT INTO quiz_attempts (user_id,module_key,item_key,correct,total,answers) VALUES ($1,$2,$3,$4,$5,$6)', [req.user.id, key, itemKey, correct, qs.length, JSON.stringify(results.map(({ i, choice, ok, scenario }) => ({ i, choice, ok, scenario })))]);
-    await audit(req, 'check.attempt', key, `${correct}/${qs.length}`);
+    await q("INSERT INTO quiz_attempts (user_id,module_key,item_key,correct,total,knowledge,cbm,kind,answers) VALUES ($1,$2,$3,$4,$5,$6,$7,'check',$8)", [req.user.id, key, itemKey, g.correct, g.total, g.knowledge, g.cbm, compact(g)]);
+    await audit(req, 'check.attempt', key, `${g.correct}/${g.total}`);
     const status = await refreshPlan(req.user.id);
-    res.json({ correct, total: qs.length, passed: key === 'baseline' || correct / qs.length >= PASS, results, planChanged: status === 'draft' });
+    res.json({ ...g, passed: key === 'baseline' || g.correct / g.total >= PASS, planChanged: status === 'draft' });
+  } catch (e) { next(e); }
+});
+
+meProgramme.post('/modules/:key/walk', async (req, res, next) => {
+  try {
+    const key = req.params.key;
+    const r = walk(key, req.body?.path);
+    if (r.error) return bad(res, r.error);
+    if (r.end) {
+      await q("INSERT INTO quiz_attempts (user_id,module_key,item_key,correct,total,kind,answers) VALUES ($1,$2,$3,$4,$5,'scenario',$6)", [req.user.id, key, `${key}.scenario`, r.score, r.max, JSON.stringify(req.body.path)]);
+      await audit(req, 'walkthrough', key, `${r.score}/${r.max}`);
+    }
+    res.json(r);
+  } catch (e) { next(e); }
+});
+
+meProgramme.post('/modules/:key/feedback', async (req, res, next) => {
+  try {
+    const key = req.params.key; if (!MODULE_BY_KEY[key]) return res.status(404).json({ error: 'Not found.' });
+    const n = (v) => (Number.isInteger(v) && v >= 1 && v <= 5 ? v : null);
+    const b = req.body || {}; const clear = n(b.clear), relevant = n(b.relevant), confidence = n(b.confidence);
+    if (!clear || !relevant || !confidence) return bad(res, 'Rate all three, from 1 to 5.');
+    await q(`INSERT INTO module_feedback (user_id,module_key,clear,relevant,confidence,comment) VALUES ($1,$2,$3,$4,$5,$6)
+             ON CONFLICT (user_id,module_key) DO UPDATE SET clear=$3,relevant=$4,confidence=$5,comment=$6,created_at=now()`, [req.user.id, key, clear, relevant, confidence, b.comment ? String(b.comment).slice(0, 2000) : null]);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+const AUDIO_MIME = /^audio\/(webm|ogg|mp4|mpeg|wav|x-m4a)(;.*)?$/;
+meProgramme.post('/explain/:key', async (req, res, next) => {
+  try {
+    const key = req.params.key; if (!EXPLAIN[key]) return res.status(404).json({ error: 'Not found.' });
+    const b = req.body || {};
+    const text = b.text ? String(b.text).slice(0, 8000) : null;
+    let audio = null, mime = null;
+    if (b.audio) {
+      if (typeof b.audio !== 'string' || !AUDIO_MIME.test(String(b.mime || ''))) return bad(res, 'That recording format is not supported.');
+      audio = Buffer.from(b.audio, 'base64'); mime = String(b.mime).split(';')[0];
+      if (audio.length > 6 * 1024 * 1024) return bad(res, 'The recording is too long. Keep it under 3 minutes.');
+    }
+    if (!audio && (!text || text.trim().length < 40)) return bad(res, 'Record your explanation, or write at least a few sentences.');
+    const secs = Number.isFinite(Number(b.seconds)) ? Math.min(600, Math.round(Number(b.seconds))) : null;
+    const r = await q('INSERT INTO submissions (user_id,module_key,text_answer,audio,audio_mime,audio_seconds) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id', [req.user.id, key, text, audio, mime, secs]);
+    await audit(req, 'explain.submit', key, audio ? 'audio' : 'text');
+    res.json({ id: r.rows[0].id, points: EXPLAIN[key].points });
+  } catch (e) { next(e); }
+});
+meProgramme.patch('/explain/:id/points', async (req, res, next) => {
+  try {
+    const pts = Array.isArray(req.body?.points) ? req.body.points.filter((x) => Number.isInteger(x) && x >= 0 && x < 20) : [];
+    const r = await q('UPDATE submissions SET self_points=$3 WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.user.id, JSON.stringify(pts)]);
+    if (!r.rowCount) return res.status(404).json({ error: 'Not found.' });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+meProgramme.get('/survey', async (req, res, next) => {
+  try { const r = await q('SELECT answers FROM survey_responses WHERE user_id=$1', [req.user.id]); res.json({ questions: SURVEY, done: r.rowCount > 0 }); } catch (e) { next(e); }
+});
+meProgramme.post('/survey', async (req, res, next) => {
+  try {
+    const a = req.body?.answers || {}; const out = {};
+    for (const x of SURVEY) {
+      const v = a[x.key];
+      if (x.type === 'scale5') { if (!(Number.isInteger(v) && v >= 1 && v <= 5)) return bad(res, 'Answer every rating question.'); out[x.key] = v; }
+      else if (x.type === 'nps') { if (!(Number.isInteger(v) && v >= 0 && v <= 10)) return bad(res, 'Give a score from 0 to 10.'); out[x.key] = v; }
+      else if (x.type === 'choice') { if (!x.o.includes(v)) return bad(res, 'Pick one answer for each choice question.'); out[x.key] = v; }
+      else out[x.key] = v ? String(v).slice(0, 2000) : '';
+    }
+    await q('INSERT INTO survey_responses (user_id,answers) VALUES ($1,$2) ON CONFLICT (user_id) DO UPDATE SET answers=$2, created_at=now()', [req.user.id, out]);
+    await audit(req, 'survey.submit', null);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+// Weekly challenge: four questions mixed from modules the trainee has already started. Interleaved retrieval; it does not change levels.
+async function challengeState(uid) {
+  const r = await q("SELECT created_at FROM quiz_attempts WHERE user_id=$1 AND kind='challenge' ORDER BY created_at DESC", [uid]);
+  const wk = (d) => { const x = new Date(d); const day = (x.getUTCDay() + 6) % 7; x.setUTCHours(0, 0, 0, 0); x.setUTCDate(x.getUTCDate() - day); return x.getTime(); };
+  const weeks = [...new Set(r.rows.map((x) => wk(x.created_at)))].sort((a, b) => b - a);
+  const thisWeek = wk(new Date());
+  let streak = 0; let cursor = weeks[0] === thisWeek ? thisWeek : thisWeek - 7 * 864e5;
+  for (const w of weeks) { if (w === cursor) { streak++; cursor -= 7 * 864e5; } else if (w < cursor) break; }
+  return { doneThisWeek: weeks[0] === thisWeek, streak, total: r.rowCount };
+}
+meProgramme.get('/challenge', async (req, res, next) => {
+  try {
+    const uid = req.user.id;
+    const touched = await q("SELECT DISTINCT split_part(item_key,'.',1) AS k FROM plan_progress WHERE user_id=$1 UNION SELECT DISTINCT module_key FROM quiz_attempts WHERE user_id=$1 AND kind IN ('check','scenario')", [uid]);
+    let keys = touched.rows.map((r) => r.k).filter((k) => POOLS[k]);
+    if (keys.length < 2) keys = ['foundations', 'platform', 'ai', 'teams'];
+    res.json({ ...(await challengeState(uid)), items: drawMixed(keys, 4).map(publicItem) });
+  } catch (e) { next(e); }
+});
+meProgramme.post('/challenge', async (req, res, next) => {
+  try {
+    const ans = validAnswers(req.body, () => true);
+    if (!ans || ans.length !== 4) return bad(res, 'Answer all four questions.');
+    const g = grade(ans);
+    await q("INSERT INTO quiz_attempts (user_id,module_key,correct,total,knowledge,cbm,kind,answers) VALUES ($1,'challenge',$2,$3,$4,$5,'challenge',$6)", [req.user.id, g.correct, g.total, g.knowledge, g.cbm, compact(g)]);
+    res.json({ ...g, ...(await challengeState(req.user.id)) });
   } catch (e) { next(e); }
 });
 
@@ -160,7 +282,7 @@ adminProgramme.post('/programme/approve-all', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-adminProgramme.get('/curriculum', (_req, res) => res.json({ modules: MODULES, decisions: SOURCE_DECISIONS, depth: DEPTH, folder: ACADEMY_FOLDER, baseline: BASELINE.length }));
+adminProgramme.get('/curriculum', (_req, res) => res.json({ modules: MODULES.map((m) => ({ ...m, pool: POOLS[m.key], walkthroughFull: WALKTHROUGHS[m.key] || null, explainFull: EXPLAIN[m.key] || null })), rubric: RUBRIC, decisions: SOURCE_DECISIONS, depth: DEPTH, folder: ACADEMY_FOLDER, baseline: BASELINE.length }));
 
 adminProgramme.get('/trainees/:id/programme', async (req, res, next) => {
   try {
@@ -259,6 +381,70 @@ adminProgramme.delete('/inputs/:id', async (req, res, next) => {
     await audit(req, 'input.delete', req.params.id);
     await refreshPlan(r.rows[0].user_id);
     res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+// ------------------------------------------------------------------ admin: explain-it reviews and feedback
+adminProgramme.get('/reviews', async (_req, res, next) => {
+  try {
+    const r = await q(`SELECT s.id,s.user_id,u.name,s.module_key,s.text_answer,s.audio_seconds,(s.audio IS NOT NULL) AS has_audio,s.self_points,s.status,s.rubric,s.review_comment,s.created_at,s.reviewed_at
+                         FROM submissions s JOIN users u ON u.id=s.user_id ORDER BY (s.status='submitted') DESC, s.created_at DESC LIMIT 100`);
+    res.json({ rubric: RUBRIC, items: r.rows.map((x) => ({ ...x, module: MODULE_BY_KEY[x.module_key]?.title || x.module_key, prompt: EXPLAIN[x.module_key]?.prompt, points: EXPLAIN[x.module_key]?.points || [] })) });
+  } catch (e) { next(e); }
+});
+adminProgramme.get('/submissions/:id/audio', async (req, res, next) => {
+  try {
+    const r = await q('SELECT audio,audio_mime FROM submissions WHERE id=$1 AND audio IS NOT NULL', [Number(req.params.id)]);
+    if (!r.rowCount) return res.status(404).json({ error: 'Not found.' });
+    res.setHeader('Content-Type', r.rows[0].audio_mime || 'audio/webm'); res.setHeader('Cache-Control', 'private, no-store');
+    res.send(r.rows[0].audio);
+  } catch (e) { next(e); }
+});
+adminProgramme.post('/submissions/:id/review', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id); const rb = req.body?.rubric || {};
+    const scores = {}; for (const c of RUBRIC) { const v = rb[c.key]; if (![1, 2, 3].includes(v)) return bad(res, 'Score every criterion from 1 to 3.'); scores[c.key] = v; }
+    const comment = req.body?.comment ? String(req.body.comment).slice(0, 2000) : null;
+    const r = await q("UPDATE submissions SET status='reviewed', rubric=$2, review_comment=$3, reviewer_id=$4, reviewed_at=now() WHERE id=$1 RETURNING user_id,module_key", [id, scores, comment, req.user.id]);
+    if (!r.rowCount) return res.status(404).json({ error: 'Not found.' });
+    const { user_id: uid, module_key: mk } = r.rows[0];
+    const avg = Object.values(scores).reduce((a, b) => a + b, 0) / RUBRIC.length;
+    const rating = avg >= 2.5 ? 'solid' : avg >= 1.75 ? 'developing' : 'gap';
+    const scenario = MODULE_BY_KEY[mk]?.scenario || MODULE_BY_KEY[mk]?.related?.[0] || null;
+    await q(`INSERT INTO inputs (user_id,author_id,kind,title,signals,shared_summary) VALUES ($1,$2,'recording',$3,$4,$5)`,
+      [uid, req.user.id, `Explain-it review: ${MODULE_BY_KEY[mk]?.title || mk}`, JSON.stringify(scenario ? [{ scenario, rating }] : []), comment]);
+    await audit(req, 'explain.review', String(id), `${avg.toFixed(2)} ${rating}`);
+    const status = await refreshPlan(uid);
+    res.json({ ok: true, rating, planChanged: status === 'draft' });
+  } catch (e) { next(e); }
+});
+
+adminProgramme.get('/feedback', async (_req, res, next) => {
+  try {
+    const [mods, comments, surveys, attempts] = await Promise.all([
+      q('SELECT module_key, count(*)::int n, avg(clear)::float clear, avg(relevant)::float relevant, avg(confidence)::float confidence FROM module_feedback GROUP BY module_key'),
+      q('SELECT module_key, comment, created_at FROM module_feedback WHERE comment IS NOT NULL AND comment <> \'\' ORDER BY created_at DESC LIMIT 200'),
+      q('SELECT answers, created_at FROM survey_responses ORDER BY created_at DESC'),
+      q("SELECT module_key, answers FROM quiz_attempts WHERE kind='check' AND module_key <> 'baseline'"),
+    ]);
+    // Item analysis: which questions are missed most, and which are answered wrongly with high certainty (a sign of a misconception).
+    const items = new Map();
+    for (const a of attempts.rows) for (const x of a.answers || []) {
+      if (!x.id) continue;
+      const it = items.get(x.id) || { id: x.id, n: 0, score: 0, confWrong: 0 };
+      it.n++; it.score += Number(x.score ?? (x.ok ? 1 : 0)); if (x.conf === 3 && Number(x.score) === 0) it.confWrong++;
+      items.set(x.id, it);
+    }
+    const hardest = [...items.values()].filter((x) => x.n >= 2).map((x) => ({ ...x, rate: Math.round((x.score / x.n) * 100), q: itemById(x.id)?.q, module: itemById(x.id)?.module })).sort((a, b) => a.rate - b.rate).slice(0, 15);
+    const sv = surveys.rows.map((r) => r.answers);
+    const nps = sv.length ? Math.round(((sv.filter((a) => a.nps >= 9).length - sv.filter((a) => a.nps <= 6).length) / sv.length) * 100) : null;
+    const avgOf = (k) => (sv.length ? sv.reduce((t, a) => t + (a[k] || 0), 0) / sv.length : null);
+    res.json({
+      modules: MODULES.map((m) => ({ key: m.key, title: m.title, ...(mods.rows.find((r) => r.module_key === m.key) || { n: 0 }) })),
+      comments: comments.rows.map((c) => ({ ...c, module: MODULE_BY_KEY[c.module_key]?.title || c.module_key })),
+      survey: { n: sv.length, nps, averages: Object.fromEntries(SURVEY.filter((x) => x.type === 'scale5').map((x) => [x.q, avgOf(x.key)])), applied: SURVEY.find((x) => x.key === 'applied').o.map((o) => ({ o, n: sv.filter((a) => a.applied === o).length })), texts: SURVEY.filter((x) => x.type === 'text').map((x) => ({ q: x.q, answers: sv.map((a) => a[x.key]).filter(Boolean) })) },
+      hardest,
+    });
   } catch (e) { next(e); }
 });
 

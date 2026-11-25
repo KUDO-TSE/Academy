@@ -3,13 +3,14 @@ import { resultsView, progressView } from './views-trainee.js';
 import * as A from './views-admin.js';
 import * as P from './views-admin-programme.js';
 import { programmeView, moduleRoute, missedView } from './views-programme.js';
+import { surveyView } from './assess-ui.js';
 
 const root = document.getElementById('app');
 let me = null;
 
 const NAV_TRAINEE = [['programme', 'My programme', 'plan'], ['results', 'My results', 'chart'], ['progress', 'My progress', 'trend']];
 const NAV_ME = [['me-programme', 'My programme', 'plan'], ['me-results', 'My results', 'chart'], ['me-progress', 'My progress', 'trend']];
-const NAV_ADMIN = [['overview', 'Overview', 'home'], ['team', 'Team', 'team'], ['priorities', 'Priorities', 'flag'], ['programme', 'Programme', 'plan'], ['curriculum', 'Curriculum', 'info'], ['SEP', 'Admin'], ['imports', 'Imports', 'upload'], ['users', 'Users & access', 'key'], ['audit', 'Activity log', 'log'], ['logic', 'Logic notes', 'info']];
+const NAV_ADMIN = [['overview', 'Overview', 'home'], ['team', 'Team', 'team'], ['priorities', 'Priorities', 'flag'], ['programme', 'Programme', 'plan'], ['reviews', 'Reviews', 'flag'], ['feedback', 'Feedback', 'chart'], ['curriculum', 'Curriculum', 'info'], ['SEP', 'Admin'], ['imports', 'Imports', 'upload'], ['users', 'Users & access', 'key'], ['audit', 'Activity log', 'log'], ['logic', 'Logic notes', 'info']];
 
 async function boot() {
   try { me = (await api('GET', '/api/auth/me')).user; } catch { me = null; }
@@ -73,7 +74,7 @@ async function logout() { try { await api('POST', '/api/auth/logout'); } catch {
 
 // ------------------------------------------------------------ Shell
 function shell() {
-  const nav = me.role === 'admin' ? [...NAV_ADMIN.slice(0, 5), ...(me.isTrainee ? [['SEP', 'My Academy'], ...NAV_ME] : []), ...NAV_ADMIN.slice(5)] : NAV_TRAINEE;
+  const nav = me.role === 'admin' ? [...NAV_ADMIN.slice(0, 7), ...(me.isTrainee ? [['SEP', 'My Academy'], ...NAV_ME] : []), ...NAV_ADMIN.slice(7)] : NAV_TRAINEE;
   const list = h('ul', { class: 'nav' }, nav.map(([k, l, ic]) => k === 'SEP' ? h('li', { class: 'sep' }, l) : h('li', null, h('a', { href: `#${k}`, 'data-r': k }, icon(ic), l))));
   const menu = h('div', { class: 'menu', role: 'menu', hidden: true }, h('button', { role: 'menuitem', on: { click: () => { menu.hidden = true; changePasswordModal(); } } }, 'Change password'), h('button', { class: 'out', role: 'menuitem', on: { click: logout } }, 'Log out'));
   const acct = h('div', { class: 'acct' }, menu, h('button', { class: 'acct-btn', 'aria-haspopup': 'menu', on: { click: (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; } } }, h('span', { class: 'avatar' }, initials(me.name)), h('span', { class: 'acct-meta' }, h('div', { class: 'acct-name' }, me.name), h('div', { class: 'acct-role' }, me.role === 'admin' ? 'Admin' : 'Trainee'))));
@@ -83,8 +84,8 @@ function shell() {
 
 // ------------------------------------------------------------ Router
 const TRAINEE_ROUTES = { programme: null, results: resultsView, progress: progressView };
-const ADMIN_ROUTES = { overview: A.overviewView, team: A.teamView, priorities: A.prioritiesView, programme: P.programmeOverview, curriculum: () => P.curriculumView(), imports: A.importView, users: A.usersView, audit: A.auditView, logic: A.logicView };
-const isTraineeDyn = (r) => r.startsWith('module-') || r === 'missed';
+const ADMIN_ROUTES = { overview: A.overviewView, team: A.teamView, priorities: A.prioritiesView, programme: P.programmeOverview, reviews: P.reviewsView, feedback: P.feedbackView, curriculum: () => P.curriculumView(), imports: A.importView, users: A.usersView, audit: A.auditView, logic: A.logicView };
+const isTraineeDyn = (r) => r.startsWith('module-') || r === 'missed' || r === 'survey';
 const isAdminDyn = (r) => r.startsWith('person-') || r.startsWith('preview') || r.startsWith('pview-') || r.startsWith('curriculum-');
 
 async function route() {
@@ -117,6 +118,7 @@ async function route() {
       const rerender = () => route();
       if (r === 'programme') view = programmeView(prog);
       else if (r === 'missed') view = await missedView({ rerender, planItems: items });
+      else if (r === 'survey') view = await surveyView();
       else view = await moduleRoute(r.slice(7), { planItems: items, rerender });
     } else {
       const data = await api('GET', '/api/me');

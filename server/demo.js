@@ -14,6 +14,8 @@ const LIVE_RATE = { teams: 0.34, zoom: 0.75, onsite: 0.6, hybrid: 0.25, platform
 export async function ensureDemo() {
   const email = String(process.env.DEMO_TRAINEE_EMAIL || '').trim().toLowerCase();
   if (!email) return;
+  const ex = await q('SELECT id FROM users WHERE lower(email)=$1 AND is_demo', [email]);
+  if (ex.rowCount) { await refreshPlan(ex.rows[0].id); await approvePlan(ex.rows[0].id, null); return; } // keep the demo on the latest plan
   if ((await q('SELECT 1 FROM users WHERE lower(email)=$1', [email])).rowCount) return;
   let pw; try { pw = initialPassword(); } catch { console.warn('INITIAL_PASSWORD not set: demo trainee not created.'); return; }
   const u = await q(`INSERT INTO users (email,name,role,region,team,weight,demand_scenario,struggle_scenarios,struggle_text,profile,password_hash,must_change_password,is_demo)
@@ -46,7 +48,7 @@ export async function ensureDemo() {
   await q("INSERT INTO plan_progress (user_id,item_key,status,completed_at) VALUES ($1,'foundations.lesson','done',now() - interval '8 days'), ($1,'foundations.practice','done',now() - interval '7 days'), ($1,'teams.lesson','done',now() - interval '1 day') ON CONFLICT DO NOTHING", [id]);
   const f = MODULE_BY_KEY.foundations.quiz;
   await q("INSERT INTO quiz_attempts (user_id,module_key,correct,total,answers,created_at) VALUES ($1,'foundations',$2,$3,$4,now() - interval '7 days')",
-    [id, f.length, f.length, JSON.stringify(f.map((x, i) => ({ i, choice: x.a, ok: true, scenario: null })))]);
+    [id, f.length, f.length, JSON.stringify(f.map((x, i) => ({ id: `foundations.${i}`, score: 1, knowledge: 1, scenario: null })))]);
   await refreshPlan(id);
   await approvePlan(id, null);
   console.log(`Demo trainee created: ${email}`);

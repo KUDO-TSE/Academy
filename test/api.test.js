@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { createApp } from '../server/index.js';
 import { pool, q } from '../server/db.js';
 import * as imp from '../server/importers.js';
+import { itemById, POOLS } from '../server/assess.js';
 
 process.env.INITIAL_PASSWORD ||= 'Generic-Pass-1!';
 process.env.ADMIN_EMAILS ||= 'boss@test.local';
@@ -165,10 +166,32 @@ test('programme: built automatically, approved by an admin, graded on the server
   assert.ok(p.json.state.items.some((i) => i.kind === 'baseline'), 'no per-scenario test, so a baseline check is planned');
   // Quiz answers never reach the browser before an attempt, and grading happens on the server.
   const mod = await ann('GET', '/api/me/modules/teams');
-  assert.equal(mod.status, 200); assert.equal(mod.json.quiz[0].a, undefined); assert.equal(mod.json.quiz[0].why, undefined);
-  assert.equal((await ann('POST', '/api/me/modules/teams/attempt', { answers: [1] })).status, 400);
-  const at = await ann('POST', '/api/me/modules/teams/attempt', { answers: [1, 2, 1, 1, 1] });
-  assert.equal(at.json.correct, 5); assert.equal(at.json.passed, true); assert.equal(at.json.planChanged, false, 'own checks do not reshuffle the plan');
+  assert.equal(mod.status, 200);
+  const items = mod.json.check;
+  assert.ok(items.length >= 5 && items.some((x) => x.t !== 'mcq'), 'a mixed draw');
+  assert.ok(items.every((x) => x.a === undefined && x.why === undefined && x.pairs === undefined), 'no answers sent before an attempt');
+  assert.equal((await ann('POST', '/api/me/modules/teams/attempt', { answers: [{ id: 'zoom.0', v: 1, c: 3 }] })).status, 400, 'questions from another module are refused');
+  const right = (x) => { const it = itemById(x.id); return { id: x.id, c: 3, v: it.t === 'mcq' ? it.a : it.t === 'multi' ? it.a : it.t === 'match' ? it.pairs.map((p) => p[1]) : it.steps }; };
+  const at = await ann('POST', '/api/me/modules/teams/attempt', { answers: items.map(right) });
+  assert.equal(at.json.correct, items.length); assert.equal(at.json.passed, true); assert.equal(at.json.planChanged, false, 'own checks do not reshuffle the plan');
+  // Guessing does not pay: ticking every box in a "pick all that fit" question scores less than the right picks.
+  const multi = Object.values(POOLS).flat().find((x) => x.t === 'multi' && x.module === 'teams');
+  const g = await ann('POST', '/api/me/modules/teams/attempt', { answers: [{ id: multi.id, v: multi.o.map((_, i) => i) }, ...items.filter((x) => x.id !== multi.id).slice(0, 3).map(right)] });
+  assert.ok(g.json.results.find((r) => r.id === multi.id).score < 1);
+  // A certain wrong single answer is flagged and counts zero.
+  const mcq = Object.values(POOLS).flat().find((x) => x.t === 'mcq' && x.module === 'teams');
+  const w = await ann('POST', '/api/me/modules/teams/attempt', { answers: [{ id: mcq.id, v: (mcq.a + 1) % mcq.o.length, c: 3 }, ...items.filter((x) => x.id !== mcq.id).slice(0, 3).map(right)] });
+  assert.equal(w.json.confidentWrong, 1);
+  // Walkthrough, explain-it, feedback and the survey.
+  const walk = await ann('POST', '/api/me/modules/teams/walk', { path: [0, 0, 0, 0] });
+  assert.equal(walk.json.end, true); assert.equal(walk.json.score, walk.json.max);
+  assert.equal((await ann('POST', '/api/me/modules/teams/walk', { path: [9] })).status, 400);
+  assert.equal((await ann('POST', '/api/me/explain/teams', { text: 'short' })).status, 400);
+  const ex = await ann('POST', '/api/me/explain/teams', { text: 'IT approves the KUDO app in the Teams admin center and reviews the external bot policy, starting now.' });
+  assert.equal(ex.status, 200); assert.ok(ex.json.points.length > 2);
+  assert.equal((await ann('POST', '/api/me/modules/teams/feedback', { clear: 5, relevant: 4, confidence: 9 })).status, 400);
+  assert.equal((await ann('POST', '/api/me/modules/teams/feedback', { clear: 5, relevant: 4, confidence: 3, comment: 'Good' })).status, 200);
+  const ch = await ann('GET', '/api/me/challenge'); assert.equal(ch.json.items.length, 4);
   // Trainees can tick lessons but not sessions with Jack.
   assert.equal((await ann('POST', '/api/me/items/kickoff/done', {})).status, 400);
   const lesson = p.json.state.items.find((i) => i.kind === 'lesson');
@@ -183,6 +206,13 @@ test('programme: built automatically, approved by an admin, graded on the server
   const detail = await adm('GET', `/api/admin/trainees/${annId}/programme`);
   if (inp.json.planChanged) assert.ok(detail.json.draft, 'changed structure waits as a draft');
   assert.equal((await adm('POST', '/api/admin/inputs/suggest', { text: 'Zoom came up. Not sure about the Zoom encryption. Confused by the Zoom waiting room.' })).json.signals[0].rating, 'gap');
+  const rv = await adm('GET', '/api/admin/reviews'); const sub = rv.json.items.find((x) => x.name === 'Ann One');
+  assert.ok(sub);
+  assert.equal((await adm('POST', `/api/admin/submissions/${sub.id}/review`, { rubric: { accurate: 3, complete: 3, clear: 2 } })).status, 400, 'every criterion is needed');
+  const rr = await adm('POST', `/api/admin/submissions/${sub.id}/review`, { rubric: { accurate: 3, complete: 3, clear: 3, handover: 2 }, comment: 'Clear and complete' });
+  assert.equal(rr.json.rating, 'solid');
+  assert.equal((await ann('GET', '/api/admin/reviews')).status, 403);
+  const fbk = await adm('GET', '/api/admin/feedback'); assert.equal(fbk.json.modules.find((m) => m.key === 'teams').n, 1);
   // Admin-only routes stay closed to trainees.
   assert.equal((await ann('POST', `/api/admin/trainees/${annId}/programme/approve`)).status, 403);
   assert.equal((await ann('GET', `/api/admin/trainees/${annId}/programme`)).status, 403);

@@ -170,3 +170,53 @@ export async function curriculumView(key) {
     h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Videos and the Guide'), h('p', null, 'Video and Guide links in the lessons open the ', h('a', { href: CUR.folder, target: '_blank', rel: 'noopener noreferrer' }, 'Academy SharePoint folder'), '.')));
 }
 void dateOnly; void modal;
+
+// ------------------------------------------------------------------ explain-it reviews
+export async function reviewsView() {
+  const d = await api('GET', '/api/admin/reviews');
+  const pending = d.items.filter((x) => x.status === 'submitted'), done = d.items.filter((x) => x.status === 'reviewed');
+  const card = (x) => {
+    const sel = Object.fromEntries(d.rubric.map((c) => [c.key, h('select', { 'aria-label': c.label }, h('option', { value: '' }, '–'), [1, 2, 3].map((n) => h('option', { value: n, selected: x.rubric?.[c.key] === n }, `${n} · ${['Not yet', 'Partly', 'Fully'][n - 1]}`)))]));
+    const comment = h('textarea', { rows: 2, placeholder: 'Feedback the trainee will see' }, x.review_comment || '');
+    return h('div', { class: 'card', style: 'margin-bottom:14px' },
+      h('div', { class: 'row spread' }, h('div', null, h('h2', null, x.name), h('div', { class: 'muted small' }, `${x.module} · sent ${fmtDate(x.created_at)}`)), h('span', { class: `chip ${x.status === 'reviewed' ? 'green' : 'amber'}` }, x.status === 'reviewed' ? 'Reviewed' : 'To review')),
+      h('div', { class: 'explain-prompt' }, x.prompt),
+      x.has_audio ? h('audio', { controls: true, preload: 'none', src: `/api/admin/submissions/${x.id}/audio`, style: 'width:100%;margin:8px 0' }) : null,
+      x.text_answer ? h('div', { class: 'pre' }, x.text_answer) : null,
+      h('div', { class: 'small', style: 'margin-top:8px' }, h('b', null, 'Key points (✓ = trainee says they covered it): '), h('ul', { style: 'list-style:none;padding-left:4px;margin:4px 0' }, x.points.map((p, i) => h('li', null, (x.self_points || []).includes(i) ? '✓ ' : '○ ', p)))),
+      h('div', { class: 'grid g4' }, d.rubric.map((c) => h('label', { class: 'f' }, h('span', { class: 'l' }, c.label), sel[c.key], h('div', { class: 'hint' }, c.hint)))),
+      comment,
+      h('button', { class: 'btn primary', style: 'margin-top:8px', on: { click: async () => {
+        const rubric = Object.fromEntries(Object.entries(sel).map(([k, s]) => [k, Number(s.value)]));
+        try { const r = await api('POST', `/api/admin/submissions/${x.id}/review`, { rubric, comment: comment.value.trim() || null }); toast(`Saved: counts as ${r.rating}${r.planChanged ? '. The plan changed: approve it on the Programme tab.' : '.'}`); location.reload(); } catch (e) { toast(e.message, true); }
+      } } }, x.status === 'reviewed' ? 'Update review' : 'Save review'));
+  };
+  return h('div', { class: 'page' },
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Explain-it reviews'), h('p', null, 'Trainees record or write how they would explain a scenario to a client. Score four criteria from 1 to 3: the average becomes a Gap, Developing or Solid rating on their level.'))),
+    pending.length ? pending.map(card) : h('div', { class: 'card empty' }, h('b', null, 'Nothing to review'), 'New recordings appear here.'),
+    done.length ? h('h2', { class: 'sec-h' }, 'Reviewed') : null, done.slice(0, 20).map(card));
+}
+
+// ------------------------------------------------------------------ feedback and item analysis
+export async function feedbackView() {
+  const d = await api('GET', '/api/admin/feedback');
+  const f1 = (v) => (v == null ? '–' : v.toFixed(1));
+  const low = (v) => v != null && v < 3.5;
+  return h('div', { class: 'page' },
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Feedback'), h('p', null, 'What trainees say about each module, what they answer at the end, and which questions they miss most. Comments are shown without names.'))),
+    h('div', { class: 'grid g3' },
+      h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Recommendation score (NPS)'), h('div', { class: 'value' }, d.survey.nps ?? '–'), h('div', { class: 'note' }, `${d.survey.n} end-of-programme answers`)),
+      h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Module ratings'), h('div', { class: 'value' }, d.modules.reduce((a, m) => a + m.n, 0)), h('div', { class: 'note' }, 'After each module')),
+      h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Questions analysed'), h('div', { class: 'value' }, d.hardest.length), h('div', { class: 'note' }, 'Answered at least twice'))),
+    h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'By module'), h('p', { class: 'sub' }, 'Average from 1 to 5. Below 3.5 is highlighted.'),
+      h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Module', 'Answers', 'Clear', 'Relevant', 'Confident'].map((x, i) => h('th', { class: i ? 'num' : '' }, x)))),
+        h('tbody', null, d.modules.map((m) => h('tr', null, h('td', null, m.title), h('td', { class: 'num' }, m.n), ...['clear', 'relevant', 'confidence'].map((k) => h('td', { class: 'num' }, h('span', { class: low(m[k]) ? 'chip coral' : '' }, f1(m[k])))))))))),
+    h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Questions missed most'), h('p', { class: 'sub' }, 'Low success points to unclear content or a misconception. "Certain but wrong" is the strongest misconception signal.'),
+      d.hardest.length ? h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Question', 'Module', 'Answered', 'Success', 'Certain but wrong'].map((x, i) => h('th', { class: i > 1 ? 'num' : '' }, x)))),
+        h('tbody', null, d.hardest.map((x) => h('tr', null, h('td', null, x.q), h('td', null, x.module), h('td', { class: 'num' }, x.n), h('td', { class: 'num' }, `${x.rate}%`), h('td', { class: 'num' }, x.confWrong || '')))))) : h('div', { class: 'muted' }, 'Appears once questions have been answered at least twice.')),
+    h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Comments on modules'), d.comments.length ? d.comments.map((c) => h('div', { class: 'note-box' }, h('b', null, c.module), h('div', null, c.comment), h('div', { class: 'when' }, fmtDate(c.created_at)))) : h('div', { class: 'muted' }, 'No comments yet.')),
+    h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'End-of-programme survey'), d.survey.n ? h('div', null,
+      Object.entries(d.survey.averages).map(([q, v]) => h('div', { class: 'row spread', style: 'padding:6px 0;border-top:1px solid var(--border-soft)' }, h('span', null, q), h('b', null, f1(v)))),
+      h('h3', { style: 'margin-top:12px' }, 'Used it with a client yet?'), d.survey.applied.map((a) => h('div', { class: 'row spread' }, h('span', null, a.o), h('b', null, a.n))),
+      d.survey.texts.map((t) => h('div', { style: 'margin-top:12px' }, h('h3', null, t.q), t.answers.length ? t.answers.map((a) => h('div', { class: 'note-box' }, a)) : h('div', { class: 'muted' }, 'No answers.')))) : h('div', { class: 'muted' }, 'Opens in week 12 of each plan.')))
+}

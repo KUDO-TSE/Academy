@@ -31,6 +31,7 @@ export async function createApp() {
         styleSrc: ["'self'", 'https://fonts.googleapis.com', "'unsafe-inline'"],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         imgSrc: ["'self'", 'data:'],
+        mediaSrc: ["'self'", 'blob:'],
         scriptSrc: ["'self'"],
         connectSrc: ["'self'"],
         frameAncestors: ["'none'"],
@@ -39,7 +40,9 @@ export async function createApp() {
     },
     hsts: prod,
   }));
-  app.use(express.json({ limit: '2.5mb' }));
+  // Explain-it recordings arrive as base64 audio; everything else stays small.
+  const bigJson = express.json({ limit: '9mb' }), smallJson = express.json({ limit: '2.5mb' });
+  app.use((req, res, next) => (req.path.startsWith('/api/me/explain/') ? bigJson : smallJson)(req, res, next));
 
   const PgStore = connectPgSimple(session);
   app.use(session({
