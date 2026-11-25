@@ -284,3 +284,12 @@ CREATE TABLE IF NOT EXISTS field_notes (
   published_at TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS field_notes_module ON field_notes (module_key, status);
+
+-- ---- Collectibles (v6): cards trainees earn at milestones. Never taken back.
+CREATE TABLE IF NOT EXISTS collectibles (
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  key TEXT NOT NULL,
+  earned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  seen_at TIMESTAMPTZ,
+  PRIMARY KEY (user_id, key)
+);

@@ -6,13 +6,14 @@ import { programmeView, moduleRoute, missedView } from './views-programme.js';
 import { surveyView } from './assess-ui.js';
 import { boardView } from './views-board.js';
 import { sessionsView, sessionView } from './views-sessions.js';
+import { collectionView, revealNew } from './collectibles.js';
 import { startTour, tourFor } from './tour.js';
 
 const root = document.getElementById('app');
 let me = null;
 
-const NAV_TRAINEE = [['programme', 'My programme', 'plan'], ['results', 'My results', 'chart'], ['progress', 'My progress', 'trend']];
-const NAV_ME = [['me-programme', 'My programme', 'plan'], ['me-results', 'My results', 'chart'], ['me-progress', 'My progress', 'trend']];
+const NAV_TRAINEE = [['programme', 'My programme', 'plan'], ['collection', 'My collection', 'star'], ['results', 'My results', 'chart'], ['progress', 'My progress', 'trend']];
+const NAV_ME = [['me-programme', 'My programme', 'plan'], ['me-collection', 'My collection', 'star'], ['me-results', 'My results', 'chart'], ['me-progress', 'My progress', 'trend']];
 const NAV_ADMIN = [['board', 'My board', 'flag'], ['overview', 'Overview', 'home'], ['team', 'Team', 'team'], ['priorities', 'Priorities', 'flag'], ['programme', 'Programme', 'plan'], ['reviews', 'Reviews', 'flag'], ['sessions', 'Sessions', 'upload'], ['feedback', 'Feedback', 'chart'], ['curriculum', 'Curriculum', 'info'], ['try', 'Try as a trainee', 'user'], ['SEP', 'Admin'], ['imports', 'Imports', 'upload'], ['users', 'Users & access', 'key'], ['audit', 'Activity log', 'log'], ['logic', 'Logic notes', 'info']];
 
 async function boot() {
@@ -101,7 +102,7 @@ function shell() {
 }
 
 // ------------------------------------------------------------ Router
-const TRAINEE_ROUTES = { programme: null, results: resultsView, progress: progressView };
+const TRAINEE_ROUTES = { programme: null, collection: null, results: resultsView, progress: progressView };
 const ADMIN_ROUTES = { try: () => P.tryView(me), board: boardView, overview: A.overviewView, team: A.teamView, priorities: A.prioritiesView, programme: P.programmeOverview, reviews: P.reviewsView, sessions: sessionsView, feedback: P.feedbackView, curriculum: () => P.curriculumView(), imports: A.importView, users: A.usersView, audit: A.auditView, logic: A.logicView };
 const isTraineeDyn = (r) => r.startsWith('module-') || r === 'missed' || r === 'survey';
 const isAdminDyn = (r) => r.startsWith('session-') || r.startsWith('person-') || r.startsWith('preview') || r.startsWith('pview-') || r.startsWith('curriculum-');
@@ -131,6 +132,8 @@ async function route() {
       else if (r.startsWith('preview')) view = A.previewView(r.split('-')[1]);
       else if (r.startsWith('curriculum-')) view = await P.curriculumView(r.slice(11));
       else view = await ADMIN_ROUTES[r]();
+    } else if (r === 'collection') {
+      view = await collectionView();
     } else if (r === 'programme' || isTraineeDyn(r)) {
       const prog = await api('GET', '/api/me/programme');
       const items = prog.state?.items || [];
@@ -145,6 +148,7 @@ async function route() {
     }
     main.replaceChildren(view);
     main.scrollTop = 0;
+    if ((!isAdmin || meMode) && r !== 'collection') revealNew();
   } catch (e) {
     if (e.status === 401) { me = null; return render(); }
     if (e.code === 'MUST_CHANGE') { me.mustChange = true; return render(); }

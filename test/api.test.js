@@ -463,3 +463,20 @@ test('a role changed by hand sticks, even if the email is still in ADMIN_EMAILS'
   const u = (await q('SELECT role,role_locked FROM users WHERE id=$1', [id])).rows[0];
   assert.equal(u.role, 'trainee'); assert.equal(u.role_locked, true);
 });
+
+test('collectibles: earned at milestones, never taken back, revealed once', async () => {
+  const d = client(); await d('POST', '/api/auth/login', { email: 'dana@test.local', password: 'Quiet-valley-pass-73' });
+  const id = (await q("SELECT id FROM users WHERE email='dana@test.local'")).rows[0].id;
+  const c1 = await d('GET', '/api/me/collectibles'); assert.equal(c1.status, 200);
+  assert.ok(c1.json.total >= 25 && c1.json.cards.every((c) => c.earn && c.title));
+  const has = (r, k) => r.json.cards.find((c) => c.key === k).earned;
+  assert.ok(has(c1, 'first-step'), 'Dana has taken checks: first step');
+  assert.ok(c1.json.cards.filter((c) => c.isNew).length >= 1, 'new cards are flagged for the reveal');
+  assert.equal((await d('POST', '/api/me/collectibles/seen')).status, 200);
+  assert.equal((await d('GET', '/api/me/collectibles')).json.cards.filter((c) => c.isNew).length, 0, 'revealed once');
+  // Never taken back: even if the data behind a card disappears, the card stays.
+  await q("INSERT INTO collectibles (user_id,key) VALUES ($1,'best-calls') ON CONFLICT DO NOTHING", [id]);
+  await q("DELETE FROM quiz_attempts WHERE user_id=$1 AND kind='scenario'", [id]);
+  assert.ok(has(await d('GET', '/api/me/collectibles'), 'best-calls'));
+  const anon = client(); assert.equal((await anon('GET', '/api/me/collectibles')).status, 401);
+});

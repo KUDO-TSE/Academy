@@ -407,3 +407,29 @@ select.sm{padding:4px 8px;font-size:12.5px;max-width:240px}
 .faq details{border-top:1px solid var(--border-soft);padding:8px 0}
 .faq summary{cursor:pointer;font-weight:600}
 .faq p{margin:6px 0 0}
+/* Collectibles */
+.coll-head{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.coll-count b{font-size:34px;font-weight:800;color:var(--primary-600)}
+.coll-count span{color:var(--ink-500)}
+.coll-set{margin-top:22px}
+.coll-set h2{margin-bottom:2px}
+.coll-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:16px;margin-top:10px}
+.coll-card{display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px;border-radius:16px;background:#fff;box-shadow:var(--shadow-1);transition:transform .2s ease}
+.coll-card.earned:hover,.coll-card.earned:focus{transform:translateY(-4px) rotate(-1deg)}
+.coll-card.locked{background:var(--bg-panel)}
+.coll-card.locked svg{opacity:.8}
+.coll-meta{text-align:center;max-width:168px;line-height:1.35}
+.coll-strip{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.coll-mini{display:flex;gap:8px}
+.coll-mini svg{filter:drop-shadow(0 3px 6px rgba(17,55,79,.2))}
+.overlay.reveal .modal{max-width:420px;text-align:center;overflow:hidden;position:relative}
+.reveal-k{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--coral);margin-bottom:10px}
+.flip{perspective:900px;width:200px;height:268px;margin:0 auto 10px}
+.flip-in{position:relative;width:100%;height:100%;transition:transform .9s cubic-bezier(.2,.8,.2,1);transform-style:preserve-3d}
+.flip.on .flip-in{transform:rotateY(180deg)}
+.flip-back,.flip-front{position:absolute;inset:0;backface-visibility:hidden}
+.flip-front{transform:rotateY(180deg)}
+.confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.confetti i{position:absolute;top:-12px;width:8px;height:12px;border-radius:2px;animation:fall 1.8s ease-in forwards;opacity:.9}
+@keyframes fall{to{top:110%;transform:translateX(20px) rotate(540deg)}}
+@media (prefers-reduced-motion:reduce){.flip-in{transition:none}.confetti{display:none}.coll-card{transition:none}}

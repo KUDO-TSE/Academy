@@ -1,0 +1,129 @@
+// Collectibles: the trainee's card collection, the card art (original, drawn in code) and the reveal when a new
+// card is earned. Cards reward real milestones; locked cards show exactly how to earn them.
+import { h, api, svg } from './ui.js';
+
+const SET = { Journey: ['#11374F', '#1B5C84'], Scenarios: ['#1B5C84', '#48A1D8'], Craft: ['#B8492A', '#DB6539'], Habit: ['#B8860B', '#F8C63F'] };
+const TIER = { bronze: ['#C07A45', 'Bronze'], silver: ['#B9C4CB', 'Silver'], gold: ['#F2C94C', 'Gold'] };
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// Simple line glyphs on a 24 by 24 grid (white strokes). Generic symbols only: no product or company logos.
+const G = {
+  flag: '<path d="M6 21V4M6 4h11l-2.5 4L17 12H6"/>',
+  spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/>',
+  build: '<rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/><rect x="8.5" y="5" width="7" height="7" rx="1"/>',
+  broaden: '<circle cx="12" cy="12" r="2.5"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.5 5.5l3 3M15.5 15.5l3 3M5.5 18.5l3-3M15.5 8.5l3-3"/>',
+  trophy: '<path d="M8 4h8v5a4 4 0 01-8 0V4zM8 6H5a3 3 0 003 4M16 6h3a3 3 0 01-3 4M12 13v4M8.5 20h7M10 17h4"/>',
+  handshake: '<path d="M3 11l4-4 4 3 3-2 7 4M7 7l-3 6 5 5 2-1 2 2 3-1 3-4M11 14l2 2M13 12l2 2"/>',
+  cap: '<path d="M2.5 9.5L12 5l9.5 4.5L12 14 2.5 9.5zM6.5 11.5V16c1.5 1.5 3.5 2 5.5 2s4-.5 5.5-2v-4.5M21 9.5v5"/>',
+  step: '<path d="M8 14c-2 0-3-2-3-5s1-5 3-5 3 2 3 5-1 5-3 5zM6.5 17h3M16 20c-2 0-3-2-3-5s1-5 3-5 3 2 3 5-1 5-3 5z"/>',
+  compass: '<circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21M8.5 21h7"/>',
+  target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.6"/>',
+  loop: '<path d="M4 12a8 8 0 0113.7-5.6M20 12a8 8 0 01-13.7 5.6M17.7 3v3.4h-3.4M6.3 21v-3.4h3.4"/>',
+  people: '<circle cx="8.5" cy="8" r="3"/><circle cx="16.5" cy="9" r="2.5"/><path d="M3 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5M14 14.5c3 0 6 1.5 6 4.5"/>',
+  bulb: '<path d="M9 17h6M10 20h4M12 3a6 6 0 00-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0012 3z"/>',
+  cal3: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/><text x="12" y="18" font-size="7" font-weight="800" fill="#fff" stroke="none" text-anchor="middle">3</text>',
+  cal6: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/><text x="12" y="18" font-size="7" font-weight="800" fill="#fff" stroke="none" text-anchor="middle">6</text>',
+  cal10: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/><text x="12" y="18" font-size="6.5" font-weight="800" fill="#fff" stroke="none" text-anchor="middle">10</text>',
+  'sc-teams': '<path d="M4 5h11v8H9l-3 3v-3H4zM15 9h5v7h-1.5v2.5L16 16h-4v-3"/>',
+  'sc-onsite': '<rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"/>',
+  'sc-zoom': '<rect x="3" y="7" width="12" height="10" rx="2"/><path d="M15 11l6-3.5v9L15 13"/>',
+  'sc-hybrid': '<path d="M6 4v16M12 4v16M18 4v16"/><rect x="4" y="13" width="4" height="3" rx="1"/><rect x="10" y="7" width="4" height="3" rx="1"/><rect x="16" y="11" width="4" height="3" rx="1"/>',
+  'sc-platform': '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M7 9h5M7 12h8"/>',
+  'sc-widget': '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8h18"/><rect x="13" y="11" width="5" height="6" rx="1"/><path d="M6 12h4M6 15h4"/>',
+  'sc-external': '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.5 3.5 5.5 3.5 8.5s-1 6-3.5 8.5M12 3.5C9.5 6 8.5 9 8.5 12s1 6 3.5 8.5"/>',
+  'sc-meetnow': '<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3M10 7.5h4M10 10.5h4"/>',
+  'sc-rtmp': '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9l5 3-5 3z"/>',
+  'sc-hls': '<circle cx="12" cy="13" r="1.8"/><path d="M8.5 9.5a5 5 0 000 7M15.5 9.5a5 5 0 010 7M5.5 6.5a9 9 0 000 13M18.5 6.5a9 9 0 010 13"/>',
+  'sc-hi': '<path d="M4 15v-3a8 8 0 0116 0v3"/><rect x="3" y="14" width="4.5" height="6" rx="1.5"/><rect x="16.5" y="14" width="4.5" height="6" rx="1.5"/>',
+  'sc-ai': '<path d="M10 3l1.6 4.4L16 9l-4.4 1.6L10 15l-1.6-4.4L4 9l4.4-1.6zM17.5 13l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z"/>',
+};
+
+/** One card as SVG. Earned cards are in colour; locked cards are grey, with a lock. */
+export function cardArt(c, { earned = c.earned, size = 168 } = {}) {
+  const [c1, c2] = earned ? SET[c.set] : ['#9CAAB3', '#C8D1D6'];
+  const [ring] = earned ? TIER[c.tier] : ['#DEE3E6'];
+  const id = `g${c.key.replace(/[^a-z0-9]/gi, '')}${earned ? 'e' : 'l'}`;
+  const title = c.title.length > 20 ? `${c.title.slice(0, 19)}…` : c.title;
+  const sparkle = earned && c.tier === 'gold' ? '<path d="M128 26l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="#fff" opacity=".9"/><path d="M30 56l1.4 3.6 3.6 1.4-3.6 1.4-1.4 3.6-1.4-3.6-3.6-1.4 3.6-1.4z" fill="#fff" opacity=".7"/>' : '';
+  return svg(`<svg viewBox="0 0 160 214" width="${size}" height="${Math.round(size * 214 / 160)}" role="img" aria-label="${esc(c.title)}${earned ? '' : ' (locked)'}">
+    <defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs>
+    <rect x="3" y="3" width="154" height="208" rx="16" fill="url(#${id})" stroke="${ring}" stroke-width="5"/>
+    <rect x="12" y="12" width="136" height="190" rx="11" fill="none" stroke="#fff" stroke-opacity=".22"/>
+    <text x="20" y="32" font-size="10" font-weight="800" fill="#fff" fill-opacity=".85" letter-spacing="1.2">${esc(c.set.toUpperCase())}</text>
+    <circle cx="80" cy="92" r="40" fill="#fff" fill-opacity="${earned ? 0.16 : 0.25}" stroke="${ring}" stroke-width="3"/>
+    <g transform="translate(56 68) scale(2)" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity="${earned ? 1 : 0.55}">${G[c.glyph] || G.spark}</g>
+    ${earned ? '' : '<g transform="translate(104 116)"><circle r="13" fill="#5E6A72"/><rect x="-6" y="-2" width="12" height="9" rx="2" fill="#fff"/><path d="M-3.5 -2v-3a3.5 3.5 0 017 0v3" fill="none" stroke="#fff" stroke-width="2"/></g>'}
+    <text x="80" y="160" font-size="15" font-weight="800" fill="#fff" text-anchor="middle">${esc(title)}</text>
+    <rect x="52" y="174" width="56" height="18" rx="9" fill="${ring}"/><text x="80" y="186.5" font-size="9.5" font-weight="800" fill="${earned && c.tier !== 'silver' ? '#231F20' : '#231F20'}" text-anchor="middle">${earned ? TIER[c.tier][1].toUpperCase() : 'LOCKED'}</text>
+    ${sparkle}
+  </svg>`);
+}
+
+const fmt = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** The "My collection" page. */
+export async function collectionView() {
+  const d = await api('GET', '/api/me/collectibles');
+  const sets = ['Journey', 'Scenarios', 'Craft', 'Habit'];
+  const intro = { Journey: 'Milestones of your 12 weeks.', Scenarios: 'One card per client scenario, earned when you reach your target level on it.', Craft: 'Work done well: decisions, explanations, honest judgement.', Habit: 'Weeks you showed up. They never need to be in a row.' };
+  const pct = Math.round((d.earned / d.total) * 100);
+  const page = h('div', { class: 'page' },
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My collection'), h('p', null, 'Cards you earn at real milestones of your programme. They are yours to keep: none can be lost, and nobody else sees your collection.'))),
+    h('div', { class: 'card coll-head' }, h('div', { class: 'coll-count' }, h('b', null, d.earned), h('span', null, ` of ${d.total} collected`)), h('div', { class: 'ph-bar', style: 'flex:1' }, h('i', { style: `width:${pct}%` })),
+      h('div', { class: 'muted small' }, `${d.cards.filter((c) => c.set === 'Scenarios' && c.earned).length} of 12 scenario cards`)),
+    sets.map((s) => h('section', { class: 'coll-set' }, h('h2', null, s), h('p', { class: 'sub' }, intro[s]),
+      h('div', { class: 'coll-grid' }, d.cards.filter((c) => c.set === s).map((c) => h('div', { class: `coll-card ${c.earned ? 'earned' : 'locked'}`, tabindex: 0 },
+        cardArt(c), h('div', { class: 'coll-meta' }, c.earned ? h('span', { class: 'muted small' }, `Earned ${fmt(c.earned_at)}`) : h('span', { class: 'small' }, h('b', null, 'How to earn: '), c.earn))))))));
+  if (d.cards.some((c) => c.isNew)) api('POST', '/api/me/collectibles/seen').catch(() => {});
+  return page;
+}
+
+/** A small strip for the programme page: progress and the latest cards. */
+export function collectionStrip() {
+  const box = h('div');
+  (async () => {
+    const d = await api('GET', '/api/me/collectibles');
+    const latest = d.cards.filter((c) => c.earned).sort((a, b) => new Date(b.earned_at) - new Date(a.earned_at)).slice(0, 4);
+    const next = d.cards.filter((c) => !c.earned && c.set !== 'Habit').slice(0, 1)[0];
+    box.replaceChildren(h('div', { class: 'card coll-strip' },
+      h('div', null, h('h2', null, 'Your collection'), h('p', { class: 'sub', style: 'margin:2px 0 8px' }, `${d.earned} of ${d.total} cards collected.${next ? ` Next up: ${next.title} (${next.earn.replace(/\.$/, '').toLowerCase()}).` : ''}`),
+        h('a', { class: 'btn sm', href: '#collection' }, 'See all cards')),
+      h('div', { class: 'coll-mini' }, latest.map((c) => cardArt(c, { size: 84 })))));
+  })().catch(() => {});
+  return box;
+}
+
+/** After each page: if a new card was earned, reveal it. */
+let revealing = false;
+export async function revealNew() {
+  if (revealing) return; revealing = true;
+  try {
+    const d = await api('GET', '/api/me/collectibles');
+    const fresh = d.cards.filter((c) => c.isNew);
+    if (!fresh.length) return;
+    await api('POST', '/api/me/collectibles/seen');
+    let i = 0;
+    const stage = h('div', { class: 'reveal-stage' });
+    const ov = h('div', { class: 'overlay reveal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'New card collected' }, h('div', { class: 'modal reveal-box' }, stage));
+    const close = () => { ov.remove(); window.removeEventListener('hashchange', close); };
+    window.addEventListener('hashchange', close);
+    const show = () => {
+      const c = fresh[i];
+      const flip = h('div', { class: 'flip' }, h('div', { class: 'flip-in' }, h('div', { class: 'flip-back' }, cardArt({ ...c, title: '?', glyph: 'spark' }, { earned: false, size: 200 })), h('div', { class: 'flip-front' }, cardArt(c, { earned: true, size: 200 }))));
+      stage.replaceChildren(
+        h('div', { class: 'reveal-k' }, fresh.length > 1 ? `New card ${i + 1} of ${fresh.length}` : 'New card collected'),
+        flip, confetti(),
+        h('h2', null, c.title), h('p', { class: 'muted' }, h('b', null, 'Earned for: '), c.earn),
+        h('div', { class: 'row', style: 'justify-content:center;gap:8px;margin-top:8px' },
+          i < fresh.length - 1 ? h('button', { class: 'btn primary', on: { click: () => { i++; show(); } } }, 'Next card') : h('button', { class: 'btn primary', on: { click: close } }, 'Keep going'),
+          h('a', { class: 'btn', href: '#collection', on: { click: close } }, 'My collection')));
+      requestAnimationFrame(() => setTimeout(() => flip.classList.add('on'), 120));
+    };
+    document.body.append(ov); show();
+  } catch { /* never block the page */ } finally { revealing = false; }
+}
+function confetti() {
+  const cols = ['#DB6539', '#F8C63F', '#48A1D8', '#2F7A45', '#1B5C84'];
+  return h('div', { class: 'confetti', 'aria-hidden': 'true' }, Array.from({ length: 26 }, (_, k) => h('i', { style: `left:${(k * 37) % 100}%;background:${cols[k % cols.length]};animation-delay:${(k % 7) * 0.06}s;transform:rotate(${k * 29}deg)` })));
+}

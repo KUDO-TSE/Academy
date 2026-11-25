@@ -14,6 +14,7 @@ import { ensureDemo } from './demo.js';
 import { boardRouter } from './board.js';
 import { warmUp, resumePending } from './autoreview.js';
 import { sessionsRouter, loadFieldItems, failInterrupted } from './sessions.js';
+import { collectiblesRouter } from './collectibles.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const prod = process.env.NODE_ENV === 'production';
@@ -145,6 +146,7 @@ export async function createApp() {
 
   app.use('/api/me', requireAuth, meRouter);
   app.use('/api/me', requireAuth, meProgramme);
+  app.use('/api/me', requireAuth, collectiblesRouter);
   app.use('/api/admin', requireAdmin, adminRouter);
   app.use('/api/admin', requireAdmin, adminProgramme);
   app.use('/api/admin', requireAdmin, boardRouter);

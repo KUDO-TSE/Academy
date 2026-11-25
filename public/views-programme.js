@@ -1,5 +1,6 @@
 import { h, api, toast, fmtDate, svg } from './ui.js';
 import { roadmap, trajectoryChart } from './charts.js';
+import { collectionStrip } from './collectibles.js';
 import { checkForm, resultView, walkthroughCard, explainCard, feedbackCard, challengeCard, spacedCard } from './assess-ui.js';
 
 // ------------------------------------------------------------------ shared bits
@@ -159,6 +160,7 @@ export function programmeView(data, { readOnly = false, banner = null } = {}) {
         plan.tip ? h('div', { class: 'tip' }, h('b', null, 'How you like to learn: '), plan.tip) : null,
         readOnly ? null : focusChoice())),
 
+    readOnly ? null : h('div', { style: 'margin-top:16px' }, collectionStrip()),
     readOnly ? null : h('div', { style: 'margin-top:16px' }, spacedCard()),
     readOnly ? null : h('div', { style: 'margin-top:16px' }, challengeCard()),
     h('div', { class: 'card levels-card', style: 'margin-top:16px' }, h('h2', null, 'Your level, scenario by scenario'), h('p', { class: 'sub' }, 'The light bar is where you started in October, the dark bar is where you are now, the line is your target. Targets depend on what your role needs: Set up 80%, Hand over 70%.'), levelBars(st.levels)),
