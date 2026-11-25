@@ -5,6 +5,7 @@ import * as P from './views-admin-programme.js';
 import { programmeView, moduleRoute, missedView } from './views-programme.js';
 import { surveyView } from './assess-ui.js';
 import { boardView } from './views-board.js';
+import { startTour, tourFor } from './tour.js';
 
 const root = document.getElementById('app');
 let me = null;
@@ -23,7 +24,19 @@ function render() {
   if (!me) return root.append(loginScreen());
   if (me.mustChange) return root.append(changePasswordScreen(true));
   root.append(shell());
-  route();
+  route().then(() => { if (!me.tourSeen) runTour(); });
+}
+
+// ------------------------------------------------------------ Guided tour
+function runTour() {
+  const start = location.hash.replace(/^#/, '');
+  startTour(tourFor(me), {
+    go: async (r) => { if (location.hash.replace(/^#/, '') !== r) { history.replaceState(null, '', `#${r}`); await route(); } },
+    onEnd: async () => {
+      if (!me.tourSeen) { me.tourSeen = true; try { await api('POST', '/api/auth/tour-seen'); } catch { /* shown again next time */ } }
+      if (location.hash.replace(/^#/, '') !== start) { history.replaceState(null, '', start ? `#${start}` : location.pathname); route(); }
+    },
+  });
 }
 
 // ------------------------------------------------------------ Login
@@ -76,7 +89,8 @@ async function logout() { try { await api('POST', '/api/auth/logout'); } catch {
 // ------------------------------------------------------------ Shell
 function shell() {
   const nav = me.role === 'admin' ? [...NAV_ADMIN.slice(0, 9), ...(me.isTrainee ? [['SEP', 'My Academy'], ...NAV_ME] : []), ...NAV_ADMIN.slice(9)] : NAV_TRAINEE;
-  const list = h('ul', { class: 'nav' }, nav.map(([k, l, ic]) => k === 'SEP' ? h('li', { class: 'sep' }, l) : h('li', null, h('a', { href: `#${k}`, 'data-r': k }, icon(ic), l))));
+  const list = h('ul', { class: 'nav' }, nav.map(([k, l, ic]) => k === 'SEP' ? h('li', { class: 'sep' }, l) : h('li', null, h('a', { href: `#${k}`, 'data-r': k }, icon(ic), l))),
+    h('li', { class: 'nav-tour' }, h('a', { href: '#', class: 'tour-link', on: { click: (e) => { e.preventDefault(); runTour(); } } }, icon('info'), 'Guided tour')));
   const menu = h('div', { class: 'menu', role: 'menu', hidden: true }, h('button', { role: 'menuitem', on: { click: () => { menu.hidden = true; changePasswordModal(); } } }, 'Change password'), h('button', { class: 'out', role: 'menuitem', on: { click: logout } }, 'Log out'));
   const acct = h('div', { class: 'acct' }, menu, h('button', { class: 'acct-btn', 'aria-haspopup': 'menu', on: { click: (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; } } }, h('span', { class: 'avatar' }, initials(me.name)), h('span', { class: 'acct-meta' }, h('div', { class: 'acct-name' }, me.name), h('div', { class: 'acct-role' }, me.role === 'admin' ? 'Admin' : 'Trainee'))));
   document.addEventListener('click', () => { menu.hidden = true; });

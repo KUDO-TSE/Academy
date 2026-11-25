@@ -147,3 +147,7 @@ A cycle starts with each knowledge test round (`rounds.kind = 'live'`): importin
 - **Videos in the page**: on the Curriculum page, paste each module's video link. A SharePoint embed link (Share, Embed, the link inside src) plays in the page; any other https link opens in a new tab. The CSP allows frames from *.sharepoint.com and youtube-nocookie.com only.
 - **Objectives** use observable verbs (no "Know ...").
 
+
+## Guided tour
+
+`public/tour.js`. Two scripts: trainees (12 steps: the programme page, a module, results) and admins (11 steps: one per menu area). It opens automatically the first time someone signs in (after the password change), with Skip at every step; Done or Skip both record `users.tour_seen_at`. "Guided tour" at the bottom of the menu replays it at any time. Admins acting as a test trainee see the trainee tour. Keyboard: arrows to move, Esc to close. A step whose element is missing shows as a centred card, so the tour never gets stuck.

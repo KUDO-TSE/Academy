@@ -65,7 +65,7 @@ export async function createApp() {
 
   const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: Number(process.env.LOGIN_RATE_LIMIT) || 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many attempts. Try again in a few minutes.' } });
 
-  const publicUser = (u, admin = null) => ({ id: u.id, name: u.name, email: u.email, role: u.role, region: u.region, team: u.team, isTrainee: u.role === 'trainee' || !!u.is_trainee, mustChange: !!u.must_change_password, actingAs: admin ? { adminName: admin.name } : null });
+  const publicUser = (u, admin = null) => ({ id: u.id, name: u.name, email: u.email, role: u.role, region: u.region, team: u.team, isTrainee: u.role === 'trainee' || !!u.is_trainee, mustChange: !!u.must_change_password, tourSeen: !!u.tour_seen_at, actingAs: admin ? { adminName: admin.name } : null });
 
   app.post('/api/auth/login', loginLimiter, async (req, res, next) => {
     try {
@@ -93,6 +93,15 @@ export async function createApp() {
   app.get('/api/auth/me', (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Not signed in.' });
     res.json({ user: publicUser(req.user, req.realAdmin) });
+  });
+
+  // Guided tour: shown once automatically (on first sign-in), then available from the menu. Done or skipped both count.
+  app.post('/api/auth/tour-seen', async (req, res, next) => {
+    try {
+      if (!req.user) return res.status(401).json({ error: 'Not signed in.' });
+      await q('UPDATE users SET tour_seen_at=COALESCE(tour_seen_at, now()) WHERE id=$1', [req.user.id]);
+      res.json({ ok: true });
+    } catch (e) { next(e); }
   });
 
   // Admins step into a test trainee to take the courses, then come back.

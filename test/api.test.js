@@ -72,10 +72,13 @@ test('first login forces a password change and blocks data until done', async ()
   const l = await c('POST', '/api/auth/login', { email: 'ann@test.local', password: GEN });
   assert.equal(l.status, 200); assert.equal(l.json.user.mustChange, true);
   assert.equal((await c('GET', '/api/me')).status, 403);
+  assert.equal(l.json.user.tourSeen, false, 'the guided tour shows on first sign-in');
   assert.equal((await c('POST', '/api/auth/change-password', { current: GEN, next: GEN })).status, 400);
   assert.equal((await c('POST', '/api/auth/change-password', { current: GEN, next: 'short1' })).status, 400);
   assert.equal((await c('POST', '/api/auth/change-password', { current: 'wrong', next: 'Brand-new-pass-77' })).status, 400);
   assert.equal((await c('POST', '/api/auth/change-password', { current: GEN, next: 'Brand-new-pass-77' })).status, 200);
+  assert.equal((await c('POST', '/api/auth/tour-seen')).status, 200);
+  assert.equal((await c('GET', '/api/auth/me')).json.user.tourSeen, true, 'and only once');
   const me = await c('GET', '/api/me');
   assert.equal(me.status, 200); assert.equal(me.json.user.email, 'ann@test.local');
   const c2 = client();

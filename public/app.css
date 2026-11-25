@@ -377,3 +377,23 @@ details.phase[open] > summary::after{content:'▾'}
 .k-tgt-line{width:18px;height:0;border-top:2px dashed var(--coral)}
 .ph-bar{height:6px;background:var(--border-soft);border-radius:3px;margin-top:6px;overflow:hidden}
 .ph-bar i{display:block;height:100%;background:var(--primary);border-radius:3px}
+/* Guided tour */
+.nav-tour{margin-top:8px;border-top:1px solid var(--border-soft);padding-top:8px}
+.tour-layer{position:fixed;inset:0;z-index:1000;pointer-events:none}
+.tour-shade{position:fixed;inset:0;background:rgba(17,55,79,.55);pointer-events:auto}
+.tour-spot{position:fixed;border-radius:12px;box-shadow:0 0 0 9999px rgba(17,55,79,.55),0 0 0 3px var(--coral);transition:all .25s ease;pointer-events:auto}
+.tour-pop{position:fixed;background:#fff;border-radius:16px;padding:18px 20px 16px;box-shadow:0 18px 48px rgba(17,55,79,.28);pointer-events:auto;transition:top .25s ease,left .25s ease;max-width:calc(100vw - 24px)}
+.tour-pop.center{top:50%;left:50%;transform:translate(-50%,-50%);width:min(520px,calc(100vw - 32px));padding:28px 30px 22px;border-top:6px solid var(--coral)}
+.tour-pop.center h3{font-size:22px}
+.tour-pop h3{margin:6px 0 6px;font-size:17px;color:var(--primary-600)}
+.tour-pop p{margin:0 0 12px;color:var(--ink-700);line-height:1.5;font-size:14px}
+.tour-head{display:flex;justify-content:space-between;align-items:center}
+.tour-count{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--coral)}
+.tour-skip{background:none;border:0;color:var(--ink-500);font-size:13px;cursor:pointer;padding:4px 0;text-decoration:underline}
+.tour-dots{display:flex;gap:5px;margin:0 0 12px}
+.tour-dots i{width:7px;height:7px;border-radius:50%;background:var(--border)}
+.tour-dots i.past{background:var(--primary-100);outline:1px solid var(--primary)}
+.tour-dots i.on{background:var(--coral);width:18px;border-radius:4px}
+.tour-actions{display:flex;justify-content:space-between;align-items:center}
+.tour-loading{color:var(--ink-400);padding:12px}
+@media (prefers-reduced-motion:reduce){.tour-spot,.tour-pop{transition:none}}
