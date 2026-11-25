@@ -119,3 +119,10 @@ Fictional trainees for the admin team to try the trainee side. Set `DEMO_TRAINEE
 Each starts with fictional October results and an approved plan two weeks in. They sign in with the generic password and must change it, so use one per tester.
 "Reset to start" deletes everything a test trainee did and recreates it with the generic password.
 Test trainees are excluded from team results, priorities, the team list, module feedback, item analysis and the board's schedule.
+
+## Practice reviewed automatically
+
+Every module has one practice task the system reviews on its own (`PRACTICE` in `server/curriculum-extra.js`): written (an email, a runsheet, a briefing),
+spoken (a recording), or a step-by-step account of what the trainee did in a test account. The same reviewer as explain-it checks the key points,
+clarity and hand-over. A result that is not a Gap signs the practice off automatically; a Gap asks the trainee to try again.
+Trainees can no longer tick practice by hand. Jack only spot-checks (flagged, gaps, requests, random share) on the Reviews page and board.

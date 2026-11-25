@@ -163,8 +163,11 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
         h('div', { class: 'card' }, h('div', { class: 'eyebrow dark' }, 'Step 1 · Learn'), h('h2', null, 'The lesson'),
           m.sections.map((s) => h('div', { class: 'les' }, h('h3', null, s.title), h('ul', null, s.points.map((p) => h('li', null, p))))),
           lessonItem ? markBtn(lessonItem, 'I have worked through the lesson') : null),
-        m.practice?.length ? h('div', { class: 'card' }, h('div', { class: 'eyebrow dark' }, 'Step 2 · Practise'), h('h2', null, 'Do it for real'), h('ol', { class: 'obj' }, m.practice.map((p) => h('li', null, p))),
-          practiceItem?.signoff ? h('p', { class: 'muted small' }, 'This practice is signed off by Jack.') : null, practiceItem ? markBtn(practiceItem, 'I have done the practice') : h('p', { class: 'muted small' }, 'Optional for you: not in your plan.')) : null),
+        (m.practiceTask || m.practiceFull) ? h('div', { class: 'card' }, h('div', { class: 'eyebrow dark' }, 'Step 2 · Practise'), h('h2', null, 'Do it for real'),
+          practiceItem?.done ? h('div', { class: 'ok', style: 'margin-bottom:8px' }, practiceItem.signed_off ? 'Practice passed and signed off.' : 'Practice done.') : !practiceItem && !admin ? h('p', { class: 'muted small' }, 'Optional for you: not in your plan.') : null,
+          admin ? h('div', null, h('div', { class: 'explain-prompt' }, m.practiceFull.prompt), h('div', { class: 'muted small' }, `Format: ${{ write: 'written', speak: 'spoken', steps: 'step-by-step account' }[m.practiceFull.type]}. Reviewed automatically.`), h('b', null, 'Key points'), h('ul', null, m.practiceFull.points.map((p) => h('li', null, p))))
+            : explainCard(m.key, m.practiceTask, m.practiceSubmissions || [], m.rubric || [], { onDone, kind: 'practice', type: m.practiceTask.type }),
+          m.practice?.length ? h('details', { style: 'margin-top:12px' }, h('summary', null, 'More ways to practise (optional)'), h('ol', { class: 'obj' }, m.practice.map((p) => h('li', null, p)))) : null) : null),
       h('div', { class: 'stack' },
         h('div', { class: 'card' }, h('h2', null, 'Go deeper'), h('p', { class: 'sub' }, 'Videos, the CM Onboarding Guide and the Help Center.'),
           m.learn.map((r) => h('a', { class: 'res', href: r.url, target: '_blank', rel: 'noopener noreferrer' }, h('span', { class: `chip ${r.type === 'video' ? 'coral' : r.type === 'guide' ? 'amber' : 'blue'}` }, { video: 'Video', guide: 'Guide', article: 'Help Center' }[r.type]), h('span', null, r.title, r.note ? h('span', { class: 'muted small' }, ` · ${r.note}`) : null)))),

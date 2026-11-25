@@ -240,6 +240,15 @@ test('explain-it recordings are reviewed automatically and spot-checks reach the
   for (let i = 0; i < 80; i++) { s = (await ann('GET', `/api/me/explain/result/${weak.json.id}`)).json; if (s.status !== 'processing') break; await new Promise((ok) => setTimeout(ok, 1500)); }
   assert.equal(s.auto.rating, 'gap'); assert.equal(s.needs_human, true, 'gaps go to Jack as spot-checks');
   assert.equal((await ann('POST', `/api/me/explain/${r.json.id}/ask-jack`)).status, 200);
+  // Practice: a good email is reviewed and signed off on its own; practice can no longer be ticked by hand.
+  const email = "Hello, before your first KUDO event in Teams, please approve the KUDO app in the Teams admin center and check the permission policy allows hosts to use third-party apps. Please also review the external bot policy: by default the bot waits in the lobby until someone admits it. Microsoft can take 24 hours or more, so please start today. Anyone who cannot use the app can follow on the Mobile Link in a browser.";
+  const pr = await ann('POST', '/api/me/explain/teams', { text: email, kind: 'practice' });
+  for (let i = 0; i < 80; i++) { s = (await ann('GET', `/api/me/explain/result/${pr.json.id}`)).json; if (s.status !== 'processing') break; await new Promise((ok) => setTimeout(ok, 1500)); }
+  assert.notEqual(s.auto.rating, 'gap', JSON.stringify(s.auto.points));
+  const caraId = (await q("SELECT id FROM users WHERE email='cara@test.local'")).rows[0].id;
+  const pp = (await q("SELECT signed_off_at FROM plan_progress WHERE user_id=$1 AND item_key='teams.practice'", [caraId])).rows[0];
+  assert.ok(pp?.signed_off_at, 'signed off automatically');
+  assert.equal((await ann('POST', '/api/me/items/teams.practice/done', {})).status === 200, false, 'no manual tick for practice');
   const adm = client(); await adm('POST', '/api/auth/login', { email: 'boss@test.local', password: 'Quiet-harbor-pass-55' });
   const board = (await adm('GET', '/api/admin/board')).json;
   assert.ok(board.tasks.some((t) => t.type === 'review' && /asked for your view/.test(t.detail)));

@@ -179,7 +179,7 @@ export async function reviewsView() {
     const sel = Object.fromEntries(d.rubric.map((c) => [c.key, h('select', { 'aria-label': c.label }, h('option', { value: '' }, '–'), [1, 2, 3].map((n) => h('option', { value: n, selected: (x.rubric || x.auto?.rubric)?.[c.key] === n }, `${n} · ${['Not yet', 'Partly', 'Fully'][n - 1]}`)))]));
     const comment = h('textarea', { rows: 2, placeholder: 'Feedback the trainee will see' }, x.review_comment || '');
     return h('div', { class: 'card', style: 'margin-bottom:14px' },
-      h('div', { class: 'row spread' }, h('div', null, h('h2', null, x.name), h('div', { class: 'muted small' }, `${x.module} · sent ${fmtDate(x.created_at)}`)), h('span', { class: `chip ${x.status === 'reviewed' ? 'green' : x.needs_human ? 'amber' : 'blue'}` }, x.status === 'reviewed' ? 'Reviewed by you' : x.status === 'auto' ? (x.needs_human ? 'Spot-check' : 'Auto-reviewed') : 'To review')),
+      h('div', { class: 'row spread' }, h('div', null, h('h2', null, x.name), h('div', { class: 'muted small' }, `${x.kind === 'practice' ? 'Practice' : 'Explain it'} · ${x.module} · sent ${fmtDate(x.created_at)}`)), h('span', { class: `chip ${x.status === 'reviewed' ? 'green' : x.needs_human ? 'amber' : 'blue'}` }, x.status === 'reviewed' ? 'Reviewed by you' : x.status === 'auto' ? (x.needs_human ? 'Spot-check' : 'Auto-reviewed') : 'To review')),
       h('div', { class: 'explain-prompt' }, x.prompt),
       x.has_audio ? h('audio', { controls: true, preload: 'none', src: `/api/admin/submissions/${x.id}/audio`, style: 'width:100%;margin:8px 0' }) : null,
       x.transcript ? h('details', { open: true }, h('summary', null, 'Transcript'), h('div', { class: 'pre' }, x.transcript)) : x.text_answer ? h('div', { class: 'pre' }, x.text_answer) : null,
@@ -194,7 +194,7 @@ export async function reviewsView() {
       } } }, x.status === 'reviewed' ? 'Update review' : x.status === 'auto' ? 'Confirm or change the scores' : 'Save review'));
   };
   return h('div', { class: 'page' },
-    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Explain-it reviews'), h('p', null, 'Recordings are transcribed and scored automatically. You only see spot-checks here: flagged answers, gaps, requests from trainees and a random 20%. Your scores replace the automatic ones.'))),
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Reviews'), h('p', null, 'Practice tasks and explain-it recordings are reviewed automatically. You only see spot-checks here: flagged answers, gaps, requests from trainees and a random 20%. Your scores replace the automatic ones.'))),
     pending.length ? pending.map(card) : h('div', { class: 'card empty' }, h('b', null, 'No spot-checks waiting'), 'Flagged or sampled recordings appear here.'),
     done.length ? h('h2', { class: 'sec-h' }, 'Recent reviews') : null, done.slice(0, 20).map(card));
 }

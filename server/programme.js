@@ -3,14 +3,14 @@ import { q, audit } from './db.js';
 import { SCENARIOS, SCENARIO_KEYS } from './scenarios.js';
 import { MODULES, MODULE_BY_KEY, MODULE_FOR_SCENARIO, DEPTH, SOURCE_DECISIONS, ACADEMY_FOLDER } from './curriculum.js';
 import { POOLS, draw, drawMixed, publicItem, grade, walk, walkthroughIntro, itemById } from './assess.js';
-import { EXPLAIN, RUBRIC, SURVEY, WALKTHROUGHS } from './curriculum-extra.js';
+import { EXPLAIN, RUBRIC, SURVEY, WALKTHROUGHS, PRACTICE } from './curriculum-extra.js';
 import { enqueue } from './autoreview.js';
 import { DEMO_FILTER, resetDemo, createDemo } from './demo.js';
 const AUTO = () => process.env.AUTO_REVIEW !== 'off';
 import { loadContext, refreshPlan, refreshAll, approvePlan, diffPlans, liveState, buildPlan, getSettings, PASS, PHASES } from './engine.js';
 
 const bad = (res, msg) => res.status(400).json({ error: msg });
-const SELF_TICK = ['lesson', 'practice', 'missed', 'teach'];
+const SELF_TICK = ['lesson', 'missed', 'teach']; // practice is reviewed by the system when submitted
 const moduleMeta = () => MODULES.map(({ key, title, scenario, track, depth, minutes, delivery, summary }) => ({ key, title, scenario, track, depth, minutes, delivery, summary }));
 
 // Baseline check: the first question of every scenario module.
@@ -51,13 +51,14 @@ meProgramme.get('/modules/:key', async (req, res, next) => {
       q("SELECT correct::float AS correct,total,knowledge::float AS knowledge,kind,item_key,created_at FROM quiz_attempts WHERE user_id=$1 AND module_key=$2 ORDER BY created_at DESC", [uid, key]),
       q('SELECT item_key,note,completed_at,signed_off_at FROM plan_progress WHERE user_id=$1 AND item_key LIKE $2', [uid, `${key}.%`]),
       q('SELECT 1 FROM module_feedback WHERE user_id=$1 AND module_key=$2', [uid, key]),
-      q('SELECT id,status,rubric,review_comment,text_answer,transcript,auto,needs_human,human_requested,audio_seconds,(audio IS NOT NULL) AS has_audio,self_points,created_at,reviewed_at FROM submissions WHERE user_id=$1 AND module_key=$2 ORDER BY created_at DESC', [uid, key]),
+      q('SELECT id,kind,status,rubric,review_comment,text_answer,transcript,auto,needs_human,human_requested,audio_seconds,(audio IS NOT NULL) AS has_audio,self_points,created_at,reviewed_at FROM submissions WHERE user_id=$1 AND module_key=$2 ORDER BY created_at DESC', [uid, key]),
     ]);
     res.json({
       ...rest, check: draw(key).map(publicItem), poolSize: POOLS[key].length, pass: PASS,
       attempts: at.rows.filter((a) => a.kind === 'check'), walkAttempts: at.rows.filter((a) => a.kind === 'scenario'),
       progress: prog.rows, feedbackGiven: fb.rowCount > 0,
-      walkthrough: walkthroughIntro(key), explain: EXPLAIN[key] ? { prompt: EXPLAIN[key].prompt, points: subs.rowCount ? EXPLAIN[key].points : null } : null, submissions: subs.rows, rubric: RUBRIC,
+      walkthrough: walkthroughIntro(key), explain: EXPLAIN[key] ? { prompt: EXPLAIN[key].prompt } : null, submissions: subs.rows.filter((x) => x.kind !== 'practice'), rubric: RUBRIC,
+      practiceTask: PRACTICE[key] ? { prompt: PRACTICE[key].prompt, type: PRACTICE[key].type } : null, practiceSubmissions: subs.rows.filter((x) => x.kind === 'practice'),
       scenarioLabel: SCENARIOS.find((s) => s.key === m.scenario)?.label || null, related: (m.related || []).map((s) => SCENARIOS.find((x) => x.key === s)?.short || s),
     });
   } catch (e) { next(e); }
@@ -117,8 +118,9 @@ meProgramme.post('/modules/:key/feedback', async (req, res, next) => {
 const AUDIO_MIME = /^audio\/(webm|ogg|mp4|mpeg|wav|x-m4a)(;.*)?$/;
 meProgramme.post('/explain/:key', async (req, res, next) => {
   try {
-    const key = req.params.key; if (!EXPLAIN[key]) return res.status(404).json({ error: 'Not found.' });
-    const b = req.body || {};
+    const key = req.params.key; const b = req.body || {};
+    const kind = b.kind === 'practice' ? 'practice' : 'explain';
+    if (!(kind === 'practice' ? PRACTICE[key] : EXPLAIN[key])) return res.status(404).json({ error: 'Not found.' });
     const text = b.text ? String(b.text).slice(0, 8000) : null;
     let audio = null, mime = null;
     if (b.audio) {
@@ -126,12 +128,12 @@ meProgramme.post('/explain/:key', async (req, res, next) => {
       audio = Buffer.from(b.audio, 'base64'); mime = String(b.mime).split(';')[0];
       if (audio.length > 6 * 1024 * 1024) return bad(res, 'The recording is too long. Keep it under 3 minutes.');
     }
-    if (!audio && (!text || text.trim().length < 40)) return bad(res, 'Record your explanation, or write at least a few sentences.');
+    if (!audio && (!text || text.trim().length < 40)) return bad(res, 'Record it, or write at least a few sentences.');
     const secs = Number.isFinite(Number(b.seconds)) ? Math.min(600, Math.round(Number(b.seconds))) : null;
-    const r = await q('INSERT INTO submissions (user_id,module_key,text_answer,audio,audio_mime,audio_seconds,status) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', [req.user.id, key, text, audio, mime, secs, AUTO() ? 'processing' : 'submitted']);
-    await audit(req, 'explain.submit', key, audio ? 'audio' : 'text');
+    const r = await q('INSERT INTO submissions (user_id,module_key,text_answer,audio,audio_mime,audio_seconds,status,kind) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id', [req.user.id, key, text, audio, mime, secs, AUTO() ? 'processing' : 'submitted', kind]);
+    await audit(req, `${kind}.submit`, key, audio ? 'audio' : 'text');
     if (AUTO()) enqueue(r.rows[0].id);
-    res.json({ id: r.rows[0].id, status: AUTO() ? 'processing' : 'submitted', points: EXPLAIN[key].points });
+    res.json({ id: r.rows[0].id, status: AUTO() ? 'processing' : 'submitted', points: (kind === 'practice' ? PRACTICE[key] : EXPLAIN[key]).points });
   } catch (e) { next(e); }
 });
 meProgramme.get('/explain/result/:id', async (req, res, next) => {
@@ -301,7 +303,7 @@ adminProgramme.post('/programme/approve-all', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-adminProgramme.get('/curriculum', (_req, res) => res.json({ modules: MODULES.map((m) => ({ ...m, pool: POOLS[m.key], walkthroughFull: WALKTHROUGHS[m.key] || null, explainFull: EXPLAIN[m.key] || null })), rubric: RUBRIC, decisions: SOURCE_DECISIONS, depth: DEPTH, folder: ACADEMY_FOLDER, baseline: BASELINE.length }));
+adminProgramme.get('/curriculum', (_req, res) => res.json({ modules: MODULES.map((m) => ({ ...m, pool: POOLS[m.key], walkthroughFull: WALKTHROUGHS[m.key] || null, explainFull: EXPLAIN[m.key] || null, practiceFull: PRACTICE[m.key] || null })), rubric: RUBRIC, decisions: SOURCE_DECISIONS, depth: DEPTH, folder: ACADEMY_FOLDER, baseline: BASELINE.length }));
 
 adminProgramme.get('/trainees/:id/programme', async (req, res, next) => {
   try {
@@ -406,9 +408,9 @@ adminProgramme.delete('/inputs/:id', async (req, res, next) => {
 // ------------------------------------------------------------------ admin: explain-it reviews and feedback
 adminProgramme.get('/reviews', async (_req, res, next) => {
   try {
-    const r = await q(`SELECT s.id,s.user_id,u.name,s.module_key,s.text_answer,s.transcript,s.auto,s.needs_human,s.human_requested,s.audio_seconds,(s.audio IS NOT NULL) AS has_audio,s.self_points,s.status,s.rubric,s.review_comment,s.created_at,s.reviewed_at
+    const r = await q(`SELECT s.id,s.user_id,u.name,s.module_key,s.kind,s.text_answer,s.transcript,s.auto,s.needs_human,s.human_requested,s.audio_seconds,(s.audio IS NOT NULL) AS has_audio,s.self_points,s.status,s.rubric,s.review_comment,s.created_at,s.reviewed_at
                          FROM submissions s JOIN users u ON u.id=s.user_id ORDER BY (s.needs_human AND s.status <> 'reviewed') DESC, s.created_at DESC LIMIT 150`);
-    res.json({ rubric: RUBRIC, items: r.rows.map((x) => ({ ...x, module: MODULE_BY_KEY[x.module_key]?.title || x.module_key, prompt: EXPLAIN[x.module_key]?.prompt, points: EXPLAIN[x.module_key]?.points || [] })) });
+    res.json({ rubric: RUBRIC, items: r.rows.map((x) => ({ ...x, module: MODULE_BY_KEY[x.module_key]?.title || x.module_key, prompt: (x.kind === 'practice' ? PRACTICE : EXPLAIN)[x.module_key]?.prompt, points: (x.kind === 'practice' ? PRACTICE : EXPLAIN)[x.module_key]?.points || [] })) });
   } catch (e) { next(e); }
 });
 adminProgramme.get('/submissions/:id/audio', async (req, res, next) => {
@@ -424,14 +426,15 @@ adminProgramme.post('/submissions/:id/review', async (req, res, next) => {
     const id = Number(req.params.id); const rb = req.body?.rubric || {};
     const scores = {}; for (const c of RUBRIC) { const v = rb[c.key]; if (![1, 2, 3].includes(v)) return bad(res, 'Score every criterion from 1 to 3.'); scores[c.key] = v; }
     const comment = req.body?.comment ? String(req.body.comment).slice(0, 2000) : null;
-    const r = await q("UPDATE submissions SET status='reviewed', rubric=$2, review_comment=$3, reviewer_id=$4, reviewed_at=now(), needs_human=FALSE WHERE id=$1 RETURNING user_id,module_key", [id, scores, comment, req.user.id]);
+    const r = await q("UPDATE submissions SET status='reviewed', rubric=$2, review_comment=$3, reviewer_id=$4, reviewed_at=now(), needs_human=FALSE WHERE id=$1 RETURNING user_id,module_key,kind", [id, scores, comment, req.user.id]);
     if (!r.rowCount) return res.status(404).json({ error: 'Not found.' });
     const { user_id: uid, module_key: mk } = r.rows[0];
     const avg = Object.values(scores).reduce((a, b) => a + b, 0) / RUBRIC.length;
     const rating = avg >= 2.5 ? 'solid' : avg >= 1.75 ? 'developing' : 'gap';
     const scenario = MODULE_BY_KEY[mk]?.scenario || MODULE_BY_KEY[mk]?.related?.[0] || null;
+    if (r.rows[0].kind === 'practice' && rating !== 'gap') await q(`INSERT INTO plan_progress (user_id,item_key,status,signed_off_by,signed_off_at) VALUES ($1,$2,'done',$3,now()) ON CONFLICT (user_id,item_key) DO UPDATE SET signed_off_by=$3, signed_off_at=now()`, [uid, `${mk}.practice`, req.user.id]);
     await q(`INSERT INTO inputs (user_id,author_id,kind,title,signals,shared_summary) VALUES ($1,$2,'recording',$3,$4,$5)`,
-      [uid, req.user.id, `Explain-it review: ${MODULE_BY_KEY[mk]?.title || mk}`, JSON.stringify(scenario ? [{ scenario, rating }] : []), comment]);
+      [uid, req.user.id, `${r.rows[0].kind === 'practice' ? 'Practice' : 'Explain-it'} review: ${MODULE_BY_KEY[mk]?.title || mk}`, JSON.stringify(scenario ? [{ scenario, rating }] : []), comment]);
     await audit(req, 'explain.review', String(id), `${avg.toFixed(2)} ${rating}`);
     const status = await refreshPlan(uid);
     res.json({ ok: true, rating, planChanged: status === 'draft' });

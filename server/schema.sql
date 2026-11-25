@@ -225,3 +225,5 @@ ALTER TABLE submissions ADD COLUMN IF NOT EXISTS needs_human BOOLEAN NOT NULL DE
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS human_requested BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE submissions DROP CONSTRAINT IF EXISTS submissions_status_check;
 ALTER TABLE submissions ADD CONSTRAINT submissions_status_check CHECK (status IN ('processing','submitted','auto','reviewed'));
+
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'explain';

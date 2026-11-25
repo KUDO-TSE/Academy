@@ -7,7 +7,7 @@
 import { spawnSync } from 'node:child_process';
 import { q } from './db.js';
 import { MODULE_BY_KEY } from './curriculum.js';
-import { EXPLAIN, RUBRIC } from './curriculum-extra.js';
+import { EXPLAIN, RUBRIC, PRACTICE } from './curriculum-extra.js';
 import { refreshPlan } from './engine.js';
 
 const WHISPER = process.env.WHISPER_MODEL || 'onnx-community/whisper-base';
@@ -66,8 +66,10 @@ const sentences = (t) => { const s = t.split(/(?<=[.!?])\s+|\n+/).map((x) => x.t
 const cos = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
 
 /** Score an explanation. Returns rubric scores, covered and missed points, flags and a note for the trainee. */
-export async function assess(moduleKey, text, seconds) {
-  const ex = EXPLAIN[moduleKey]; const m = MODULE_BY_KEY[moduleKey];
+export const specFor = (kind, moduleKey) => (kind === 'practice' ? PRACTICE[moduleKey] : EXPLAIN[moduleKey] ? { ...EXPLAIN[moduleKey], kw: KW[moduleKey] } : null);
+
+export async function assess(moduleKey, text, seconds, spec = specFor('explain', moduleKey)) {
+  const ex = spec; const m = MODULE_BY_KEY[moduleKey];
   const { emb } = await loadModels();
   const vec = async (t) => Array.from((await emb(t, { pooling: 'mean', normalize: true })).data);
   const lower = ` ${text.toLowerCase()} `;
@@ -76,7 +78,7 @@ export async function assess(moduleKey, text, seconds) {
   for (const [i, p] of ex.points.entries()) {
     const pv = await vec(p);
     const sims = wv.map((v) => cos(v, pv)); const best = Math.max(...sims);
-    const kw = (KW[moduleKey]?.[i] || []).some((k) => lower.includes(k));
+    const kw = (ex.kw?.[i] || []).some((k) => lower.includes(k));
     const covered = best >= 0.62 || (best >= 0.4 && kw);
     const unsure = !covered && (best >= 0.5 || kw);
     points.push({ point: p, covered, unsure, sim: Math.round(best * 100) / 100, quote: covered ? windows[sims.indexOf(best)].slice(0, 220) : null });
@@ -88,10 +90,10 @@ export async function assess(moduleKey, text, seconds) {
   const fillers = (text.match(FILLERS) || []).length;
   const fillerRate = words ? fillers / words : 0;
   const handover = HANDOVER.some((k) => lower.includes(k));
-  const needsHandover = m.depth === 'handover' || ex.points.some((p) => /support|hand|language services|it /i.test(p));
+  const needsHandover = m.depth === 'handover' || ex.points.some((p) => /Technical Support|hand over|hand-over|Language Services|\bIT\b/.test(p));
 
   const complete = coverage >= 0.8 ? 3 : coverage >= 0.5 ? 2 : 1;
-  const clear = words < 40 ? 1 : (wpm && (wpm < 90 || wpm > 190)) || fillerRate > 0.06 ? 2 : 3;
+  const clear = words < 30 ? 1 : (wpm && (wpm < 90 || wpm > 190)) || fillerRate > 0.06 ? 2 : 3;
   const ho = handover ? 3 : needsHandover ? 1 : 2;
   const unsureCount = points.filter((x) => x.unsure).length;
   const accurate = coverage >= 0.8 && unsureCount === 0 ? 3 : coverage >= 0.4 ? 2 : 1; // facts are not marked wrong automatically
@@ -125,18 +127,21 @@ export async function assess(moduleKey, text, seconds) {
 
 /** Process one submission end to end and record the result. */
 export async function processSubmission(id) {
-  const r = await q('SELECT id,user_id,module_key,text_answer,audio,audio_seconds,status FROM submissions WHERE id=$1', [id]);
+  const r = await q('SELECT id,user_id,module_key,kind,text_answer,audio,audio_seconds,status FROM submissions WHERE id=$1', [id]);
   const s = r.rows[0]; if (!s || s.status !== 'processing') return;
   try {
     let text = s.text_answer || '', seconds = s.audio_seconds || null;
     if (s.audio) { const t = await transcribe(s.audio); text = [t.text, s.text_answer].filter(Boolean).join('\n'); seconds = t.seconds; }
-    const a = await assess(s.module_key, text, s.audio ? seconds : null);
+    const a = await assess(s.module_key, text, s.audio ? seconds : null, specFor(s.kind, s.module_key));
     const spot = a.flags.length > 0 || a.rating === 'gap' || Math.random() < SAMPLE_RATE;
     await q("UPDATE submissions SET status='auto', transcript=$2, audio_seconds=COALESCE($3::int, audio_seconds), auto=$4, rubric=$5, review_comment=$6, needs_human=$7, reviewed_at=now() WHERE id=$1",
       [id, s.audio ? text : null, seconds ? Math.round(seconds) : null, a, a.rubric, a.note, spot]);
     const scenario = MODULE_BY_KEY[s.module_key]?.scenario || MODULE_BY_KEY[s.module_key]?.related?.[0] || null;
     await q("INSERT INTO inputs (user_id,kind,title,signals) VALUES ($1,'recording',$2,$3)",
-      [s.user_id, `Explain-it, automatic review: ${MODULE_BY_KEY[s.module_key]?.title || s.module_key}`, JSON.stringify(scenario ? [{ scenario, rating: a.rating }] : [])]);
+      [s.user_id, `${s.kind === 'practice' ? 'Practice' : 'Explain-it'}, automatic review: ${MODULE_BY_KEY[s.module_key]?.title || s.module_key}`, JSON.stringify(scenario ? [{ scenario, rating: a.rating }] : [])]);
+    // A practice that is not a gap is signed off automatically. A gap asks the trainee to try again.
+    if (s.kind === 'practice' && a.rating !== 'gap') await q(`INSERT INTO plan_progress (user_id,item_key,status,note,signed_off_at) VALUES ($1,$2,'done','Reviewed automatically',now())
+      ON CONFLICT (user_id,item_key) DO UPDATE SET signed_off_at=COALESCE(plan_progress.signed_off_at, now())`, [s.user_id, `${s.module_key}.practice`]);
     await refreshPlan(s.user_id);
   } catch (e) {
     console.error('Auto-review failed', id, e.message);

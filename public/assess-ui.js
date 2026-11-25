@@ -105,11 +105,11 @@ function resultBox(s, rubric) {
     s.auto?.error ? h('div', { class: 'muted small' }, s.auto.error) : null);
 }
 
-export function explainCard(moduleKey, ex, submissions, rubric, { onDone } = {}) {
+export function explainCard(moduleKey, ex, submissions, rubric, { onDone, kind = 'explain', type = 'speak' } = {}) {
   const box = h('div');
   const resultArea = h('div');
   const showResult = (s) => {
-    const ask = s.status === 'auto' && !s.human_requested ? h('button', { class: 'btn sm', style: 'margin-top:8px', on: { click: async () => { await api('POST', `/api/me/explain/${s.id}/ask-jack`); toast('Jack will listen to it'); s.human_requested = true; s.needs_human = true; showResult(s); } } }, 'Ask Jack to listen') : null;
+    const ask = s.status === 'auto' && !s.human_requested ? h('button', { class: 'btn sm', style: 'margin-top:8px', on: { click: async () => { await api('POST', `/api/me/explain/${s.id}/ask-jack`); toast('Jack will listen to it'); s.human_requested = true; s.needs_human = true; showResult(s); } } }, s.kind === 'practice' || !s.transcript ? 'Ask Jack to look at it' : 'Ask Jack to listen') : null;
     resultArea.replaceChildren(...[resultBox(s, rubric), ask].filter(Boolean));
   };
   const poll = async (id, tries = 0) => {
@@ -126,7 +126,8 @@ export function explainCard(moduleKey, ex, submissions, rubric, { onDone } = {})
   const time = h('span', { class: 'rec-time' }, '0:00');
   const player = h('audio', { controls: true, hidden: true });
   const recBtn = h('button', { class: 'btn primary', type: 'button' }, last ? 'Record a new one' : 'Start recording');
-  const text = h('textarea', { rows: 4, placeholder: 'Or write it, as you would say it to the client.' });
+  const writeFirst = type !== 'speak';
+  const text = h('textarea', { rows: writeFirst ? 9 : 4, placeholder: type === 'write' ? 'Write it here, as you would send it.' : type === 'steps' ? 'Describe what you did, step by step, in order.' : 'Or write it, as you would say it to the client.' });
   const send = h('button', { class: 'btn', type: 'button' }, 'Send for review');
   const fmt = (x) => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
   const stop = () => { if (rec && rec.state !== 'inactive') rec.stop(); clearInterval(timer); };
@@ -146,7 +147,7 @@ export function explainCard(moduleKey, ex, submissions, rubric, { onDone } = {})
   send.addEventListener('click', async () => {
     if (rec && rec.state === 'recording') return toast('Stop the recording first.', true);
     try {
-      const body = { text: text.value.trim() || null };
+      const body = { text: text.value.trim() || null, kind };
       if (blob) { body.audio = await toBase64(blob); body.mime = blob.type; body.seconds = secs; }
       send.disabled = true;
       const r = await api('POST', `/api/me/explain/${moduleKey}`, body);
@@ -154,9 +155,12 @@ export function explainCard(moduleKey, ex, submissions, rubric, { onDone } = {})
       if (r.status === 'processing') poll(r.id); else resultArea.replaceChildren(h('div', { class: 'ok' }, 'Sent to Jack for review.'));
     } catch (e) { toast(e.message, true); } finally { send.disabled = false; }
   });
+  const hint = { speak: 'Talk as you would on a call, up to 3 minutes.', write: 'Write it as you would really send it.', steps: 'Do it in a test account first, then describe exactly what you did.' }[type];
+  const recRow = h('div', { class: 'row' }, recBtn, time);
+  if (writeFirst) { recBtn.textContent = 'Or record it instead'; recBtn.className = 'btn'; send.className = 'btn primary'; }
   box.append(h('div', { class: 'explain-prompt' }, ex.prompt),
-    h('p', { class: 'muted small' }, 'Talk to the client as you would on a call, up to 3 minutes. You get a score within a minute: key points covered, clarity, and whether you said when to hand over. Record again as often as you like.'),
-    h('div', { class: 'row' }, recBtn, time), player, text, h('div', { style: 'margin-top:8px' }, send), h('div', { style: 'margin-top:12px' }, resultArea));
+    h('p', { class: 'muted small' }, `${hint} The system reviews it within a minute: key points covered, clarity, and whether you said when to hand over. Try again as often as you like.`),
+    ...(writeFirst ? [text, recRow, player] : [recRow, player, text]), h('div', { style: 'margin-top:8px' }, send), h('div', { style: 'margin-top:12px' }, resultArea));
   return box;
 }
 

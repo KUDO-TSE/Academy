@@ -23,7 +23,7 @@ export async function buildBoard() {
   const ctx = await refreshAll();
   const [plans, subs, fb, attempts, state, settings, activity] = await Promise.all([
     q("SELECT user_id,version,status,data,started_on,created_at FROM plans WHERE status IN ('draft','approved')"),
-    q("SELECT s.id,s.user_id,s.module_key,s.created_at,s.status,s.human_requested,s.auto FROM submissions s WHERE s.needs_human AND s.status IN ('submitted','auto') ORDER BY s.created_at"),
+    q("SELECT s.id,s.user_id,s.module_key,s.kind,s.created_at,s.status,s.human_requested,s.auto FROM submissions s WHERE s.needs_human AND s.status IN ('submitted','auto') ORDER BY s.created_at"),
     q('SELECT module_key, count(*)::int n, avg(clear)::float clear, avg(relevant)::float relevant, avg(confidence)::float confidence FROM module_feedback WHERE user_id IN (SELECT id FROM users WHERE NOT is_demo) GROUP BY module_key'),
     q("SELECT answers FROM quiz_attempts WHERE kind='check' AND module_key <> 'baseline' AND user_id IN (SELECT id FROM users WHERE NOT is_demo)"),
     q('SELECT task_key,snoozed_until,handled_at FROM board_tasks'),
@@ -86,7 +86,7 @@ export async function buildBoard() {
     const u = users.get(s.user_id); if (!u) continue;
     const age = Math.floor((Date.now() - new Date(s.created_at).getTime()) / DAY);
     const why = s.human_requested ? 'The trainee asked for your view' : s.status === 'submitted' ? 'The automatic review could not run' : s.auto?.flags?.length ? `Flagged: ${s.auto.flags.join('; ')}` : s.auto?.rating === 'gap' ? 'Scored as a gap: confirm before it counts' : 'Random spot-check';
-    add({ key: `review:${s.id}`, type: 'review', person: u.name, userId: u.id, demo: u.is_demo, title: `${s.status === 'auto' ? 'Spot-check' : 'Review'} the recording: ${MODULE_BY_KEY[s.module_key]?.title || s.module_key}`, detail: `${why}. Sent ${age === 0 ? 'today' : `${age} day${age > 1 ? 's' : ''} ago`}`, minutes: MIN.review, due: iso(today), urgency: age >= 3 ? 'now' : 'this_week', link: '#reviews' });
+    add({ key: `review:${s.id}`, type: 'review', person: u.name, userId: u.id, demo: u.is_demo, title: `${s.status === 'auto' ? 'Spot-check' : 'Review'} the ${s.kind === 'practice' ? 'practice' : 'recording'}: ${MODULE_BY_KEY[s.module_key]?.title || s.module_key}`, detail: `${why}. Sent ${age === 0 ? 'today' : `${age} day${age > 1 ? 's' : ''} ago`}`, minutes: MIN.review, due: iso(today), urgency: age >= 3 ? 'now' : 'this_week', link: '#reviews' });
   }
 
   // 6. Content to fix: low module ratings, or questions that most people miss
