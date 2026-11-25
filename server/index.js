@@ -138,7 +138,8 @@ export async function createApp() {
   app.use('/api/admin', requireAdmin, boardRouter);
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found.' }));
 
-  app.use(express.static(path.join(here, '..', 'public'), { index: 'index.html', maxAge: prod ? '1h' : 0 }));
+  // Browsers revalidate the app files on every visit (cheap 304s via ETag), so a new version shows up straight away.
+  app.use(express.static(path.join(here, '..', 'public'), { index: 'index.html', etag: true, lastModified: true, setHeaders: (res, file) => { res.setHeader('Cache-Control', /\.(png|svg|ico)$/.test(file) ? 'public, max-age=86400' : 'no-cache'); } }));
   app.get('*', (_req, res) => res.sendFile(path.join(here, '..', 'public', 'index.html')));
 
   // eslint-disable-next-line no-unused-vars
