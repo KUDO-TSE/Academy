@@ -39,7 +39,7 @@ export async function ensureAdmins() {
     if (r.rowCount) console.log('Created admin account', email);
     else {
       // Already exists (for example loaded from the roster as a trainee): make them an admin who also keeps their own trainee data.
-      const p = await q(`UPDATE users SET role='admin', is_trainee=TRUE WHERE lower(email)=$1 AND role='trainee' RETURNING id`, [email]);
+      const p = await q(`UPDATE users SET role='admin', is_trainee=TRUE WHERE lower(email)=$1 AND role='trainee' AND NOT role_locked RETURNING id`, [email]);
       if (p.rowCount) console.log('Promoted to admin (keeps own trainee data)', email);
     }
   }

@@ -109,6 +109,13 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS is_trainee BOOLEAN NOT NULL DEFAULT F
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_overrides JSONB NOT NULL DEFAULT '{}';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS tour_seen_at TIMESTAMPTZ;
+-- A role changed by hand (Users & access, or a correction below) is never overridden by ADMIN_EMAILS at start-up.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role_locked BOOLEAN NOT NULL DEFAULT FALSE;
+-- 2026-11-25 correction: Bayardo is a trainee, not an admin. Runs once (role_locked), keeps his data.
+UPDATE users SET role='trainee', is_trainee=FALSE, role_locked=TRUE,
+       team = CASE WHEN team IS NULL OR team='Admin' THEN 'Technical Solutions / Support' ELSE team END,
+       weight = CASE WHEN team IS NULL OR team='Admin' THEN 0.5 ELSE weight END
+ WHERE lower(email)='bayardo@kudo.ai' AND role='admin' AND NOT role_locked;
 
 CREATE TABLE IF NOT EXISTS app_settings (
   key TEXT PRIMARY KEY,

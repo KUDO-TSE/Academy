@@ -451,3 +451,15 @@ test('sessions: a transcript is analysed, and Jack turns questions into a FAQ en
   assert.equal((await adm('DELETE', `/api/admin/sessions/${s.id}`)).status, 200);
 });
 
+
+test('a role changed by hand sticks, even if the email is still in ADMIN_EMAILS', async () => {
+  const adm = client(); await adm('POST', '/api/auth/login', { email: 'boss@test.local', password: 'Quiet-harbor-pass-55' });
+  await q("INSERT INTO users (email,name,role,team,weight,password_hash,must_change_password) VALUES ('lock@test.local','Lock Test','admin','Admin',0,'x',TRUE)");
+  const id = (await q("SELECT id FROM users WHERE email='lock@test.local'")).rows[0].id;
+  assert.equal((await adm('PATCH', `/api/admin/trainees/${id}`, { role: 'trainee' })).status, 200);
+  const before = process.env.ADMIN_EMAILS; process.env.ADMIN_EMAILS = `${before},lock@test.local`;
+  const { ensureAdmins } = await import('../server/auth.js'); await ensureAdmins();
+  process.env.ADMIN_EMAILS = before;
+  const u = (await q('SELECT role,role_locked FROM users WHERE id=$1', [id])).rows[0];
+  assert.equal(u.role, 'trainee'); assert.equal(u.role_locked, true);
+});

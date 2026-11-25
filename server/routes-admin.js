@@ -119,7 +119,7 @@ adminRouter.patch('/trainees/:id', async (req, res, next) => {
     if (b.demand_scenario !== undefined) { if (b.demand_scenario && !SCENARIO_KEYS.includes(b.demand_scenario)) return bad(res, 'Unknown scenario.'); f.demand_scenario = b.demand_scenario || null; }
     if (b.struggle_scenarios !== undefined) { if (!Array.isArray(b.struggle_scenarios) || b.struggle_scenarios.some((x) => !SCENARIO_KEYS.includes(x))) return bad(res, 'Unknown scenario.'); f.struggle_scenarios = b.struggle_scenarios; }
     if (b.active !== undefined) { if (id === req.user.id && !b.active) return bad(res, 'You cannot deactivate your own account.'); f.active = !!b.active; }
-    if (b.role !== undefined) { if (!['admin', 'trainee'].includes(b.role)) return bad(res, 'Unknown role.'); if (id === req.user.id && b.role !== 'admin') return bad(res, 'You cannot remove your own admin role.'); f.role = b.role; }
+    if (b.role !== undefined) { if (!['admin', 'trainee'].includes(b.role)) return bad(res, 'Unknown role.'); if (id === req.user.id && b.role !== 'admin') return bad(res, 'You cannot remove your own admin role.'); f.role = b.role; f.role_locked = true; if (b.role === 'trainee') f.is_trainee = false; }
     const keys = Object.keys(f);
     if (!keys.length) return bad(res, 'Nothing to update.');
     await q(`UPDATE users SET ${keys.map((k, i) => `${k}=$${i + 2}`).join(', ')} WHERE id=$1`, [id, ...keys.map((k) => f[k])]);
