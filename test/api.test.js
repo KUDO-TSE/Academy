@@ -7,6 +7,8 @@ import * as imp from '../server/importers.js';
 import { itemById, POOLS } from '../server/assess.js';
 
 process.env.INITIAL_PASSWORD ||= 'Generic-Pass-1!';
+process.env.AUTO_REVIEW ||= 'off';
+process.env.LOGIN_RATE_LIMIT ||= '200'; // the automatic-review test below switches it on
 process.env.ADMIN_EMAILS ||= 'boss@test.local';
 const GEN = process.env.INITIAL_PASSWORD;
 let server, base;
@@ -222,4 +224,24 @@ test('programme: built automatically, approved by an admin, graded on the server
   // Admin-only routes stay closed to trainees.
   assert.equal((await ann('POST', `/api/admin/trainees/${annId}/programme/approve`)).status, 403);
   assert.equal((await ann('GET', `/api/admin/trainees/${annId}/programme`)).status, 403);
+});
+
+test('explain-it recordings are reviewed automatically and spot-checks reach the board', { timeout: 240000 }, async () => {
+  process.env.AUTO_REVIEW = 'on'; process.env.SPOTCHECK_SAMPLE = '0';
+  await imp.importRoster([{ email: 'cara@test.local', name: 'Cara Three', region: 'EMEA', team: 'Sales' }]);
+  const ann = client(); await ann('POST', '/api/auth/login', { email: 'cara@test.local', password: GEN });
+  await ann('POST', '/api/auth/change-password', { current: GEN, next: 'Quiet-meadow-pass-48' });
+  const good = "For KUDO to work in your Teams meetings, your IT admin first approves the KUDO app in the Teams admin center. Then check the permission policy lets hosts use third party apps, and review the external bot policy because the bot waits in the lobby. Start today, approval can take a day or more. Anyone who can't use the app can follow on the mobile link. If it still fails I bring in our technical support team.";
+  const r = await ann('POST', '/api/me/explain/teams', { text: good });
+  assert.equal(r.json.status, 'processing', JSON.stringify(r));
+  let s; for (let i = 0; i < 80; i++) { s = (await ann('GET', `/api/me/explain/result/${r.json.id}`)).json; if (s.status !== 'processing') break; await new Promise((ok) => setTimeout(ok, 1500)); }
+  assert.equal(s.status, 'auto'); assert.equal(s.auto.rating, 'solid'); assert.ok(s.review_comment.includes('key points'));
+  const weak = await ann('POST', '/api/me/explain/teams', { text: 'You just add KUDO to the meeting and it works, nothing special to set up at all really.' });
+  for (let i = 0; i < 80; i++) { s = (await ann('GET', `/api/me/explain/result/${weak.json.id}`)).json; if (s.status !== 'processing') break; await new Promise((ok) => setTimeout(ok, 1500)); }
+  assert.equal(s.auto.rating, 'gap'); assert.equal(s.needs_human, true, 'gaps go to Jack as spot-checks');
+  assert.equal((await ann('POST', `/api/me/explain/${r.json.id}/ask-jack`)).status, 200);
+  const adm = client(); await adm('POST', '/api/auth/login', { email: 'boss@test.local', password: 'Quiet-harbor-pass-55' });
+  const board = (await adm('GET', '/api/admin/board')).json;
+  assert.ok(board.tasks.some((t) => t.type === 'review' && /asked for your view/.test(t.detail)));
+  process.env.AUTO_REVIEW = 'off';
 });

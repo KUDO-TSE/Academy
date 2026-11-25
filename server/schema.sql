@@ -217,3 +217,11 @@ CREATE TABLE IF NOT EXISTS board_tasks (
   handled_by INT REFERENCES users(id) ON DELETE SET NULL,
   note TEXT
 );
+
+-- ---- Automatic review of explain-it recordings
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS transcript TEXT;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS auto JSONB;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS needs_human BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS human_requested BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE submissions DROP CONSTRAINT IF EXISTS submissions_status_check;
+ALTER TABLE submissions ADD CONSTRAINT submissions_status_check CHECK (status IN ('processing','submitted','auto','reviewed'));

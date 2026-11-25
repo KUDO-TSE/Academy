@@ -99,3 +99,16 @@ trainees to nudge (after their first week, when behind pace or inactive for 10 d
 When four or more kick-offs or mid-point check-ins fall due together, they become one group session; "Mark held" logs it for everyone who attended.
 The suggested week fills the owner's available days and hours (set on the board), sessions first, and lists what does not fit.
 "Add this week's sessions to my calendar" downloads an .ics file. Tasks can be snoozed for a week or marked done.
+
+## Automatic review of explain-it recordings (free, no API key)
+
+`server/autoreview.js` runs two open-source models inside the app with transformers.js:
+Whisper (`onnx-community/whisper-base`, override with `WHISPER_MODEL`) transcribes the recording (decoded with the bundled ffmpeg-static),
+and `all-MiniLM-L6-v2` checks which key points the explanation covers, confirmed by keyword cues per point.
+Pace, filler words and whether the trainee says who they would involve give the clarity and hand-over scores.
+The trainee gets scores, covered and missed points, where each missed point is in the lesson, and the transcript, usually within a minute.
+
+Facts are never marked wrong automatically (embeddings cannot see negation). Jack spot-checks: flagged answers, every Gap, every "Ask Jack to listen", and a random share (`SPOTCHECK_SAMPLE`, default 0.2). His scores replace the automatic ones.
+Recordings are kept 60 days, then deleted; transcripts and scores stay.
+
+Deployment notes: set `ONNXRUNTIME_NODE_INSTALL_CUDA=skip` on the service (the GPU binaries are not needed). Models (about 120 MB) download from Hugging Face on first start into `MODEL_CACHE_DIR` (default `/tmp/academy-models`); the service needs about 1 GB of memory. Set `AUTO_REVIEW=off` to send every recording to Jack instead.

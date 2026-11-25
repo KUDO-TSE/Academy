@@ -4,6 +4,8 @@ import { SCENARIOS, SCENARIO_KEYS } from './scenarios.js';
 import { MODULES, MODULE_BY_KEY, MODULE_FOR_SCENARIO, DEPTH, SOURCE_DECISIONS, ACADEMY_FOLDER } from './curriculum.js';
 import { POOLS, draw, drawMixed, publicItem, grade, walk, walkthroughIntro, itemById } from './assess.js';
 import { EXPLAIN, RUBRIC, SURVEY, WALKTHROUGHS } from './curriculum-extra.js';
+import { enqueue } from './autoreview.js';
+const AUTO = () => process.env.AUTO_REVIEW !== 'off';
 import { loadContext, refreshPlan, refreshAll, approvePlan, diffPlans, liveState, buildPlan, getSettings, PASS, PHASES } from './engine.js';
 
 const bad = (res, msg) => res.status(400).json({ error: msg });
@@ -48,7 +50,7 @@ meProgramme.get('/modules/:key', async (req, res, next) => {
       q("SELECT correct::float AS correct,total,knowledge::float AS knowledge,kind,item_key,created_at FROM quiz_attempts WHERE user_id=$1 AND module_key=$2 ORDER BY created_at DESC", [uid, key]),
       q('SELECT item_key,note,completed_at,signed_off_at FROM plan_progress WHERE user_id=$1 AND item_key LIKE $2', [uid, `${key}.%`]),
       q('SELECT 1 FROM module_feedback WHERE user_id=$1 AND module_key=$2', [uid, key]),
-      q('SELECT id,status,rubric,review_comment,text_answer,audio_seconds,(audio IS NOT NULL) AS has_audio,self_points,created_at,reviewed_at FROM submissions WHERE user_id=$1 AND module_key=$2 ORDER BY created_at DESC', [uid, key]),
+      q('SELECT id,status,rubric,review_comment,text_answer,transcript,auto,needs_human,human_requested,audio_seconds,(audio IS NOT NULL) AS has_audio,self_points,created_at,reviewed_at FROM submissions WHERE user_id=$1 AND module_key=$2 ORDER BY created_at DESC', [uid, key]),
     ]);
     res.json({
       ...rest, check: draw(key).map(publicItem), poolSize: POOLS[key].length, pass: PASS,
@@ -125,9 +127,25 @@ meProgramme.post('/explain/:key', async (req, res, next) => {
     }
     if (!audio && (!text || text.trim().length < 40)) return bad(res, 'Record your explanation, or write at least a few sentences.');
     const secs = Number.isFinite(Number(b.seconds)) ? Math.min(600, Math.round(Number(b.seconds))) : null;
-    const r = await q('INSERT INTO submissions (user_id,module_key,text_answer,audio,audio_mime,audio_seconds) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id', [req.user.id, key, text, audio, mime, secs]);
+    const r = await q('INSERT INTO submissions (user_id,module_key,text_answer,audio,audio_mime,audio_seconds,status) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', [req.user.id, key, text, audio, mime, secs, AUTO() ? 'processing' : 'submitted']);
     await audit(req, 'explain.submit', key, audio ? 'audio' : 'text');
-    res.json({ id: r.rows[0].id, points: EXPLAIN[key].points });
+    if (AUTO()) enqueue(r.rows[0].id);
+    res.json({ id: r.rows[0].id, status: AUTO() ? 'processing' : 'submitted', points: EXPLAIN[key].points });
+  } catch (e) { next(e); }
+});
+meProgramme.get('/explain/result/:id', async (req, res, next) => {
+  try {
+    const r = await q('SELECT id,module_key,status,rubric,review_comment,transcript,auto,needs_human,human_requested,created_at,reviewed_at FROM submissions WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.user.id]);
+    if (!r.rowCount) return res.status(404).json({ error: 'Not found.' });
+    res.json(r.rows[0]);
+  } catch (e) { next(e); }
+});
+meProgramme.post('/explain/:id/ask-jack', async (req, res, next) => {
+  try {
+    const r = await q('UPDATE submissions SET needs_human=TRUE, human_requested=TRUE WHERE id=$1 AND user_id=$2 RETURNING id', [Number(req.params.id), req.user.id]);
+    if (!r.rowCount) return res.status(404).json({ error: 'Not found.' });
+    await audit(req, 'explain.ask_jack', req.params.id);
+    res.json({ ok: true });
   } catch (e) { next(e); }
 });
 meProgramme.patch('/explain/:id/points', async (req, res, next) => {
@@ -387,8 +405,8 @@ adminProgramme.delete('/inputs/:id', async (req, res, next) => {
 // ------------------------------------------------------------------ admin: explain-it reviews and feedback
 adminProgramme.get('/reviews', async (_req, res, next) => {
   try {
-    const r = await q(`SELECT s.id,s.user_id,u.name,s.module_key,s.text_answer,s.audio_seconds,(s.audio IS NOT NULL) AS has_audio,s.self_points,s.status,s.rubric,s.review_comment,s.created_at,s.reviewed_at
-                         FROM submissions s JOIN users u ON u.id=s.user_id ORDER BY (s.status='submitted') DESC, s.created_at DESC LIMIT 100`);
+    const r = await q(`SELECT s.id,s.user_id,u.name,s.module_key,s.text_answer,s.transcript,s.auto,s.needs_human,s.human_requested,s.audio_seconds,(s.audio IS NOT NULL) AS has_audio,s.self_points,s.status,s.rubric,s.review_comment,s.created_at,s.reviewed_at
+                         FROM submissions s JOIN users u ON u.id=s.user_id ORDER BY (s.needs_human AND s.status <> 'reviewed') DESC, s.created_at DESC LIMIT 150`);
     res.json({ rubric: RUBRIC, items: r.rows.map((x) => ({ ...x, module: MODULE_BY_KEY[x.module_key]?.title || x.module_key, prompt: EXPLAIN[x.module_key]?.prompt, points: EXPLAIN[x.module_key]?.points || [] })) });
   } catch (e) { next(e); }
 });
@@ -405,7 +423,7 @@ adminProgramme.post('/submissions/:id/review', async (req, res, next) => {
     const id = Number(req.params.id); const rb = req.body?.rubric || {};
     const scores = {}; for (const c of RUBRIC) { const v = rb[c.key]; if (![1, 2, 3].includes(v)) return bad(res, 'Score every criterion from 1 to 3.'); scores[c.key] = v; }
     const comment = req.body?.comment ? String(req.body.comment).slice(0, 2000) : null;
-    const r = await q("UPDATE submissions SET status='reviewed', rubric=$2, review_comment=$3, reviewer_id=$4, reviewed_at=now() WHERE id=$1 RETURNING user_id,module_key", [id, scores, comment, req.user.id]);
+    const r = await q("UPDATE submissions SET status='reviewed', rubric=$2, review_comment=$3, reviewer_id=$4, reviewed_at=now(), needs_human=FALSE WHERE id=$1 RETURNING user_id,module_key", [id, scores, comment, req.user.id]);
     if (!r.rowCount) return res.status(404).json({ error: 'Not found.' });
     const { user_id: uid, module_key: mk } = r.rows[0];
     const avg = Object.values(scores).reduce((a, b) => a + b, 0) / RUBRIC.length;

@@ -90,20 +90,45 @@ function pickMime() {
 }
 const toBase64 = (blob) => new Promise((ok, ko) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = ko; fr.readAsDataURL(blob); });
 
+function resultBox(s, rubric) {
+  const chipCls = { 1: 'coral', 2: 'amber', 3: 'green' };
+  const auto = s.auto || {};
+  const who = s.status === 'reviewed' ? 'Jack\'s review' : 'Automatic review';
+  return h('div', { class: 'review' },
+    h('div', { class: 'row spread' }, h('b', null, who), auto.rating && s.status !== 'reviewed' ? h('span', { class: `chip ${{ solid: 'green', developing: 'amber', gap: 'coral' }[auto.rating]}` }, { solid: 'Solid', developing: 'Developing', gap: 'Gap' }[auto.rating]) : null),
+    s.rubric ? h('div', { class: 'rub' }, rubric.map((c) => h('span', { class: `chip ${chipCls[s.rubric[c.key]]}` }, `${c.label}: ${s.rubric[c.key]}/3`))) : null,
+    s.review_comment ? h('div', { style: 'margin-top:8px' }, s.review_comment) : null,
+    auto.points && s.status !== 'reviewed' ? h('ul', { class: 'pts' }, auto.points.map((p) => h('li', { class: p.covered ? 'yes' : 'no' }, p.covered ? '✓ ' : '✗ ', p.point))) : null,
+    auto.missed?.length && s.status !== 'reviewed' ? h('details', null, h('summary', null, 'Where the missed points are in the lesson'), auto.missed.map((x) => h('div', { class: 'small', style: 'margin-top:4px' }, h('b', null, `${x.point}: `), x.lesson))) : null,
+    s.transcript ? h('details', null, h('summary', null, 'What the system heard'), h('div', { class: 'pre' }, s.transcript), h('div', { class: 'muted small' }, 'If the transcript is wrong (bad microphone, background noise), ask Jack to listen.')) : null,
+    s.status === 'auto' ? h('div', { class: 'muted small', style: 'margin-top:6px' }, s.human_requested ? 'You asked Jack to look at it.' : s.needs_human ? 'Jack will also look at this one.' : '') : null,
+    s.auto?.error ? h('div', { class: 'muted small' }, s.auto.error) : null);
+}
+
 export function explainCard(moduleKey, ex, submissions, rubric, { onDone } = {}) {
   const box = h('div');
+  const resultArea = h('div');
+  const showResult = (s) => {
+    const ask = s.status === 'auto' && !s.human_requested ? h('button', { class: 'btn sm', style: 'margin-top:8px', on: { click: async () => { await api('POST', `/api/me/explain/${s.id}/ask-jack`); toast('Jack will listen to it'); s.human_requested = true; s.needs_human = true; showResult(s); } } }, 'Ask Jack to listen') : null;
+    resultArea.replaceChildren(...[resultBox(s, rubric), ask].filter(Boolean));
+  };
+  const poll = async (id, tries = 0) => {
+    try {
+      const s = await api('GET', `/api/me/explain/result/${id}`);
+      if (s.status === 'processing' && tries < 60) { resultArea.replaceChildren(h('div', { class: 'processing' }, h('span', { class: 'spin' }), 'Transcribing and reviewing your explanation. This takes up to a minute.')); setTimeout(() => poll(id, tries + 1), 3000); return; }
+      showResult(s); if (s.status !== 'processing') onDone?.({ silent: true });
+    } catch (e) { resultArea.replaceChildren(h('div', { class: 'muted' }, e.message)); }
+  };
   const last = submissions[0];
-  const reviewBox = (s) => s.status === 'reviewed' ? h('div', { class: 'review' }, h('b', null, 'Jack\'s review'), h('div', { class: 'rub' }, rubric.map((c) => h('span', { class: `chip ${{ 1: 'coral', 2: 'amber', 3: 'green' }[s.rubric?.[c.key]]}` }, `${c.label}: ${s.rubric?.[c.key]}/3`))), s.review_comment ? h('div', { style: 'margin-top:6px' }, s.review_comment) : null)
-    : h('div', { class: 'muted small' }, `Sent ${fmtDate(s.created_at)} · waiting for Jack's review.`);
-  if (last) box.append(reviewBox(last));
+  if (last) { if (last.status === 'processing') poll(last.id); else if (last.status === 'submitted') resultArea.append(h('div', { class: 'muted small' }, `Sent ${fmtDate(last.created_at)} · waiting for Jack's review.`)); else showResult(last); }
 
-  let rec = null, chunks = [], blob = null, startedAt = 0, timer = null;
+  let rec = null, chunks = [], blob = null, startedAt = 0, timer = null, secs = 0;
   const time = h('span', { class: 'rec-time' }, '0:00');
   const player = h('audio', { controls: true, hidden: true });
   const recBtn = h('button', { class: 'btn primary', type: 'button' }, last ? 'Record a new one' : 'Start recording');
   const text = h('textarea', { rows: 4, placeholder: 'Or write it, as you would say it to the client.' });
-  const send = h('button', { class: 'btn', type: 'button' }, 'Send to Jack');
-  const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const send = h('button', { class: 'btn', type: 'button' }, 'Send for review');
+  const fmt = (x) => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
   const stop = () => { if (rec && rec.state !== 'inactive') rec.stop(); clearInterval(timer); };
   recBtn.addEventListener('click', async () => {
     if (rec && rec.state === 'recording') return stop();
@@ -113,26 +138,25 @@ export function explainCard(moduleKey, ex, submissions, rubric, { onDone } = {})
       const mime = pickMime(); chunks = [];
       rec = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 32000 } : undefined);
       rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-      rec.onstop = () => { stream.getTracks().forEach((t) => t.stop()); blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' }); player.src = URL.createObjectURL(blob); player.hidden = false; recBtn.textContent = 'Record again'; recBtn.classList.remove('danger'); };
+      rec.onstop = () => { stream.getTracks().forEach((t) => t.stop()); secs = (Date.now() - startedAt) / 1000; blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' }); player.src = URL.createObjectURL(blob); player.hidden = false; recBtn.textContent = 'Record again'; recBtn.classList.remove('danger'); };
       rec.start(); startedAt = Date.now(); recBtn.textContent = 'Stop'; recBtn.classList.add('danger');
-      timer = setInterval(() => { const s = (Date.now() - startedAt) / 1000; time.textContent = fmt(s); if (s >= 180) stop(); }, 250);
+      timer = setInterval(() => { const x = (Date.now() - startedAt) / 1000; time.textContent = fmt(x); if (x >= 180) stop(); }, 250);
     } catch { toast('The microphone is blocked. Allow it in the browser, or write your answer.', true); }
   });
   send.addEventListener('click', async () => {
     if (rec && rec.state === 'recording') return toast('Stop the recording first.', true);
     try {
       const body = { text: text.value.trim() || null };
-      if (blob) { body.audio = await toBase64(blob); body.mime = blob.type; body.seconds = (Date.now() - startedAt) / 1000; }
+      if (blob) { body.audio = await toBase64(blob); body.mime = blob.type; body.seconds = secs; }
+      send.disabled = true;
       const r = await api('POST', `/api/me/explain/${moduleKey}`, body);
-      const ticks = r.points.map(() => h('input', { type: 'checkbox' }));
-      box.replaceChildren(h('div', { class: 'ok' }, 'Sent to Jack. Now check yourself: which of these did you cover?'),
-        h('div', { class: 'stack', style: 'margin-top:8px' }, r.points.map((p, i) => h('label', { class: 'opt' }, ticks[i], h('span', null, p)))),
-        h('button', { class: 'btn primary', style: 'margin-top:10px', on: { click: async () => { await api('PATCH', `/api/me/explain/${r.id}/points`, { points: ticks.map((t, i) => (t.checked ? i : -1)).filter((i) => i >= 0) }); toast('Saved'); onDone?.(); } } }, 'Save my self-check'));
-    } catch (e) { toast(e.message, true); }
+      blob = null; player.hidden = true; text.value = ''; time.textContent = '0:00';
+      if (r.status === 'processing') poll(r.id); else resultArea.replaceChildren(h('div', { class: 'ok' }, 'Sent to Jack for review.'));
+    } catch (e) { toast(e.message, true); } finally { send.disabled = false; }
   });
   box.append(h('div', { class: 'explain-prompt' }, ex.prompt),
-    h('p', { class: 'muted small' }, 'Talk to the client as you would on a call: up to 3 minutes. Jack scores it on accuracy, completeness, clarity and hand-over.'),
-    h('div', { class: 'row' }, recBtn, time), player, text, h('div', { style: 'margin-top:8px' }, send));
+    h('p', { class: 'muted small' }, 'Talk to the client as you would on a call, up to 3 minutes. You get a score within a minute: key points covered, clarity, and whether you said when to hand over. Record again as often as you like.'),
+    h('div', { class: 'row' }, recBtn, time), player, text, h('div', { style: 'margin-top:8px' }, send), h('div', { style: 'margin-top:12px' }, resultArea));
   return box;
 }
 

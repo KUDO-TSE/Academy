@@ -12,6 +12,7 @@ import { adminRouter } from './routes-admin.js';
 import { meProgramme, adminProgramme } from './programme.js';
 import { ensureDemo } from './demo.js';
 import { boardRouter } from './board.js';
+import { warmUp, resumePending } from './autoreview.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const prod = process.env.NODE_ENV === 'production';
@@ -21,6 +22,7 @@ export async function createApp() {
   await migrate();
   await ensureAdmins();
   await ensureDemo();
+  if (process.env.AUTO_REVIEW !== 'off') { warmUp(); resumePending().catch((e) => console.error(e)); }
 
   const app = express();
   app.set('trust proxy', 1); // Railway terminates TLS in front of the app
@@ -60,7 +62,7 @@ export async function createApp() {
 
   app.get('/healthz', async (_req, res) => { try { await q('SELECT 1'); res.json({ ok: true }); } catch { res.status(503).json({ ok: false }); } });
 
-  const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many attempts. Try again in a few minutes.' } });
+  const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: Number(process.env.LOGIN_RATE_LIMIT) || 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many attempts. Try again in a few minutes.' } });
 
   const publicUser = (u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, region: u.region, team: u.team, isTrainee: u.role === 'trainee' || !!u.is_trainee, mustChange: !!u.must_change_password });
 

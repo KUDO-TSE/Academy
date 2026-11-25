@@ -174,27 +174,29 @@ void dateOnly; void modal;
 // ------------------------------------------------------------------ explain-it reviews
 export async function reviewsView() {
   const d = await api('GET', '/api/admin/reviews');
-  const pending = d.items.filter((x) => x.status === 'submitted'), done = d.items.filter((x) => x.status === 'reviewed');
+  const pending = d.items.filter((x) => x.status !== 'reviewed' && x.needs_human), done = d.items.filter((x) => !(x.status !== 'reviewed' && x.needs_human));
   const card = (x) => {
-    const sel = Object.fromEntries(d.rubric.map((c) => [c.key, h('select', { 'aria-label': c.label }, h('option', { value: '' }, '–'), [1, 2, 3].map((n) => h('option', { value: n, selected: x.rubric?.[c.key] === n }, `${n} · ${['Not yet', 'Partly', 'Fully'][n - 1]}`)))]));
+    const sel = Object.fromEntries(d.rubric.map((c) => [c.key, h('select', { 'aria-label': c.label }, h('option', { value: '' }, '–'), [1, 2, 3].map((n) => h('option', { value: n, selected: (x.rubric || x.auto?.rubric)?.[c.key] === n }, `${n} · ${['Not yet', 'Partly', 'Fully'][n - 1]}`)))]));
     const comment = h('textarea', { rows: 2, placeholder: 'Feedback the trainee will see' }, x.review_comment || '');
     return h('div', { class: 'card', style: 'margin-bottom:14px' },
-      h('div', { class: 'row spread' }, h('div', null, h('h2', null, x.name), h('div', { class: 'muted small' }, `${x.module} · sent ${fmtDate(x.created_at)}`)), h('span', { class: `chip ${x.status === 'reviewed' ? 'green' : 'amber'}` }, x.status === 'reviewed' ? 'Reviewed' : 'To review')),
+      h('div', { class: 'row spread' }, h('div', null, h('h2', null, x.name), h('div', { class: 'muted small' }, `${x.module} · sent ${fmtDate(x.created_at)}`)), h('span', { class: `chip ${x.status === 'reviewed' ? 'green' : x.needs_human ? 'amber' : 'blue'}` }, x.status === 'reviewed' ? 'Reviewed by you' : x.status === 'auto' ? (x.needs_human ? 'Spot-check' : 'Auto-reviewed') : 'To review')),
       h('div', { class: 'explain-prompt' }, x.prompt),
       x.has_audio ? h('audio', { controls: true, preload: 'none', src: `/api/admin/submissions/${x.id}/audio`, style: 'width:100%;margin:8px 0' }) : null,
-      x.text_answer ? h('div', { class: 'pre' }, x.text_answer) : null,
+      x.transcript ? h('details', { open: true }, h('summary', null, 'Transcript'), h('div', { class: 'pre' }, x.transcript)) : x.text_answer ? h('div', { class: 'pre' }, x.text_answer) : null,
+      x.auto?.rubric ? h('div', { class: 'auto-box' }, h('b', null, `Automatic review: ${x.auto.rating} (${x.auto.avg}/3)`), h('div', { class: 'small' }, x.auto.note), x.auto.flags?.length ? h('div', { class: 'small', style: 'color:var(--danger)' }, `Flags: ${x.auto.flags.join('; ')}`) : null, h('div', { class: 'muted small' }, `Pace ${x.auto.metrics?.wpm ?? '–'} words/min · ${x.auto.metrics?.fillers ?? 0} filler words`)) : null,
+      x.human_requested ? h('div', { class: 'chip coral' }, 'The trainee asked for your view') : null,
       h('div', { class: 'small', style: 'margin-top:8px' }, h('b', null, 'Key points (✓ = trainee says they covered it): '), h('ul', { style: 'list-style:none;padding-left:4px;margin:4px 0' }, x.points.map((p, i) => h('li', null, (x.self_points || []).includes(i) ? '✓ ' : '○ ', p)))),
       h('div', { class: 'grid g4' }, d.rubric.map((c) => h('label', { class: 'f' }, h('span', { class: 'l' }, c.label), sel[c.key], h('div', { class: 'hint' }, c.hint)))),
       comment,
       h('button', { class: 'btn primary', style: 'margin-top:8px', on: { click: async () => {
         const rubric = Object.fromEntries(Object.entries(sel).map(([k, s]) => [k, Number(s.value)]));
         try { const r = await api('POST', `/api/admin/submissions/${x.id}/review`, { rubric, comment: comment.value.trim() || null }); toast(`Saved: counts as ${r.rating}${r.planChanged ? '. The plan changed: approve it on the Programme tab.' : '.'}`); location.reload(); } catch (e) { toast(e.message, true); }
-      } } }, x.status === 'reviewed' ? 'Update review' : 'Save review'));
+      } } }, x.status === 'reviewed' ? 'Update review' : x.status === 'auto' ? 'Confirm or change the scores' : 'Save review'));
   };
   return h('div', { class: 'page' },
-    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Explain-it reviews'), h('p', null, 'Trainees record or write how they would explain a scenario to a client. Score four criteria from 1 to 3: the average becomes a Gap, Developing or Solid rating on their level.'))),
-    pending.length ? pending.map(card) : h('div', { class: 'card empty' }, h('b', null, 'Nothing to review'), 'New recordings appear here.'),
-    done.length ? h('h2', { class: 'sec-h' }, 'Reviewed') : null, done.slice(0, 20).map(card));
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Explain-it reviews'), h('p', null, 'Recordings are transcribed and scored automatically. You only see spot-checks here: flagged answers, gaps, requests from trainees and a random 20%. Your scores replace the automatic ones.'))),
+    pending.length ? pending.map(card) : h('div', { class: 'card empty' }, h('b', null, 'No spot-checks waiting'), 'Flagged or sampled recordings appear here.'),
+    done.length ? h('h2', { class: 'sec-h' }, 'Recent reviews') : null, done.slice(0, 20).map(card));
 }
 
 // ------------------------------------------------------------------ feedback and item analysis
