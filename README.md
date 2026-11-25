@@ -56,3 +56,23 @@ bcrypt passwords, server-side role checks on every route (trainee API is scoped 
 - Emails are `firstname@kudo.ai`; correct them in the roster file if different.
 - Priority weighting follows Priority Weighting System v1; HI/AI themes and risk inputs (Admin > Priorities) are editable.
 - Free-text "dreaded question" answers are visible to admins only.
+
+## Programme (v2): personal plans built automatically
+
+Each trainee gets a 12-week, self-paced programme in four phases (Warm-up, Build, Broaden, Prove it), built by `server/engine.js` from:
+
+- the latest Self Assessment and knowledge test (per scenario, blended; overall-only results are scaled; self-only results are corrected by how the team scored),
+- the questions they missed, their profile (client demand, stated struggle, learning preference),
+- the team priorities (Priority Weighting System v1),
+- the Academy team's inputs: 1:1 sessions, call or video reviews and observations, each with Gap / Developing / Solid ratings per scenario.
+
+Targets depend on depth: Set up scenarios 80%, Hand over scenarios 70% (Jack can change the base target on the Programme page).
+The three scenarios with the highest personal priority become the focus. Every module has a lesson, practice, a graded check (pass 80%) and hand-over rules (`server/curriculum.js`, 17 modules, sourced from the CM Onboarding Guide V3, the explainer videos and the Help Center).
+
+Approval: a new plan, or a change to its structure, is saved as a draft. The trainee only sees approved plans. Admins approve on **Programme** (one by one or all at once).
+Trainees' own checks move their levels and progress live but never reshuffle the plan; assessments, the baseline check and admin inputs can.
+
+There is no plan import any more: plans come from the inputs.
+
+### Demo trainee
+Set `DEMO_TRAINEE_EMAIL` (for example `demo.trainee@kudo.ai`) and restart: a trainee with fictional results and an approved, partly completed plan is created once. It signs in with the generic initial password and must change it. It is excluded from team figures and priorities.

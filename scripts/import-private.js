@@ -24,5 +24,4 @@ const self = read('self_assessment.csv'); if (self) show('self assessment', awai
 const qs = read('questions.csv'); if (qs) show('question bank', await imp.importQuestions(LIVE, qs));
 const live = read('live_scores.csv'); if (live) show('knowledge test scores', await imp.importLiveScores(LIVE, live));
 const qr = read('question_results.csv'); if (qr) show('question results', await imp.importQuestionResults(LIVE, qr));
-const plan = read('plan.csv'); if (plan) show('plans', await imp.importPlan(plan));
 await pool.end();

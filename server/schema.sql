@@ -104,3 +104,66 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_trainee BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- ---- Programme (v2): plans are built automatically from inputs and approved by the Academy owner
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_overrides JSONB NOT NULL DEFAULT '{}';
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS plans (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  version INT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('draft','approved','superseded')),
+  data JSONB NOT NULL,
+  signature TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  approved_at TIMESTAMPTZ,
+  approved_by INT REFERENCES users(id) ON DELETE SET NULL,
+  started_on DATE
+);
+CREATE INDEX IF NOT EXISTS plans_user ON plans (user_id, version DESC);
+
+CREATE TABLE IF NOT EXISTS plan_progress (
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  item_key TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('done')),
+  note TEXT,
+  signed_off_by INT REFERENCES users(id) ON DELETE SET NULL,
+  signed_off_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, item_key)
+);
+
+CREATE TABLE IF NOT EXISTS quiz_attempts (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  module_key TEXT NOT NULL,
+  item_key TEXT,
+  correct INT NOT NULL,
+  total INT NOT NULL,
+  answers JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS quiz_attempts_user ON quiz_attempts (user_id, created_at);
+
+-- Inputs added by the Academy team: 1:1 sessions, call or video reviews, observations
+CREATE TABLE IF NOT EXISTS inputs (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  author_id INT REFERENCES users(id) ON DELETE SET NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('one_to_one','recording','observation','other')),
+  happened_on DATE NOT NULL DEFAULT CURRENT_DATE,
+  title TEXT NOT NULL,
+  link TEXT,
+  body TEXT,
+  signals JSONB NOT NULL DEFAULT '[]',
+  item_key TEXT,
+  shared_summary TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS inputs_user ON inputs (user_id, happened_on);

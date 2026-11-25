@@ -5,6 +5,7 @@ import { hash, initialPassword } from './auth.js';
 import { SCENARIOS, SCENARIO_KEYS, REGIONS, TEAMS, DEFAULT_WEIGHT, CRITICAL_STEPS } from './scenarios.js';
 import { computePriorities, computeOneToOne, latestByUser } from './scoring.js';
 import * as imp from './importers.js';
+import { refreshAll } from './engine.js';
 
 export const adminRouter = Router();
 const bad = (res, msg) => res.status(400).json({ error: msg });
@@ -22,7 +23,7 @@ async function allScoreRows() {
   return r.rows;
 }
 const trainees = async () => (await q(`SELECT id,name,email,region,team,weight,demand_scenario,struggle_scenarios,active
-                                         FROM users WHERE (role='trainee' OR is_trainee) AND active ORDER BY name`)).rows;
+                                         FROM users WHERE (role='trainee' OR is_trainee) AND active AND NOT is_demo ORDER BY name`)).rows;
 
 adminRouter.get('/meta', async (_req, res) => {
   res.json({ scenarios: SCENARIOS.map(({ key, label, short }) => ({ key, label, short })), regions: REGIONS, teams: TEAMS, defaultWeights: DEFAULT_WEIGHT, kinds: KINDS });
@@ -159,7 +160,7 @@ adminRouter.post('/users/:id/reset-password', async (req, res, next) => {
 
 adminRouter.get('/users', async (_req, res, next) => {
   try {
-    const r = await q('SELECT id,email,name,role,is_trainee,region,team,active,must_change_password,last_login_at FROM users ORDER BY role, name');
+    const r = await q('SELECT id,email,name,role,is_trainee,is_demo,region,team,active,must_change_password,last_login_at FROM users ORDER BY role, name');
     res.json(r.rows);
   } catch (e) { next(e); }
 });
@@ -296,8 +297,8 @@ adminRouter.post('/import', async (req, res, next) => {
     else if (kind === 'live') report = await imp.importLiveScores(round, rows);
     else if (kind === 'questions') report = await imp.importQuestions(round, rows);
     else if (kind === 'question_results') report = await imp.importQuestionResults(round, rows);
-    else if (kind === 'plan') report = await imp.importPlan(rows, req.user.id);
     else return bad(res, 'Unknown import type.');
+    await refreshAll().catch((e) => console.error('plan refresh after import failed', e));
     await audit(req, 'import', kind, JSON.stringify({ rows: rows.length, ...report, errors: report.errors.length }));
     res.json({ rows: rows.length, ...report });
   } catch (e) { next(e); }

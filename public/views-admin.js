@@ -1,3 +1,4 @@
+import * as P from './views-admin-programme.js';
 import { h, api, toast, modal, pct, fmtDate, dateOnly, KIND, DELIVERY, reading, initials } from './ui.js';
 import { pairedBars, COLORS } from './charts.js';
 import { homeView, resultsView, progressView, planView, latest, scoresFor } from './views-trainee.js';
@@ -74,21 +75,22 @@ export async function personView(id) {
   await meta();
   const d = await api('GET', `/api/admin/trainees/${id}`);
   const u = d.user;
-  let tab = 'results';
+  let tab = sessionStorage.getItem('personTab') || 'programme'; sessionStorage.removeItem('personTab');
   const body = h('div');
   const reload = () => { location.hash = `person-${id}`; window.dispatchEvent(new HashChangeEvent('hashchange')); };
   const tabs = h('div', { class: 'tabs', role: 'tablist' });
-  const TAB = [['results', 'Results'], ['plan', 'Training plan'], ['targets', 'Targets'], ['coaching', 'Coaching'], ['profile', 'Profile & access']];
+  const TAB = [['programme', 'Programme'], ['inputs', 'Inputs & 1:1s'], ['results', 'Results'], ['coaching', 'Notes'], ['profile', 'Profile & access']];
   const draw = () => {
     tabs.replaceChildren(...TAB.map(([k, l]) => h('button', { role: 'tab', class: tab === k ? 'on' : '', 'aria-selected': String(tab === k), on: { click: () => { tab = k; draw(); } } }, l)));
-    body.replaceChildren(({ results: tabResults, plan: tabPlan, targets: tabTargets, coaching: tabCoaching, profile: tabProfile })[tab](d, reload));
+    const reloadTab = () => { sessionStorage.setItem('personTab', tab); reload(); };
+    body.replaceChildren(tab === 'programme' ? P.tabProgramme(id, reloadTab) : tab === 'inputs' ? P.tabInputs(id, reloadTab) : ({ results: tabResults, plan: tabPlan, targets: tabTargets, coaching: tabCoaching, profile: tabProfile })[tab](d, reload));
   };
   draw();
   return h('div', { class: 'page' },
     h('a', { href: '#team', class: 'muted' }, '← Team'),
     h('div', { class: 'page-head', style: 'margin-top:8px' }, h('div', { class: 'row' }, h('span', { class: 'avatar', style: 'width:52px;height:52px;font-size:16px' }, initials(u.name)),
       h('div', null, h('h1', null, u.name), h('p', null, [u.email, u.region, u.team].filter(Boolean).join(' · '), u.last_login_at ? ` · last sign-in ${fmtDate(u.last_login_at)}` : ' · has not signed in yet'))),
-      h('div', { class: 'row' }, !u.active ? h('span', { class: 'chip red' }, 'Deactivated') : null, h('button', { class: 'btn', on: { click: () => { sessionStorage.setItem('previewAs', JSON.stringify(asTrainee(d))); location.hash = 'preview'; } } }, 'View as trainee'))),
+      h('div', { class: 'row' }, !u.active ? h('span', { class: 'chip red' }, 'Deactivated') : null, h('a', { class: 'btn', href: `#pview-${id}` }, 'View as trainee'))),
     tabs, body);
 }
 
@@ -239,7 +241,6 @@ const IMPORTS = {
   live: { label: 'Knowledge test scores', tpl: 'live_scores.csv', round: true, note: 'Correct and total per scenario. Use scenario "overall" for the whole test.' },
   questions: { label: 'Test question bank', tpl: 'questions.csv', round: true, note: 'Question text and correct answer, so trainees can review what they missed.' },
   question_results: { label: 'Per-question results', tpl: 'question_results.csv', round: true, note: 'One row per person per question: correct = 1 or 0.' },
-  plan: { label: 'Training plans', tpl: 'plan.csv', note: 'One row per plan item. Appends to existing plans.' },
 };
 export async function importView() {
   await meta();

@@ -1,13 +1,15 @@
 import { h, api, toast, modal, icon, initials } from './ui.js';
-import { homeView, resultsView, progressView, planView } from './views-trainee.js';
+import { resultsView, progressView } from './views-trainee.js';
 import * as A from './views-admin.js';
+import * as P from './views-admin-programme.js';
+import { programmeView, moduleRoute, missedView } from './views-programme.js';
 
 const root = document.getElementById('app');
 let me = null;
 
-const NAV_TRAINEE = [['home', 'Home', 'home'], ['results', 'My results', 'chart'], ['progress', 'My progress', 'trend'], ['plan', 'My training plan', 'plan']];
-const NAV_ME = [['me-home', 'My home', 'user'], ['me-results', 'My results', 'chart'], ['me-progress', 'My progress', 'trend'], ['me-plan', 'My training plan', 'plan']];
-const NAV_ADMIN = [['overview', 'Overview', 'home'], ['team', 'Team', 'team'], ['priorities', 'Priorities', 'flag'], ['plans', 'Training plans', 'plan'], ['SEP', 'Admin'], ['imports', 'Imports', 'upload'], ['users', 'Users & access', 'key'], ['audit', 'Activity log', 'log'], ['logic', 'Logic notes', 'info']];
+const NAV_TRAINEE = [['programme', 'My programme', 'plan'], ['results', 'My results', 'chart'], ['progress', 'My progress', 'trend']];
+const NAV_ME = [['me-programme', 'My programme', 'plan'], ['me-results', 'My results', 'chart'], ['me-progress', 'My progress', 'trend']];
+const NAV_ADMIN = [['overview', 'Overview', 'home'], ['team', 'Team', 'team'], ['priorities', 'Priorities', 'flag'], ['programme', 'Programme', 'plan'], ['curriculum', 'Curriculum', 'info'], ['SEP', 'Admin'], ['imports', 'Imports', 'upload'], ['users', 'Users & access', 'key'], ['audit', 'Activity log', 'log'], ['logic', 'Logic notes', 'info']];
 
 async function boot() {
   try { me = (await api('GET', '/api/auth/me')).user; } catch { me = null; }
@@ -71,7 +73,7 @@ async function logout() { try { await api('POST', '/api/auth/logout'); } catch {
 
 // ------------------------------------------------------------ Shell
 function shell() {
-  const nav = me.role === 'admin' ? [...NAV_ADMIN.slice(0, 4), ...(me.isTrainee ? [['SEP', 'My Academy'], ...NAV_ME] : []), ...NAV_ADMIN.slice(4)] : NAV_TRAINEE;
+  const nav = me.role === 'admin' ? [...NAV_ADMIN.slice(0, 5), ...(me.isTrainee ? [['SEP', 'My Academy'], ...NAV_ME] : []), ...NAV_ADMIN.slice(5)] : NAV_TRAINEE;
   const list = h('ul', { class: 'nav' }, nav.map(([k, l, ic]) => k === 'SEP' ? h('li', { class: 'sep' }, l) : h('li', null, h('a', { href: `#${k}`, 'data-r': k }, icon(ic), l))));
   const menu = h('div', { class: 'menu', role: 'menu', hidden: true }, h('button', { role: 'menuitem', on: { click: () => { menu.hidden = true; changePasswordModal(); } } }, 'Change password'), h('button', { class: 'out', role: 'menuitem', on: { click: logout } }, 'Log out'));
   const acct = h('div', { class: 'acct' }, menu, h('button', { class: 'acct-btn', 'aria-haspopup': 'menu', on: { click: (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; } } }, h('span', { class: 'avatar' }, initials(me.name)), h('span', { class: 'acct-meta' }, h('div', { class: 'acct-name' }, me.name), h('div', { class: 'acct-role' }, me.role === 'admin' ? 'Admin' : 'Trainee'))));
@@ -80,30 +82,42 @@ function shell() {
 }
 
 // ------------------------------------------------------------ Router
-const TRAINEE_ROUTES = { home: homeView, results: resultsView, progress: progressView, plan: (d) => planView(d) };
-const ADMIN_ROUTES = { overview: A.overviewView, team: A.teamView, priorities: A.prioritiesView, plans: A.plansView, imports: A.importView, users: A.usersView, audit: A.auditView, logic: A.logicView };
+const TRAINEE_ROUTES = { programme: null, results: resultsView, progress: progressView };
+const ADMIN_ROUTES = { overview: A.overviewView, team: A.teamView, priorities: A.prioritiesView, programme: P.programmeOverview, curriculum: () => P.curriculumView(), imports: A.importView, users: A.usersView, audit: A.auditView, logic: A.logicView };
+const isTraineeDyn = (r) => r.startsWith('module-') || r === 'missed';
+const isAdminDyn = (r) => r.startsWith('person-') || r.startsWith('preview') || r.startsWith('pview-') || r.startsWith('curriculum-');
 
 async function route() {
   if (!me || me.mustChange) return;
   const main = document.getElementById('main'); if (!main) return;
-  let r = location.hash.replace(/^#/, '') || (me.role === 'admin' ? 'overview' : 'home');
+  let r = location.hash.replace(/^#/, '') || (me.role === 'admin' ? 'overview' : 'programme');
   const isAdmin = me.role === 'admin';
-  const meMode = isAdmin && me.isTrainee && r.startsWith('me-');
+  let meMode = isAdmin && me.isTrainee && r.startsWith('me-');
   if (meMode) r = r.slice(3);
-  const adminOnly = r in ADMIN_ROUTES || r.startsWith('person-') || r.startsWith('preview');
-  if (isAdmin && !meMode && r in TRAINEE_ROUTES) r = 'overview';
-  if (!isAdmin && (adminOnly || !(r in TRAINEE_ROUTES))) r = 'home';
-  if (meMode && !(r in TRAINEE_ROUTES)) r = 'home';
-  if (isAdmin && !meMode && !(r in ADMIN_ROUTES) && !r.startsWith('person-') && !r.startsWith('preview')) r = 'overview';
+  if (isAdmin && !meMode && isTraineeDyn(r)) { if (me.isTrainee) meMode = true; else r = r.startsWith('module-') ? `curriculum-${r.slice(7).split('~')[0]}` : 'overview'; }
+  const okTrainee = (x) => x in TRAINEE_ROUTES || isTraineeDyn(x);
+  if (isAdmin && !meMode && r in TRAINEE_ROUTES && !(r in ADMIN_ROUTES)) r = 'overview';
+  if (!isAdmin && !okTrainee(r)) r = 'programme';
+  if (meMode && !okTrainee(r)) r = 'programme';
+  if (isAdmin && !meMode && !(r in ADMIN_ROUTES) && !isAdminDyn(r)) r = 'overview';
   const navKey = meMode ? `me-${r}` : r;
-  document.querySelectorAll('.nav a').forEach((a) => a.classList.toggle('active', a.dataset.r === navKey || (r.startsWith('person-') && a.dataset.r === 'team')));
+  document.querySelectorAll('.nav a').forEach((a) => a.classList.toggle('active', a.dataset.r === navKey || (r.startsWith('person-') && a.dataset.r === 'team') || (r.startsWith('curriculum-') && a.dataset.r === 'curriculum') || (isTraineeDyn(r) && a.dataset.r === (meMode ? 'me-programme' : 'programme'))));
   main.replaceChildren(h('div', { class: 'page muted' }, 'Loading…'));
   try {
     let view;
     if (isAdmin && !meMode) {
       if (r.startsWith('person-')) view = await A.personView(Number(r.slice(7)));
+      else if (r.startsWith('pview-')) { const [, id, d] = r.split('-'); view = await P.previewProgramme(Number(id), d === 'draft'); }
       else if (r.startsWith('preview')) view = A.previewView(r.split('-')[1]);
+      else if (r.startsWith('curriculum-')) view = await P.curriculumView(r.slice(11));
       else view = await ADMIN_ROUTES[r]();
+    } else if (r === 'programme' || isTraineeDyn(r)) {
+      const prog = await api('GET', '/api/me/programme');
+      const items = prog.state?.items || [];
+      const rerender = () => route();
+      if (r === 'programme') view = programmeView(prog);
+      else if (r === 'missed') view = await missedView({ rerender, planItems: items });
+      else view = await moduleRoute(r.slice(7), { planItems: items, rerender });
     } else {
       const data = await api('GET', '/api/me');
       view = TRAINEE_ROUTES[r](data, { onChange: () => {} });

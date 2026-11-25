@@ -34,6 +34,7 @@ test.before(async () => {
   await imp.importLiveScores({ key: 'r1-live', label: 'R1 Knowledge Test', sort: 1 }, [
     { email: 'ann@test.local', scenario: 'overall', correct: 40, total: 50 }, { email: 'bob@test.local', scenario: 'overall', correct: 25, total: 50 }]);
   await imp.importPlan([{ email: 'ann@test.local', month: 1, title: 'Ann plan item' }, { email: 'bob@test.local', month: 1, title: 'Bob plan item' }]);
+
 });
 test.after(async () => { server?.close(); await pool.end(); });
 
@@ -106,8 +107,8 @@ test('admin can see everyone, manage plans, reset passwords; reset forces a chan
   assert.equal(l.json.user.mustChange, true);
   const pr = (await adm('GET', '/api/admin/priorities')).json;
   assert.equal(pr.scenarios.length, 12);
-  const imp1 = await adm('POST', '/api/admin/import', { kind: 'plan', csv: 'email,month,title\nann@test.local,2,Imported item\nnobody@test.local,1,Lost' });
-  assert.equal(imp1.json.saved, 1); assert.equal(imp1.json.errors.length, 1);
+  const imp1 = await adm('POST', '/api/admin/import', { kind: 'plan', csv: 'email,month,title\nann@test.local,2,Imported item' });
+  assert.equal(imp1.status, 400, 'plans are built automatically, there is no plan import');
   assert.equal((await adm('PATCH', `/api/admin/trainees/${(await q("SELECT id FROM users WHERE email='boss@test.local'")).rows[0].id}`, { active: false })).status, 400, 'cannot deactivate self');
   const csv = await fetch(base + '/api/admin/export/results.csv', { headers: { cookie: '' } });
   assert.equal(csv.status, 401);
@@ -146,4 +147,43 @@ test('deactivated users cannot sign in and live sessions end', async () => {
   assert.equal((await adm('PATCH', `/api/admin/trainees/${id}`, { active: false })).status, 200);
   assert.equal((await bob('GET', '/api/me')).status, 401);
   assert.equal((await client()('POST', '/api/auth/login', { email: 'bob@test.local', password: 'Second-river-pass-1' })).status, 401);
+});
+
+test('programme: built automatically, approved by an admin, graded on the server, updated by inputs', async () => {
+  const adm = client(); await adm('POST', '/api/auth/login', { email: 'boss@test.local', password: 'Quiet-harbor-pass-55' });
+  const ann = client(); assert.equal((await ann('POST', '/api/auth/login', { email: 'ann@test.local', password: 'Brand-new-pass-77' })).status, 200);
+  const annId = (await q("SELECT id FROM users WHERE email='ann@test.local'")).rows[0].id;
+  // Before approval the trainee sees a pending page, not the draft.
+  const pending = await ann('GET', '/api/me/programme');
+  assert.equal(pending.status, 200); assert.equal(pending.json.status, 'pending'); assert.equal(pending.json.plan, undefined);
+  const ov = await adm('GET', '/api/admin/programme');
+  assert.ok(ov.json.rows.some((r) => r.id === annId && r.status === 'draft'));
+  assert.equal((await ann('GET', '/api/admin/programme')).status, 403);
+  assert.equal((await adm('POST', `/api/admin/trainees/${annId}/programme/approve`)).status, 200);
+  const p = await ann('GET', '/api/me/programme');
+  assert.equal(p.json.status, 'approved'); assert.equal(p.json.state.items[0].key, 'kickoff');
+  assert.ok(p.json.state.items.some((i) => i.kind === 'baseline'), 'no per-scenario test, so a baseline check is planned');
+  // Quiz answers never reach the browser before an attempt, and grading happens on the server.
+  const mod = await ann('GET', '/api/me/modules/teams');
+  assert.equal(mod.status, 200); assert.equal(mod.json.quiz[0].a, undefined); assert.equal(mod.json.quiz[0].why, undefined);
+  assert.equal((await ann('POST', '/api/me/modules/teams/attempt', { answers: [1] })).status, 400);
+  const at = await ann('POST', '/api/me/modules/teams/attempt', { answers: [1, 2, 1, 1, 1] });
+  assert.equal(at.json.correct, 5); assert.equal(at.json.passed, true); assert.equal(at.json.planChanged, false, 'own checks do not reshuffle the plan');
+  // Trainees can tick lessons but not sessions with Jack.
+  assert.equal((await ann('POST', '/api/me/items/kickoff/done', {})).status, 400);
+  const lesson = p.json.state.items.find((i) => i.kind === 'lesson');
+  assert.equal((await ann('POST', `/api/me/items/${lesson.key}/done`, {})).status, 200);
+  // An input from the admin ticks the kick-off and, if the structure changes, creates a draft the trainee does not see yet.
+  const inp = await adm('POST', `/api/admin/trainees/${annId}/inputs`, { kind: 'one_to_one', title: 'Kick-off', item_key: 'kickoff', signals: [{ scenario: 'hls', rating: 'solid' }, { scenario: 'zoom', rating: 'gap' }], shared_summary: 'Good start' });
+  assert.equal(inp.status, 200);
+  const p2 = await ann('GET', '/api/me/programme');
+  assert.equal(p2.json.state.items.find((i) => i.key === 'kickoff').done, true);
+  assert.equal(p2.json.shared[0].text, 'Good start');
+  assert.equal(p2.json.version, p.json.version, 'trainee still sees the approved version');
+  const detail = await adm('GET', `/api/admin/trainees/${annId}/programme`);
+  if (inp.json.planChanged) assert.ok(detail.json.draft, 'changed structure waits as a draft');
+  assert.equal((await adm('POST', '/api/admin/inputs/suggest', { text: 'Zoom came up. Not sure about the Zoom encryption. Confused by the Zoom waiting room.' })).json.signals[0].rating, 'gap');
+  // Admin-only routes stay closed to trainees.
+  assert.equal((await ann('POST', `/api/admin/trainees/${annId}/programme/approve`)).status, 403);
+  assert.equal((await ann('GET', `/api/admin/trainees/${annId}/programme`)).status, 403);
 });

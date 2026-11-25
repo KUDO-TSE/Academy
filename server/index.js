@@ -9,6 +9,8 @@ import { pool, q, migrate, audit } from './db.js';
 import { ensureAdmins, loadUser, requireAuth, requireAdmin, csrfGuard, login, hash, verify, checkNewPassword } from './auth.js';
 import { meRouter } from './routes-me.js';
 import { adminRouter } from './routes-admin.js';
+import { meProgramme, adminProgramme } from './programme.js';
+import { ensureDemo } from './demo.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const prod = process.env.NODE_ENV === 'production';
@@ -17,6 +19,7 @@ export async function createApp() {
   if (prod && (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 24)) throw new Error('SESSION_SECRET must be set (24+ characters) in production.');
   await migrate();
   await ensureAdmins();
+  await ensureDemo();
 
   const app = express();
   app.set('trust proxy', 1); // Railway terminates TLS in front of the app
@@ -103,7 +106,9 @@ export async function createApp() {
   });
 
   app.use('/api/me', requireAuth, meRouter);
+  app.use('/api/me', requireAuth, meProgramme);
   app.use('/api/admin', requireAdmin, adminRouter);
+  app.use('/api/admin', requireAdmin, adminProgramme);
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found.' }));
 
   app.use(express.static(path.join(here, '..', 'public'), { index: 'index.html', maxAge: prod ? '1h' : 0 }));
