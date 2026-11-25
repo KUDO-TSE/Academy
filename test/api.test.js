@@ -246,6 +246,15 @@ test('programme: built automatically, approved by an admin, graded on the server
   assert.equal((await adm('POST', '/api/admin/board/tasks', { key: 'nudge:1:2026-11-23', action: 'snooze' })).status, 200);
   assert.equal((await adm('POST', '/api/admin/board/group-done', { itemKey: 'kickoff', userIds: [annId] })).status, 200);
   assert.equal((await ann('GET', '/api/me/programme')).json.state.items.find((i) => i.key === 'kickoff').done, true);
+  // The trainee may choose the third focus area; it becomes a draft for Jack.
+  await adm('POST', `/api/admin/trainees/${annId}/programme/approve`);
+  const opt = await ann('GET', '/api/me/plan/options'); assert.equal(opt.status, 200);
+  if (opt.json.canChoose && !opt.json.pending) {
+    const alt = opt.json.options.find((x) => !x.current);
+    assert.equal((await ann('POST', '/api/me/plan/focus', { third: 'not-a-scenario' })).status, 400);
+    const ch2 = await ann('POST', '/api/me/plan/focus', { third: alt.scenario }); assert.equal(ch2.json.status, 'draft');
+    assert.equal((await ann('GET', '/api/me/plan/options')).json.pending, true);
+  }
   // Admin-only routes stay closed to trainees.
   assert.equal((await ann('POST', `/api/admin/trainees/${annId}/programme/approve`)).status, 403);
   assert.equal((await ann('GET', `/api/admin/trainees/${annId}/programme`)).status, 403);
@@ -310,6 +319,13 @@ test('test trainees are created and reset by admins and never count in team resu
   const lesson = prog.json.state.items.find((i) => i.kind === 'lesson' && !i.done);
   assert.equal((await adm('POST', `/api/me/items/${lesson.key}/done`, {})).status, 200);
   assert.equal((await adm('GET', '/api/admin/board')).status, 403, 'no admin rights while acting');
+  // A trainee can choose the third focus area; the change waits for Jack's approval.
+  const opt = (await adm('GET', '/api/me/plan/options')).json;
+  assert.equal(opt.canChoose, true); assert.equal(opt.keep.length, 2);
+  const alt = opt.options.find((x) => !x.current);
+  assert.equal((await adm('POST', '/api/me/plan/focus', { third: 'not-a-scenario' })).status, 400);
+  assert.equal((await adm('POST', '/api/me/plan/focus', { third: alt.scenario })).json.status, 'draft');
+  assert.equal((await adm('GET', '/api/me/plan/options')).json.pending, true);
   assert.equal((await adm('POST', '/api/auth/change-password', { current: 'x', next: 'Whatever-pass-99' })).status, 400);
   assert.equal((await adm('POST', '/api/auth/act-as/stop')).status, 200);
   assert.equal((await adm('GET', '/api/admin/board')).status, 200, 'admin again');

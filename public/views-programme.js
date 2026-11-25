@@ -53,6 +53,51 @@ function timeline(data, st) {
     h('i', { class: 'tl-you', style: `left:calc(${((st.week - 0.5) / W) * 100}% - 1px)` }, h('span', null, `You: week ${st.week}`))));
 }
 
+// Warm-up before a recorded check: the formats on neutral content, marked in the browser, never stored.
+function warmUp() {
+  const items = [
+    { t: 'mcq', q: 'How long is the Academy programme?', o: ['6 weeks', '12 weeks', '6 months', 'One year'], a: 1, why: 'Twelve weeks in four phases.' },
+    { t: 'multi', q: 'Which of these are phases of your plan?', pick: 2, o: ['Warm-up', 'Prove it', 'Holiday', 'Onboarding'], a: [0, 1], why: 'Warm-up, Build, Broaden and Prove it.' },
+    { t: 'order', q: 'Put the four phases in order.', steps: ['Warm-up', 'Build', 'Broaden', 'Prove it'], why: 'From the basics to proving it with Jack.' },
+  ];
+  const shuffle = (a) => a.map((x) => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map((p) => p[1]);
+  const box = h('div');
+  const draw = () => {
+    const state = items.map((x) => ({ v: x.t === 'multi' ? [] : x.t === 'order' ? shuffle(x.steps) : null }));
+    const list = items.map((x, i) => {
+      const st = state[i]; let body;
+      if (x.t === 'mcq') body = x.o.map((o, oi) => h('label', { class: 'opt' }, h('input', { type: 'radio', name: `wu${i}`, on: { change: () => { st.v = oi; } } }), h('span', null, o)));
+      else if (x.t === 'multi') body = x.o.map((o, oi) => h('label', { class: 'opt' }, h('input', { type: 'checkbox', on: { change: (e) => { st.v = e.target.checked ? [...st.v, oi] : st.v.filter((z) => z !== oi); } } }), h('span', null, o)));
+      else { const ol = h('ol', { class: 'order' }); const re = () => ol.replaceChildren(...st.v.map((stp, si) => h('li', null, h('span', null, stp), h('span', { class: 'ord-btns' }, h('button', { type: 'button', class: 'btn sm', disabled: si === 0, on: { click: () => { [st.v[si - 1], st.v[si]] = [st.v[si], st.v[si - 1]]; re(); } } }, '↑'), h('button', { type: 'button', class: 'btn sm', disabled: si === st.v.length - 1, on: { click: () => { [st.v[si + 1], st.v[si]] = [st.v[si], st.v[si + 1]]; re(); } } }, '↓'))))); re(); body = ol; }
+      return h('fieldset', { class: 'qq' }, h('legend', null, `${i + 1}. ${x.q}`), h('div', { class: 'muted small' }, { mcq: 'One answer', multi: `Pick ${x.pick}`, order: 'Put in order' }[x.t]), body);
+    });
+    const check = h('button', { class: 'btn', type: 'button', on: { click: () => {
+      const ok = items.map((x, i) => x.t === 'mcq' ? state[i].v === x.a : x.t === 'multi' ? state[i].v.length === x.a.length && x.a.every((k) => state[i].v.includes(k)) : state[i].v.join('|') === x.steps.join('|'));
+      box.replaceChildren(h('div', { class: 'note-box' }, h('b', null, `Warm-up: ${ok.filter(Boolean).length} of ${items.length}. Not stored.`), items.map((x, i) => h('div', { class: 'small' }, `${ok[i] ? '✓' : '✗'} ${x.q} ${x.why}`)), h('button', { class: 'btn sm', style: 'margin-top:6px', on: { click: draw } }, 'Again')));
+    } } }, 'Check the warm-up');
+    box.replaceChildren(h('div', { class: 'stack' }, ...list, check));
+  };
+  const d = h('details', { class: 'warmup', style: 'margin:8px 0 12px' }, h('summary', null, 'First time? Try the question formats on three warm-up questions (not scored)'), box);
+  draw();
+  return d;
+}
+
+// The trainee keeps the first two focus areas and may choose the third. Jack approves the change.
+function focusChoice() {
+  const box = h('div');
+  (async () => {
+    const o = await api('GET', '/api/me/plan/options');
+    if (!o.canChoose) return;
+    if (o.pending) { box.replaceChildren(h('div', { class: 'muted small', style: 'margin-top:10px' }, 'Your change is waiting for Jack\'s approval.')); return; }
+    box.replaceChildren(h('details', { style: 'margin-top:10px' }, h('summary', null, 'Prefer a different third focus area?'),
+      h('p', { class: 'muted small' }, 'The first two come from your results and stay. For the third, pick what matters most for your clients. Jack approves the change, then your plan updates.'),
+      h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap' }, o.options.map((x) => h('button', { class: `btn sm ${x.current ? 'primary' : ''}`, disabled: x.current, on: { click: async () => {
+        try { await api('POST', '/api/me/plan/focus', { third: x.scenario }); toast('Sent to Jack for approval'); box.replaceChildren(h('div', { class: 'muted small', style: 'margin-top:10px' }, 'Your change is waiting for Jack\'s approval.')); } catch (e) { toast(e.message, true); }
+      } } }, `${x.label} · ${x.gap} points to go${x.current ? ' (current)' : ''}`)))));
+  })().catch(() => {});
+  return box;
+}
+
 // ------------------------------------------------------------------ the programme page
 export function programmeView(data, { readOnly = false, banner = null } = {}) {
   if (data.status === 'pending' || data.status === 'none') {
@@ -96,7 +141,8 @@ export function programmeView(data, { readOnly = false, banner = null } = {}) {
         st.jackNext.length ? h('div', { class: 'jack-next' }, h('b', null, 'Coming up with Jack: '), st.jackNext.map((i) => i.title).join(' · ')) : null),
       h('div', { class: 'card' }, h('h2', null, 'Why these three focus areas'), h('p', { class: 'sub' }, plan.focusPinned ? 'Chosen with Jack.' : 'Picked from your results, your clients and the team priorities.'),
         plan.focus.length ? plan.focus.map((s) => { const l = st.levels.find((x) => x.scenario === s); return h('div', { class: 'focus-why' }, h('div', { class: 'row spread' }, h('b', null, l.label), h('span', { class: `chip ${BAND_CHIP[l.band.key]}` }, `${l.now}% → ${l.target}%`)), h('div', { class: 'muted small' }, `Because ${plan.focusReasons[s]}.`)); }) : h('div', { class: 'muted' }, 'You are already at target on every scenario: your plan keeps it sharp and proves it.'),
-        plan.tip ? h('div', { class: 'tip' }, h('b', null, 'How you like to learn: '), plan.tip) : null)),
+        plan.tip ? h('div', { class: 'tip' }, h('b', null, 'How you like to learn: '), plan.tip) : null,
+        readOnly ? null : focusChoice())),
 
     readOnly ? null : h('div', { style: 'margin-top:16px' }, spacedCard()),
     readOnly ? null : h('div', { style: 'margin-top:16px' }, challengeCard()),
@@ -191,7 +237,7 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
           m.learn.map((r) => h('a', { class: 'res', href: r.url, target: '_blank', rel: 'noopener noreferrer' }, h('span', { class: `chip ${r.type === 'video' ? 'coral' : r.type === 'guide' ? 'amber' : 'blue'}` }, { video: 'Video', guide: 'Guide', article: 'Help Center' }[r.type]), h('span', null, r.title, r.note ? h('span', { class: 'muted small' }, ` · ${r.note}`) : null)))),
         h('div', { class: 'card' }, h('h2', null, 'When to hand over'), h('ul', { class: 'esc' }, m.escalate.map((e) => h('li', null, e)))))),
     h('div', { class: 'card', style: 'margin-top:16px' }, h('div', { class: 'eyebrow dark' }, m.key === 'baseline' ? 'Baseline' : 'Step 3 · Check'), h('div', { class: 'row spread' }, h('h2', null, m.key === 'baseline' ? 'One question per scenario' : 'Prove it'), last ? h('span', { class: 'chip blue' }, `Recorded score ${Math.round((last.correct / last.total) * 100)}% · ${fmtDate(last.created_at)}`) : null),
-      h('p', { class: 'sub' }, m.key === 'baseline' ? 'No pass mark: answer honestly, it aims your plan at the right gaps.' : last ? 'Your recorded score is from your first attempt. Retakes are for practice: a new mix of questions each time, and they do not change your score.' : `Your first attempt is the score we keep, so take your time (aim for ${Math.round((m.pass || 0.8) * 100)}%). After that, retake it as often as you like to practise.`), quizBox),
+      h('p', { class: 'sub' }, m.key === 'baseline' ? 'No pass mark: answer honestly, it aims your plan at the right gaps.' : last ? 'Your recorded score is from your first attempt. Retakes are for practice: a new mix of questions each time, and they do not change your score.' : `Your first attempt is the score we keep, so take your time (aim for ${Math.round((m.pass || 0.8) * 100)}%). After that, retake it as often as you like to practise.`), !last && !admin ? warmUp() : null, quizBox),
     walkCard, explainBox, fbBox,
   );
 }

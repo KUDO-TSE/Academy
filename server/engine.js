@@ -145,7 +145,7 @@ export function computeLevels(u, ctx, { forPlanning = false } = {}) {
 }
 
 /** Personal priority per scenario: size of the gap, weighted by what the team needs and what this person's clients bring. */
-function personalPriority(u, levels, ctx) {
+export function personalPriority(u, levels, ctx) {
   const target = ctx.settings.target;
   return SCENARIO_KEYS.map((s) => {
     const L = levels.per[s];
@@ -181,8 +181,9 @@ export function buildPlan(u, ctx, { keepFocus = null } = {}) {
   const missed = (ctx.qres.get(u.id) || []).filter((r) => !r.correct && r.round_id === levels.liveRound?.id);
   const missedBy = (s) => missed.filter((r) => r.scenario === s);
 
-  let focus = Array.isArray(ov.focus) && ov.focus.length ? ov.focus.filter((s) => SCENARIO_KEYS.includes(s)).slice(0, 3) : keepFocus || pri.filter((p) => p.gapPts >= 5).slice(0, 3).map((p) => p.scenario);
   const focusPinned = Array.isArray(ov.focus) && ov.focus.length > 0;
+  const traineeChoice = !focusPinned && Array.isArray(ov.traineeFocus) && ov.traineeFocus.length ? ov.traineeFocus.filter((s) => SCENARIO_KEYS.includes(s)).slice(0, 3) : null;
+  let focus = focusPinned ? ov.focus.filter((s) => SCENARIO_KEYS.includes(s)).slice(0, 3) : traineeChoice || keepFocus || pri.filter((p) => p.gapPts >= 5).slice(0, 3).map((p) => p.scenario);
   const items = [];
   const placed = new Set();
   const add = (it) => { items.push({ owner: 'you', mandatory: false, minutes: 20, ...it }); };
@@ -249,7 +250,7 @@ export function buildPlan(u, ctx, { keepFocus = null } = {}) {
   const data = {
     built_at: new Date().toISOString(),
     target, goal: ctx.settings.goal,
-    focus, focusPinned, focusReasons: Object.fromEntries(focus.map((s) => [s, reasonFor(s)])),
+    focus, focusPinned, focusChosen: !!traineeChoice, focusReasons: Object.fromEntries(focus.map((s) => [s, reasonFor(s)])),
     learning_pref: pref, tip,
     baseline: Object.fromEntries(SCENARIO_KEYS.map((s) => [s, { v: levels.per[s].est, source: levels.per[s].source }])),
     baseline_round: levels.liveRound?.id ?? null,
@@ -275,7 +276,7 @@ export async function refreshPlan(userId, ctx = null) {
   // Stability: within the same assessment cycle, the focus only changes when a level has really moved. A swap driven by
   // differences under STABLE_POINTS (one question on a 6-question check) keeps the approved focus.
   const ad = approved?.data;
-  if (ad && !data.focusPinned && !ad.focusPinned && ad.baseline_round === data.baseline_round && JSON.stringify(ad.focus) !== JSON.stringify(data.focus)) {
+  if (ad && !data.focusPinned && !ad.focusPinned && !data.focusChosen && ad.baseline_round === data.baseline_round && JSON.stringify(ad.focus) !== JSON.stringify(data.focus)) {
     const swapped = [...new Set([...ad.focus, ...data.focus])].filter((s) => !(ad.focus.includes(s) && data.focus.includes(s)));
     const moved = swapped.some((s) => Math.abs((data.baseline[s]?.v ?? 0) - (ad.baseline?.[s]?.v ?? 0)) >= STABLE_POINTS);
     if (!moved) ({ data, signature } = buildPlan(u, ctx, { keepFocus: ad.focus }));

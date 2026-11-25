@@ -5,6 +5,8 @@ import { q, audit } from './db.js';
 import { loadContext, refreshAll, liveState } from './engine.js';
 import { MODULE_BY_KEY } from './curriculum.js';
 import { itemById } from './assess.js';
+import { SCENARIOS } from './scenarios.js';
+const SCENARIO_LABEL = Object.fromEntries(SCENARIOS.map((x) => [x.key, x.label]));
 
 export const boardRouter = Router();
 const DAY = 864e5;
@@ -81,6 +83,25 @@ export async function buildBoard() {
     add({ key: `group:${itemKey}:${iso(thisMon)}`, type: 'session', group: true, itemKey, userIds: same.map((t) => t.userId), person: `${same.length} trainees`, title: itemKey === 'kickoff' ? 'Run a group kick-off' : 'Run a group mid-point check-in', detail: `Instead of ${same.length} separate sessions: ${same.map((t) => t.person).join(', ')}. Mark it held for everyone who attended.`, minutes: 60, due: same.map((t) => t.due).sort()[0], urgency: urg, link: '#board' });
   }
 
+  // Peer teach-back: in the Broaden phase (weeks 8 to 10), pair trainees who share a focus scenario. Explaining to a
+  // colleague consolidates learning and builds the team; Jack makes the introduction, so no one sees another's results.
+  const broaden = [];
+  for (const p of plans.rows.filter((x) => x.status === 'approved')) {
+    const u = users.get(p.user_id); if (!u || u.is_demo) continue;
+    const wk = p.started_on ? Math.floor((today - new Date(p.started_on)) / (7 * DAY)) + 1 : 0;
+    if (wk >= 8 && wk <= 10 && p.data?.focus?.length) broaden.push({ u, focus: p.data.focus });
+  }
+  const paired = new Set();
+  for (const s of [...new Set(broaden.flatMap((b) => b.focus))]) {
+    const pool = broaden.filter((b) => b.focus.includes(s) && !paired.has(b.u.id));
+    for (let i = 0; i + 1 < pool.length; i += 2) {
+      const [a1, b1] = [pool[i].u, pool[i + 1].u]; paired.add(a1.id); paired.add(b1.id);
+      const label = SCENARIO_LABEL[s] || s;
+      add({ key: `pair:${s}:${a1.id}:${b1.id}`, type: 'pairing', person: `${a1.name} and ${b1.name}`, title: `Pair them for a teach-back on ${label}`, detail: `Both have ${label} as a focus and are in the Broaden phase. Introduce them: each explains one part to the other for 20 minutes, then tells you what they would still hand over.`, minutes: 5, due: iso(today), urgency: 'this_week', link: '#board', canHandle: true,
+        message: `Hi ${a1.name.split(' ')[0]} and ${b1.name.split(' ')[0]}, you are both working on ${label} in the Academy. Could you book 20 minutes this week to teach each other one part of it? Tell me afterwards what you would still hand over.` });
+    }
+  }
+
   // 5. Explain-it recordings waiting
   for (const s of subs.rows) {
     const u = users.get(s.user_id); if (!u) continue;
@@ -103,7 +124,7 @@ export async function buildBoard() {
 
   // Suggested week: fill the owner's available days with this week's work, most urgent first.
   const rank = { overdue: 0, now: 1, this_week: 2, next_week: 4, later_ok: 5 };
-  const typeRank = { session: 0, milestone: 0, approval: 1, review: 2, signoff: 3, nudge: 3, content: 6 };
+  const typeRank = { session: 0, milestone: 0, approval: 1, review: 2, signoff: 3, nudge: 3, pairing: 4, content: 6 };
   // Scheduling order: overdue sessions, then sessions, then what blocks trainees (approvals, reviews), then the rest.
   const work = tasks.filter((t) => t.urgency !== 'next_week' && !t.demo).sort((a, b) => ((a.urgency === 'overdue' ? 0 : 1) - (b.urgency === 'overdue' ? 0 : 1)) || (typeRank[a.type] - typeRank[b.type]) || (rank[a.urgency] - rank[b.urgency]) || a.due.localeCompare(b.due));
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

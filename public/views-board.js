@@ -1,13 +1,13 @@
 import { h, api, toast, fmtDate, modal } from './ui.js';
 
-const TYPE = { approval: ['amber', 'Approve'], session: ['coral', 'Session'], milestone: ['coral', 'Milestone'], review: ['blue', 'Review'], signoff: ['green', 'Sign-off'], nudge: ['grey', 'Nudge'], content: ['blue', 'Content'] };
+const TYPE = { approval: ['amber', 'Approve'], session: ['coral', 'Session'], milestone: ['coral', 'Milestone'], review: ['blue', 'Review'], signoff: ['green', 'Sign-off'], nudge: ['grey', 'Nudge'], pairing: ['green', 'Teach-back'], content: ['blue', 'Content'] };
 const GROUPS = [['overdue', 'Overdue', 'Sessions that should have happened already.'], ['now', 'Do first', 'Waiting on you and blocking a trainee.'], ['this_week', 'This week', ''], ['next_week', 'Next week', 'Book these now.'], ['later_ok', 'When you can', '']];
 const hrs = (m) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? `${m % 60} min` : ''}`.trim() : `${m} min`);
 
 export async function boardView() {
   const b = await api('GET', '/api/admin/board');
   const act = async (key, action) => { try { await api('POST', '/api/admin/board/tasks', { key, action }); toast(action === 'snooze' ? 'Snoozed for a week' : 'Marked as handled'); window.dispatchEvent(new HashChangeEvent('hashchange')); } catch (e) { toast(e.message, true); } };
-  const openBtn = (t) => h('a', { class: 'btn sm primary', href: t.link, on: { click: () => { if (t.tab) sessionStorage.setItem('personTab', t.tab); } } }, { session: 'Log it', milestone: 'Open', approval: 'Review', review: 'Listen', signoff: 'Sign off', nudge: 'Open', content: 'Open' }[t.type]);
+  const openBtn = (t) => h('a', { class: 'btn sm primary', href: t.link, on: { click: () => { if (t.tab) sessionStorage.setItem('personTab', t.tab); } } }, { session: 'Log it', milestone: 'Open', approval: 'Review', review: 'Listen', signoff: 'Sign off', nudge: 'Open', pairing: 'Open', content: 'Open' }[t.type]);
   const groupHeld = (t) => {
     const names = t.detail.split(': ')[1].split('. Mark')[0].split(', ');
     const boxes = t.userIds.map((id, i) => h('label', { class: 'opt' }, h('input', { type: 'checkbox', checked: true, value: id }), h('span', null, names[i])));

@@ -7,7 +7,7 @@ import { EXPLAIN, RUBRIC, SURVEY, WALKTHROUGHS, PRACTICE } from './curriculum-ex
 import { enqueue } from './autoreview.js';
 import { DEMO_FILTER, resetDemo, createDemo } from './demo.js';
 const AUTO = () => process.env.AUTO_REVIEW !== 'off';
-import { loadContext, refreshPlan, refreshAll, approvePlan, diffPlans, liveState, buildPlan, getSettings, PASS, PHASES } from './engine.js';
+import { loadContext, refreshPlan, refreshAll, approvePlan, diffPlans, liveState, buildPlan, getSettings, PASS, PHASES, computeLevels, personalPriority } from './engine.js';
 
 const bad = (res, msg) => res.status(400).json({ error: msg });
 const SELF_TICK = ['lesson', 'missed', 'teach']; // practice is reviewed by the system when submitted
@@ -236,6 +236,37 @@ meProgramme.post('/challenge', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Trainee choice: keep the first two focus scenarios and choose the third from the next two in priority. The change
+// becomes a draft plan that Jack approves, like any other change to the plan's structure.
+meProgramme.get('/plan/options', async (req, res, next) => {
+  try {
+    const ctx = await loadContext(req.user.id); const u = ctx.users.find((x) => x.id === req.user.id);
+    const pr = await q("SELECT data FROM plans WHERE user_id=$1 AND status='approved' ORDER BY version DESC LIMIT 1", [req.user.id]);
+    const plan = pr.rows[0]?.data; if (!plan) return res.json({ canChoose: false });
+    const pending = (await q("SELECT 1 FROM plans WHERE user_id=$1 AND status='draft'", [req.user.id])).rowCount > 0;
+    if (plan.focusPinned || plan.focus.length < 3) return res.json({ canChoose: false, reason: plan.focusPinned ? 'Jack chose your focus areas with you.' : null });
+    const levels = computeLevels(u, ctx, { forPlanning: true });
+    const pri = personalPriority(u, levels, ctx).filter((p) => p.gapPts >= 5 && !plan.focus.slice(0, 2).includes(p.scenario));
+    const options = pri.slice(0, 3).map((p) => ({ scenario: p.scenario, label: SCENARIOS.find((x) => x.key === p.scenario)?.label || p.scenario, gap: Math.round(p.gapPts), current: p.scenario === plan.focus[2] }));
+    res.json({ canChoose: options.length > 1, pending, keep: plan.focus.slice(0, 2), options });
+  } catch (e) { next(e); }
+});
+meProgramme.post('/plan/focus', async (req, res, next) => {
+  try {
+    const third = String(req.body?.third || '');
+    const pr = await q("SELECT data FROM plans WHERE user_id=$1 AND status='approved' ORDER BY version DESC LIMIT 1", [req.user.id]);
+    const plan = pr.rows[0]?.data; if (!plan || plan.focusPinned || plan.focus.length < 3) return bad(res, 'Your focus areas cannot be changed here. Ask Jack.');
+    const ctx = await loadContext(req.user.id); const u = ctx.users.find((x) => x.id === req.user.id);
+    const allowed = personalPriority(u, computeLevels(u, ctx, { forPlanning: true }), ctx).filter((p) => p.gapPts >= 5 && !plan.focus.slice(0, 2).includes(p.scenario)).slice(0, 3).map((p) => p.scenario);
+    if (!allowed.includes(third)) return bad(res, 'Pick one of the suggested scenarios.');
+    const ov = { ...(u.plan_overrides || {}), traineeFocus: [...plan.focus.slice(0, 2), third] };
+    await q('UPDATE users SET plan_overrides=$2 WHERE id=$1', [req.user.id, ov]);
+    await audit(req, 'plan.focus.choice', third);
+    const status = await refreshPlan(req.user.id);
+    res.json({ ok: true, status });
+  } catch (e) { next(e); }
+});
+
 // Spaced review: questions the trainee missed or guessed on come back one week later, then three weeks after the miss.
 // A right answer given with some certainty on the second return closes the question; a miss starts the clock again.
 // Practice only: it never changes levels or the recorded score.
@@ -414,7 +445,8 @@ adminProgramme.put('/trainees/:id/programme/overrides', async (req, res, next) =
     const focus = Array.isArray(b.focus) ? b.focus.filter((s) => SCENARIO_KEYS.includes(s)).slice(0, 3) : [];
     const skip = Array.isArray(b.skip) ? b.skip.filter((s) => typeof s === 'string' && /^[a-z0-9.]{1,40}$/.test(s)).slice(0, 80) : [];
     const message = b.message ? String(b.message).slice(0, 1000) : null;
-    await q('UPDATE users SET plan_overrides=$2 WHERE id=$1', [id, { focus, skip, message }]);
+    const prevOv = (await q('SELECT plan_overrides FROM users WHERE id=$1', [id])).rows[0]?.plan_overrides || {};
+    await q('UPDATE users SET plan_overrides=$2 WHERE id=$1', [id, { ...(prevOv.traineeFocus ? { traineeFocus: prevOv.traineeFocus } : {}), focus, skip, message }]);
     await audit(req, 'programme.overrides', String(id), JSON.stringify({ focus, skip: skip.length }));
     await refreshPlan(id);
     res.json({ ok: true });
