@@ -55,13 +55,14 @@ export function resultView(r, items, { pass = 0.8, baseline = false, onRetry } =
   };
   return h('div', null,
     h('div', { class: `result ${passed ? 'pass' : 'fail'}` }, h('div', { class: 'big' }, `${acc}%`),
-      h('div', null, h('b', null, baseline ? 'Baseline recorded. Your plan uses it from now on.' : passed ? 'Passed.' : `Not yet: you need ${Math.round(pass * 100)}%.`),
+      h('div', null, h('b', null, baseline ? (r.counts === false ? 'Practice round.' : 'Baseline recorded. Your plan uses it from now on.') : passed ? 'Passed.' : `Below ${Math.round(pass * 100)}%: worth practising.`),
+        r.counts === false && r.record ? h('div', { class: 'practice-note' }, `Practice round: your recorded score stays ${Math.round((r.record.correct / r.record.total) * 100)}% from your first attempt.`) : r.counts ? h('div', { class: 'practice-note rec' }, 'This is your recorded score. Retake it any time to practise; it will not change.') : null,
         certMsg ? h('div', { class: 'muted' }, certMsg) : null,
         r.confidentWrong ? h('div', { class: 'small', style: 'color:var(--danger);margin-top:4px' }, `${r.confidentWrong} answer${r.confidentWrong > 1 ? 's' : ''} you were certain of ${r.confidentWrong > 1 ? 'were' : 'was'} wrong: worth a second look.`) : null)),
     r.results.map((res, i) => h('div', { class: `qres ${res.score >= 0.999 ? 'qres-ok' : res.score > 0 ? 'qres-part' : 'qres-no'} ${res.confidentWrong ? 'cw' : ''}` },
       h('b', null, `${i + 1}. ${res.q}`), res.score > 0 && res.score < 0.999 ? h('span', { class: 'chip amber', style: 'margin-left:6px' }, `${Math.round(res.score * 100)}%`) : null,
       ansText(items[i], res), res.why ? h('div', { class: 'muted small' }, res.why) : null)),
-    onRetry ? h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'btn', on: { click: onRetry } }, 'Try a new set of questions'), h('a', { class: 'btn', href: '#programme' }, 'Back to my programme')) : null);
+    onRetry ? h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'btn', on: { click: onRetry } }, 'Practise with a new set of questions'), h('a', { class: 'btn', href: '#programme' }, 'Back to my programme')) : null);
 }
 
 // ------------------------------------------------------------------ decision walkthrough
@@ -77,7 +78,7 @@ export function walkthroughCard(moduleKey, w, { done } = {}) {
         path.push(ci);
         try { draw(await api('POST', `/api/me/modules/${moduleKey}/walk`, { path })); } catch (e) { path.pop(); toast(e.message, true); }
       } } }, c))) : null,
-      r.end ? h('div', { class: `result ${r.score / r.max >= 0.75 ? 'pass' : 'fail'}` }, h('div', { class: 'big' }, `${r.score}/${r.max}`), h('div', null, h('b', null, r.score === r.max ? 'Every call was the best one.' : 'Done. Read the feedback on the calls that were not the best.'), h('div', null, h('button', { class: 'btn sm', style: 'margin-top:8px', on: { click: start } }, 'Play it again')))) : null].filter(Boolean));
+      r.end ? h('div', { class: `result ${r.score / r.max >= 0.75 ? 'pass' : 'fail'}` }, h('div', { class: 'big' }, `${r.score}/${r.max}`), h('div', null, h('b', null, r.score === r.max ? 'Every call was the best one.' : 'Done. Read the feedback on the calls that were not the best.'), r.counts === false && r.record ? h('div', { class: 'practice-note' }, `Practice round: your recorded result stays ${r.record.correct}/${r.record.total}.`) : r.counts ? h('div', { class: 'practice-note rec' }, 'This is your recorded result. Play again any time to practise.') : null, h('div', null, h('button', { class: 'btn sm', style: 'margin-top:8px', on: { click: start } }, 'Play it again')))) : null].filter(Boolean));
   };
   box.append(h('p', { class: 'muted' }, `${w.steps} decisions. Each choice gets feedback straight away.`), h('button', { class: 'btn primary', on: { click: start } }, done ? 'Play again' : 'Start the walkthrough'));
   return box;
@@ -98,6 +99,7 @@ function resultBox(s, rubric) {
     h('div', { class: 'row spread' }, h('b', null, who), auto.rating && s.status !== 'reviewed' ? h('span', { class: `chip ${{ solid: 'green', developing: 'amber', gap: 'coral' }[auto.rating]}` }, { solid: 'Solid', developing: 'Developing', gap: 'Gap' }[auto.rating]) : null),
     s.rubric ? h('div', { class: 'rub' }, rubric.map((c) => h('span', { class: `chip ${chipCls[s.rubric[c.key]]}` }, `${c.label}: ${s.rubric[c.key]}/3`))) : null,
     s.review_comment ? h('div', { style: 'margin-top:8px' }, s.review_comment) : null,
+    s.counts === false ? h('div', { class: 'practice-note' }, 'Practice attempt: your recorded result is the one from your first submission.') : s.counts ? h('div', { class: 'practice-note rec' }, 'First submission: this is your recorded result. Try again any time to practise.') : null,
     auto.points && s.status !== 'reviewed' ? h('ul', { class: 'pts' }, auto.points.map((p) => h('li', { class: p.covered ? 'yes' : 'no' }, p.covered ? '✓ ' : '✗ ', p.point))) : null,
     auto.missed?.length && s.status !== 'reviewed' ? h('details', null, h('summary', null, 'Where the missed points are in the lesson'), auto.missed.map((x) => h('div', { class: 'small', style: 'margin-top:4px' }, h('b', null, `${x.point}: `), x.lesson))) : null,
     s.transcript ? h('details', null, h('summary', null, 'What the system heard'), h('div', { class: 'pre' }, s.transcript), h('div', { class: 'muted small' }, 'If the transcript is wrong (bad microphone, background noise), ask Jack to listen.')) : null,
@@ -159,7 +161,7 @@ export function explainCard(moduleKey, ex, submissions, rubric, { onDone, kind =
   const recRow = h('div', { class: 'row' }, recBtn, time);
   if (writeFirst) { recBtn.textContent = 'Or record it instead'; recBtn.className = 'btn'; send.className = 'btn primary'; }
   box.append(h('div', { class: 'explain-prompt' }, ex.prompt),
-    h('p', { class: 'muted small' }, `${hint} The system reviews it within a minute: key points covered, clarity, and whether you said when to hand over. Try again as often as you like.`),
+    h('p', { class: 'muted small' }, `${hint} The system reviews it within a minute: key points covered, clarity, and whether you said when to hand over. ${submissions.length ? 'Your first submission is your recorded result; new ones are practice.' : 'Your first submission is the result we keep, so take your time. After that, try again as often as you like to practise.'}`),
     ...(writeFirst ? [text, recRow, player] : [recRow, player, text]), h('div', { style: 'margin-top:8px' }, send), h('div', { style: 'margin-top:12px' }, resultArea));
   return box;
 }

@@ -28,7 +28,7 @@ function itemRow(it, { readOnly, compact } = {}) {
       h('div', { class: 'pi-t' }, href && !readOnly ? h('a', { href }, it.title) : it.title),
       h('div', { class: 'pi-meta' }, h('span', { class: `chip ${KIND_CHIP[it.kind] || 'grey'}` }, KIND_LABEL[it.kind] || it.kind), h('span', { class: 'muted small' }, `${it.minutes} min`),
         it.owner === 'jack' ? h('span', { class: 'muted small' }, 'Jack books this') : null, it.mandatory ? h('span', { class: 'muted small' }, 'Core') : null,
-        it.best != null ? h('span', { class: 'muted small' }, `Best ${it.best}%`) : null, it.signoff && it.done ? h('span', { class: `chip ${it.signed_off ? 'green' : 'grey'}` }, it.signed_off ? 'Signed off' : 'Waiting for sign-off') : null, it.how ? h('span', { class: 'muted small' }, it.how) : null),
+        it.recorded != null ? h('span', { class: `chip ${it.below ? 'amber' : 'green'}` }, `Recorded ${it.recorded}%`) : null, it.signoff && it.done ? h('span', { class: `chip ${it.signed_off ? 'green' : 'grey'}` }, it.signed_off ? 'Signed off' : 'Waiting for sign-off') : null, it.how ? h('span', { class: 'muted small' }, it.how) : null),
       !compact && it.why ? h('div', { class: 'pi-why' }, it.why) : null),
     href && !readOnly && !it.done && !compact ? h('a', { class: 'btn sm', href }, ACTION[it.kind] || 'Open') : null);
 }
@@ -150,7 +150,8 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
   const explainBox = ex ? h('div', { class: 'card', style: 'margin-top:16px' }, h('div', { class: 'eyebrow dark' }, 'Explain it'), h('h2', null, 'Say it like you would to the client'),
     admin ? h('div', null, h('div', { class: 'explain-prompt' }, ex.prompt), h('b', null, 'Key points'), h('ul', null, ex.points.map((p) => h('li', null, p)))) : explainCard(m.key, ex, m.submissions || [], m.rubric || [], { onDone })) : null;
 
-  const last = m.attempts?.[0];
+  const rec = (m.attempts || []).filter((a) => a.counts !== false && !(a.item_key || '').startsWith('review.')).slice(-1)[0];
+  const last = rec;
   return h('div', { class: 'page lesson' },
     h('a', { href: admin ? '#curriculum' : '#programme', class: 'muted' }, admin ? '← Curriculum' : '← My programme'),
     h('div', { class: 'page-head', style: 'margin-top:8px' }, h('div', null,
@@ -172,8 +173,8 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
         h('div', { class: 'card' }, h('h2', null, 'Go deeper'), h('p', { class: 'sub' }, 'Videos, the CM Onboarding Guide and the Help Center.'),
           m.learn.map((r) => h('a', { class: 'res', href: r.url, target: '_blank', rel: 'noopener noreferrer' }, h('span', { class: `chip ${r.type === 'video' ? 'coral' : r.type === 'guide' ? 'amber' : 'blue'}` }, { video: 'Video', guide: 'Guide', article: 'Help Center' }[r.type]), h('span', null, r.title, r.note ? h('span', { class: 'muted small' }, ` · ${r.note}`) : null)))),
         h('div', { class: 'card' }, h('h2', null, 'When to hand over'), h('ul', { class: 'esc' }, m.escalate.map((e) => h('li', null, e)))))),
-    h('div', { class: 'card', style: 'margin-top:16px' }, h('div', { class: 'eyebrow dark' }, m.key === 'baseline' ? 'Baseline' : 'Step 3 · Check'), h('div', { class: 'row spread' }, h('h2', null, m.key === 'baseline' ? 'One question per scenario' : 'Prove it'), last ? h('span', { class: 'muted small' }, `Last attempt ${last.correct}/${last.total} · ${fmtDate(last.created_at)}`) : null),
-      h('p', { class: 'sub' }, m.key === 'baseline' ? 'No pass mark: answer honestly, it aims your plan at the right gaps.' : `Pass with ${Math.round((m.pass || 0.8) * 100)}%. A new mix of questions each time, and you see why each answer is right straight after.`), quizBox),
+    h('div', { class: 'card', style: 'margin-top:16px' }, h('div', { class: 'eyebrow dark' }, m.key === 'baseline' ? 'Baseline' : 'Step 3 · Check'), h('div', { class: 'row spread' }, h('h2', null, m.key === 'baseline' ? 'One question per scenario' : 'Prove it'), last ? h('span', { class: 'chip blue' }, `Recorded score ${Math.round((last.correct / last.total) * 100)}% · ${fmtDate(last.created_at)}`) : null),
+      h('p', { class: 'sub' }, m.key === 'baseline' ? 'No pass mark: answer honestly, it aims your plan at the right gaps.' : last ? 'Your recorded score is from your first attempt. Retakes are for practice: a new mix of questions each time, and they do not change your score.' : `Your first attempt is the score we keep, so take your time (aim for ${Math.round((m.pass || 0.8) * 100)}%). After that, retake it as often as you like to practise.`), quizBox),
     walkCard, explainBox, fbBox,
   );
 }

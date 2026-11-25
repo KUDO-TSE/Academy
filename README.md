@@ -126,3 +126,9 @@ Every module has one practice task the system reviews on its own (`PRACTICE` in 
 spoken (a recording), or a step-by-step account of what the trainee did in a test account. The same reviewer as explain-it checks the key points,
 clarity and hand-over. A result that is not a Gap signs the practice off automatically; a Gap asks the trainee to try again.
 Trainees can no longer tick practice by hand. Jack only spot-checks (flagged, gaps, requests, random share) on the Reviews page and board.
+
+## Results of record
+
+The first attempt in the current assessment cycle is the score of record, for module checks, spaced reviews, the baseline check, decision walkthroughs, explain-it recordings and practice tasks.
+Retakes and new submissions are practice: they get full feedback but never change levels, plans, reports, item statistics or sign-offs, and they are not sent to Jack unless the trainee asks.
+A cycle starts with each knowledge test round (`rounds.kind = 'live'`): importing the 3-month retest starts a new cycle, levels restart from the new results and the first attempt in the new cycle becomes the new record.

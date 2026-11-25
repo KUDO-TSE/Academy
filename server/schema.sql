@@ -227,3 +227,15 @@ ALTER TABLE submissions DROP CONSTRAINT IF EXISTS submissions_status_check;
 ALTER TABLE submissions ADD CONSTRAINT submissions_status_check CHECK (status IN ('processing','submitted','auto','reviewed'));
 
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'explain';
+
+-- ---- First attempt is the score of record (per assessment cycle); retakes are practice
+ALTER TABLE quiz_attempts ADD COLUMN IF NOT EXISTS counts BOOLEAN;
+ALTER TABLE quiz_attempts ADD COLUMN IF NOT EXISTS cycle INT NOT NULL DEFAULT 0;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS counts BOOLEAN;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS cycle INT NOT NULL DEFAULT 0;
+UPDATE quiz_attempts a SET counts = (x.rn = 1) FROM (
+  SELECT id, row_number() OVER (PARTITION BY user_id, module_key, kind, CASE WHEN item_key LIKE 'review.%' THEN item_key ELSE '' END, cycle ORDER BY created_at, id) rn FROM quiz_attempts) x
+  WHERE a.id = x.id AND a.counts IS NULL;
+UPDATE submissions s SET counts = (x.rn = 1) FROM (
+  SELECT id, row_number() OVER (PARTITION BY user_id, module_key, kind, cycle ORDER BY created_at, id) rn FROM submissions) x
+  WHERE s.id = x.id AND s.counts IS NULL;

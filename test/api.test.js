@@ -236,7 +236,11 @@ test('explain-it recordings are reviewed automatically and spot-checks reach the
   assert.equal(r.json.status, 'processing', JSON.stringify(r));
   let s; for (let i = 0; i < 80; i++) { s = (await ann('GET', `/api/me/explain/result/${r.json.id}`)).json; if (s.status !== 'processing') break; await new Promise((ok) => setTimeout(ok, 1500)); }
   assert.equal(s.status, 'auto'); assert.equal(s.auto.rating, 'solid'); assert.ok(s.review_comment.includes('key points'));
-  const weak = await ann('POST', '/api/me/explain/teams', { text: 'You just add KUDO to the meeting and it works, nothing special to set up at all really.' });
+  const retry = await ann('POST', '/api/me/explain/teams', { text: 'You just add KUDO to the meeting and it works, nothing special to set up at all really.' });
+  assert.equal(retry.json.counts, false, 'a second recording is practice');
+  for (let i = 0; i < 80; i++) { s = (await ann('GET', `/api/me/explain/result/${retry.json.id}`)).json; if (s.status !== 'processing') break; await new Promise((ok) => setTimeout(ok, 1500)); }
+  assert.equal(s.needs_human, false, 'practice retries do not go to Jack');
+  const weak = await ann('POST', '/api/me/explain/zoom', { text: 'You just add KUDO to the meeting and it works, nothing special to set up at all really.' });
   for (let i = 0; i < 80; i++) { s = (await ann('GET', `/api/me/explain/result/${weak.json.id}`)).json; if (s.status !== 'processing') break; await new Promise((ok) => setTimeout(ok, 1500)); }
   assert.equal(s.auto.rating, 'gap'); assert.equal(s.needs_human, true, 'gaps go to Jack as spot-checks');
   assert.equal((await ann('POST', `/api/me/explain/${r.json.id}/ask-jack`)).status, 200);
@@ -287,4 +291,30 @@ test('test trainees are created and reset by admins and never count in team resu
   const tr = client(); await tr('POST', '/api/auth/login', { email: 'demo.jack@kudo.ai', password: GEN });
   assert.equal((await tr('POST', '/api/auth/act-as', { id: demoId })).status, 403, 'trainees cannot act as anyone');
   assert.equal((await adm('POST', `/api/admin/demo/${realId}/reset`)).status, 404, 'a real person can never be reset');
+});
+
+test('the first attempt is the score of record; retakes are practice', async () => {
+  await imp.importRoster([{ email: 'dana@test.local', name: 'Dana Four', region: 'EMEA', team: 'Sales' }]);
+  const d = client(); await d('POST', '/api/auth/login', { email: 'dana@test.local', password: GEN });
+  await d('POST', '/api/auth/change-password', { current: GEN, next: 'Quiet-valley-pass-73' });
+  const right = (x) => { const it = itemById(x.id); return { id: x.id, c: 3, v: it.t === 'mcq' ? it.a : it.t === 'multi' ? it.a : it.t === 'match' ? it.pairs.map((p) => p[1]) : it.steps }; };
+  const wrong = (x) => { const it = itemById(x.id); return { id: x.id, c: 1, v: it.t === 'mcq' ? (it.a + 1) % it.o.length : it.t === 'multi' ? [] : it.t === 'match' ? it.pairs.map(() => 'x') : [...it.steps].reverse() }; };
+  const set1 = (await d('GET', '/api/me/modules/zoom')).json.check;
+  const first = await d('POST', '/api/me/modules/zoom/attempt', { answers: set1.map(wrong) });
+  assert.equal(first.json.counts, true); assert.ok(first.json.correct < first.json.total / 2);
+  const set2 = (await d('GET', '/api/me/modules/zoom')).json.check;
+  const second = await d('POST', '/api/me/modules/zoom/attempt', { answers: set2.map(right) });
+  assert.equal(second.json.counts, false, 'a retake is practice');
+  assert.equal(second.json.record.correct, first.json.correct, 'the first score stays the record');
+  const id = (await q("SELECT id FROM users WHERE email='dana@test.local'")).rows[0].id;
+  const rows = (await q("SELECT counts FROM quiz_attempts WHERE user_id=$1 AND module_key='zoom' ORDER BY id", [id])).rows.map((r) => r.counts);
+  assert.deepEqual(rows, [true, false]);
+  // The level only moves with the recorded attempt.
+  const { loadContext, computeLevels } = await import('../server/engine.js');
+  const ctx = await loadContext(id); const lv = computeLevels(ctx.users.find((u) => u.id === id), ctx);
+  assert.ok(lv.per.zoom.est < 60, `level reflects the poor first attempt (${lv.per.zoom.est})`);
+  // Walkthroughs follow the same rule.
+  const w1 = await d('POST', '/api/me/modules/zoom/walk', { path: [1, 1, 2, 1] });
+  const w2 = await d('POST', '/api/me/modules/zoom/walk', { path: [0, 0, 0, 0] });
+  assert.equal(w1.json.counts, true); assert.equal(w2.json.counts, false); assert.equal(w2.json.record.correct, w1.json.score);
 });

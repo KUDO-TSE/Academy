@@ -48,10 +48,10 @@ meProgramme.get('/modules/:key', async (req, res, next) => {
     const m = MODULE_BY_KEY[key]; if (!m) return res.status(404).json({ error: 'Not found.' });
     const { quiz, ...rest } = m; void quiz;
     const [at, prog, fb, subs] = await Promise.all([
-      q("SELECT correct::float AS correct,total,knowledge::float AS knowledge,kind,item_key,created_at FROM quiz_attempts WHERE user_id=$1 AND module_key=$2 ORDER BY created_at DESC", [uid, key]),
+      q("SELECT correct::float AS correct,total,knowledge::float AS knowledge,kind,item_key,counts,created_at FROM quiz_attempts WHERE user_id=$1 AND module_key=$2 ORDER BY created_at DESC", [uid, key]),
       q('SELECT item_key,note,completed_at,signed_off_at FROM plan_progress WHERE user_id=$1 AND item_key LIKE $2', [uid, `${key}.%`]),
       q('SELECT 1 FROM module_feedback WHERE user_id=$1 AND module_key=$2', [uid, key]),
-      q('SELECT id,kind,status,rubric,review_comment,text_answer,transcript,auto,needs_human,human_requested,audio_seconds,(audio IS NOT NULL) AS has_audio,self_points,created_at,reviewed_at FROM submissions WHERE user_id=$1 AND module_key=$2 ORDER BY created_at DESC', [uid, key]),
+      q('SELECT id,kind,counts,status,rubric,review_comment,text_answer,transcript,auto,needs_human,human_requested,audio_seconds,(audio IS NOT NULL) AS has_audio,self_points,created_at,reviewed_at FROM submissions WHERE user_id=$1 AND module_key=$2 ORDER BY created_at DESC', [uid, key]),
     ]);
     res.json({
       ...rest, check: draw(key).map(publicItem), poolSize: POOLS[key].length, pass: PASS,
@@ -63,6 +63,16 @@ meProgramme.get('/modules/:key', async (req, res, next) => {
     });
   } catch (e) { next(e); }
 });
+
+// The first attempt in the current assessment cycle is the score of record; later attempts are practice.
+// A cycle starts with each knowledge test round (the 3-month retest starts a new one).
+async function currentCycle() { return (await q("SELECT COALESCE(max(id),0)::int AS c FROM rounds WHERE kind='live'")).rows[0].c; }
+async function attemptCounts(uid, moduleKey, kind, itemKey, cycle) {
+  const rk = itemKey && itemKey.startsWith('review.') ? itemKey : '';
+  const r = await q(`SELECT correct::float AS correct,total,created_at FROM quiz_attempts WHERE user_id=$1 AND module_key=$2 AND kind=$3 AND cycle=$4 AND counts
+                      AND (CASE WHEN item_key LIKE 'review.%' THEN item_key ELSE '' END)=$5 ORDER BY created_at LIMIT 1`, [uid, moduleKey, kind, cycle, rk]);
+  return { counts: r.rowCount === 0, record: r.rows[0] || null };
+}
 
 function validAnswers(body, allowed) {
   const ans = body?.answers;
@@ -83,10 +93,12 @@ meProgramme.post('/modules/:key/attempt', async (req, res, next) => {
     const g = grade(ans, allowed);
     if (g.error) return bad(res, g.error);
     const itemKey = typeof req.body?.item_key === 'string' && /^[a-z0-9.]{1,40}$/.test(req.body.item_key) ? req.body.item_key : null;
-    await q("INSERT INTO quiz_attempts (user_id,module_key,item_key,correct,total,knowledge,cbm,kind,answers) VALUES ($1,$2,$3,$4,$5,$6,$7,'check',$8)", [req.user.id, key, itemKey, g.correct, g.total, g.knowledge, g.cbm, compact(g)]);
-    await audit(req, 'check.attempt', key, `${g.correct}/${g.total}`);
-    const status = await refreshPlan(req.user.id);
-    res.json({ ...g, passed: key === 'baseline' || g.correct / g.total >= PASS, planChanged: status === 'draft' });
+    const cycle = await currentCycle();
+    const { counts, record } = await attemptCounts(req.user.id, key, 'check', itemKey, cycle);
+    await q("INSERT INTO quiz_attempts (user_id,module_key,item_key,correct,total,knowledge,cbm,kind,answers,counts,cycle) VALUES ($1,$2,$3,$4,$5,$6,$7,'check',$8,$9,$10)", [req.user.id, key, itemKey, g.correct, g.total, g.knowledge, g.cbm, compact(g), counts, cycle]);
+    await audit(req, counts ? 'check.recorded' : 'check.practice', key, `${g.correct}/${g.total}`);
+    const status = counts ? await refreshPlan(req.user.id) : 'unchanged';
+    res.json({ ...g, passed: key === 'baseline' || g.correct / g.total >= PASS, planChanged: status === 'draft', counts, record: counts ? { correct: g.correct, total: g.total } : record });
   } catch (e) { next(e); }
 });
 
@@ -96,8 +108,11 @@ meProgramme.post('/modules/:key/walk', async (req, res, next) => {
     const r = walk(key, req.body?.path);
     if (r.error) return bad(res, r.error);
     if (r.end) {
-      await q("INSERT INTO quiz_attempts (user_id,module_key,item_key,correct,total,kind,answers) VALUES ($1,$2,$3,$4,$5,'scenario',$6)", [req.user.id, key, `${key}.scenario`, r.score, r.max, JSON.stringify(req.body.path)]);
-      await audit(req, 'walkthrough', key, `${r.score}/${r.max}`);
+      const cycle = await currentCycle();
+      const { counts, record } = await attemptCounts(req.user.id, key, 'scenario', null, cycle);
+      await q("INSERT INTO quiz_attempts (user_id,module_key,item_key,correct,total,kind,answers,counts,cycle) VALUES ($1,$2,$3,$4,$5,'scenario',$6,$7,$8)", [req.user.id, key, `${key}.scenario`, r.score, r.max, JSON.stringify(req.body.path), counts, cycle]);
+      await audit(req, 'walkthrough', key, `${r.score}/${r.max}${counts ? '' : ' (practice)'}`);
+      return res.json({ ...r, counts, record: counts ? { correct: r.score, total: r.max } : record });
     }
     res.json(r);
   } catch (e) { next(e); }
@@ -130,15 +145,17 @@ meProgramme.post('/explain/:key', async (req, res, next) => {
     }
     if (!audio && (!text || text.trim().length < 40)) return bad(res, 'Record it, or write at least a few sentences.');
     const secs = Number.isFinite(Number(b.seconds)) ? Math.min(600, Math.round(Number(b.seconds))) : null;
-    const r = await q('INSERT INTO submissions (user_id,module_key,text_answer,audio,audio_mime,audio_seconds,status,kind) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id', [req.user.id, key, text, audio, mime, secs, AUTO() ? 'processing' : 'submitted', kind]);
+    const cycle = await currentCycle();
+    const first = (await q('SELECT 1 FROM submissions WHERE user_id=$1 AND module_key=$2 AND kind=$3 AND cycle=$4 AND counts', [req.user.id, key, kind, cycle])).rowCount === 0;
+    const r = await q('INSERT INTO submissions (user_id,module_key,text_answer,audio,audio_mime,audio_seconds,status,kind,counts,cycle) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id', [req.user.id, key, text, audio, mime, secs, AUTO() ? 'processing' : 'submitted', kind, first, cycle]);
     await audit(req, `${kind}.submit`, key, audio ? 'audio' : 'text');
     if (AUTO()) enqueue(r.rows[0].id);
-    res.json({ id: r.rows[0].id, status: AUTO() ? 'processing' : 'submitted', points: (kind === 'practice' ? PRACTICE[key] : EXPLAIN[key]).points });
+    res.json({ id: r.rows[0].id, counts: first, status: AUTO() ? 'processing' : 'submitted', points: (kind === 'practice' ? PRACTICE[key] : EXPLAIN[key]).points });
   } catch (e) { next(e); }
 });
 meProgramme.get('/explain/result/:id', async (req, res, next) => {
   try {
-    const r = await q('SELECT id,module_key,status,rubric,review_comment,transcript,auto,needs_human,human_requested,created_at,reviewed_at FROM submissions WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.user.id]);
+    const r = await q('SELECT id,module_key,kind,counts,status,rubric,review_comment,transcript,auto,needs_human,human_requested,created_at,reviewed_at FROM submissions WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.user.id]);
     if (!r.rowCount) return res.status(404).json({ error: 'Not found.' });
     res.json(r.rows[0]);
   } catch (e) { next(e); }
@@ -313,7 +330,7 @@ adminProgramme.get('/trainees/:id/programme', async (req, res, next) => {
     const u = ctx.users.find((x) => x.id === id); if (!u) return res.status(404).json({ error: 'Not found.' });
     const { draft, approved } = await plansOf(id);
     const inputs = (await q(`SELECT i.id,i.kind,i.happened_on,i.title,i.link,i.body,i.signals,i.item_key,i.shared_summary,a.name AS author FROM inputs i LEFT JOIN users a ON a.id=i.author_id WHERE i.user_id=$1 ORDER BY i.happened_on DESC, i.id DESC`, [id])).rows;
-    const attempts = (ctx.attempts.get(id) || []).map(({ module_key, item_key, correct, total, created_at }) => ({ module_key, item_key, correct, total, created_at })).reverse();
+    const attempts = (ctx.attempts.get(id) || []).map(({ module_key, item_key, correct, total, counts, kind, created_at }) => ({ module_key, item_key, correct, total, counts, kind, created_at })).reverse();
     const { levels } = buildPlan(u, ctx);
     res.json({
       user: { id: u.id, name: u.name, team: u.team, learning_pref: u.profile?.learning_pref || null, demo: u.is_demo },
@@ -408,7 +425,7 @@ adminProgramme.delete('/inputs/:id', async (req, res, next) => {
 // ------------------------------------------------------------------ admin: explain-it reviews and feedback
 adminProgramme.get('/reviews', async (_req, res, next) => {
   try {
-    const r = await q(`SELECT s.id,s.user_id,u.name,s.module_key,s.kind,s.text_answer,s.transcript,s.auto,s.needs_human,s.human_requested,s.audio_seconds,(s.audio IS NOT NULL) AS has_audio,s.self_points,s.status,s.rubric,s.review_comment,s.created_at,s.reviewed_at
+    const r = await q(`SELECT s.id,s.user_id,u.name,s.module_key,s.kind,s.counts,s.text_answer,s.transcript,s.auto,s.needs_human,s.human_requested,s.audio_seconds,(s.audio IS NOT NULL) AS has_audio,s.self_points,s.status,s.rubric,s.review_comment,s.created_at,s.reviewed_at
                          FROM submissions s JOIN users u ON u.id=s.user_id ORDER BY (s.needs_human AND s.status <> 'reviewed') DESC, s.created_at DESC LIMIT 150`);
     res.json({ rubric: RUBRIC, items: r.rows.map((x) => ({ ...x, module: MODULE_BY_KEY[x.module_key]?.title || x.module_key, prompt: (x.kind === 'practice' ? PRACTICE : EXPLAIN)[x.module_key]?.prompt, points: (x.kind === 'practice' ? PRACTICE : EXPLAIN)[x.module_key]?.points || [] })) });
   } catch (e) { next(e); }
@@ -432,6 +449,8 @@ adminProgramme.post('/submissions/:id/review', async (req, res, next) => {
     const avg = Object.values(scores).reduce((a, b) => a + b, 0) / RUBRIC.length;
     const rating = avg >= 2.5 ? 'solid' : avg >= 1.75 ? 'developing' : 'gap';
     const scenario = MODULE_BY_KEY[mk]?.scenario || MODULE_BY_KEY[mk]?.related?.[0] || null;
+    const recorded = (await q('SELECT counts FROM submissions WHERE id=$1', [id])).rows[0]?.counts;
+    if (!recorded) { await audit(req, 'review.practice_attempt', String(id)); return res.json({ ok: true, rating, planChanged: false, practiceOnly: true }); }
     if (r.rows[0].kind === 'practice' && rating !== 'gap') await q(`INSERT INTO plan_progress (user_id,item_key,status,signed_off_by,signed_off_at) VALUES ($1,$2,'done',$3,now()) ON CONFLICT (user_id,item_key) DO UPDATE SET signed_off_by=$3, signed_off_at=now()`, [uid, `${mk}.practice`, req.user.id]);
     await q(`INSERT INTO inputs (user_id,author_id,kind,title,signals,shared_summary) VALUES ($1,$2,'recording',$3,$4,$5)`,
       [uid, req.user.id, `${r.rows[0].kind === 'practice' ? 'Practice' : 'Explain-it'} review: ${MODULE_BY_KEY[mk]?.title || mk}`, JSON.stringify(scenario ? [{ scenario, rating }] : []), comment]);
@@ -447,7 +466,7 @@ adminProgramme.get('/feedback', async (_req, res, next) => {
       q(`SELECT module_key, count(*)::int n, avg(clear)::float clear, avg(relevant)::float relevant, avg(confidence)::float confidence FROM module_feedback WHERE ${DEMO_FILTER} GROUP BY module_key`),
       q(`SELECT module_key, comment, created_at FROM module_feedback WHERE ${DEMO_FILTER} AND comment IS NOT NULL AND comment <> '' ORDER BY created_at DESC LIMIT 200`),
       q(`SELECT answers, created_at FROM survey_responses WHERE ${DEMO_FILTER} ORDER BY created_at DESC`),
-      q(`SELECT module_key, answers FROM quiz_attempts WHERE ${DEMO_FILTER} AND kind='check' AND module_key <> 'baseline'`),
+      q(`SELECT module_key, answers FROM quiz_attempts WHERE ${DEMO_FILTER} AND kind='check' AND counts AND module_key <> 'baseline'`),
     ]);
     // Item analysis: which questions are missed most, and which are answered wrongly with high certainty (a sign of a misconception).
     const items = new Map();

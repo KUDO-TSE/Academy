@@ -131,21 +131,25 @@ export async function assess(moduleKey, text, seconds, spec = specFor('explain',
 
 /** Process one submission end to end and record the result. */
 export async function processSubmission(id) {
-  const r = await q('SELECT id,user_id,module_key,kind,text_answer,audio,audio_seconds,status FROM submissions WHERE id=$1', [id]);
+  const r = await q('SELECT id,user_id,module_key,kind,counts,human_requested,text_answer,audio,audio_seconds,status FROM submissions WHERE id=$1', [id]);
   const s = r.rows[0]; if (!s || s.status !== 'processing') return;
   try {
     let text = brand(s.text_answer || ''), seconds = s.audio_seconds || null;
     if (s.audio) { const t = await transcribe(s.audio); text = [t.text, s.text_answer].filter(Boolean).join('\n'); seconds = t.seconds; }
     const a = await assess(s.module_key, text, s.audio ? seconds : null, specFor(s.kind, s.module_key));
-    const spot = a.flags.length > 0 || a.rating === 'gap' || Math.random() < SAMPLE_RATE;
+    // Only the first submission is the result of record; retries are practice and never go to Jack unless asked.
+    const spot = s.counts ? (a.flags.length > 0 || a.rating === 'gap' || Math.random() < SAMPLE_RATE) : !!s.human_requested;
+    if (!s.counts) a.note = `Practice attempt: your recorded result stays the one from your first submission. ${a.note}`;
     await q("UPDATE submissions SET status='auto', transcript=$2, audio_seconds=COALESCE($3::int, audio_seconds), auto=$4, rubric=$5, review_comment=$6, needs_human=$7, reviewed_at=now() WHERE id=$1",
       [id, s.audio ? text : null, seconds ? Math.round(seconds) : null, a, a.rubric, a.note, spot]);
+    if (!s.counts) return;
     const scenario = MODULE_BY_KEY[s.module_key]?.scenario || MODULE_BY_KEY[s.module_key]?.related?.[0] || null;
     await q("INSERT INTO inputs (user_id,kind,title,signals) VALUES ($1,'recording',$2,$3)",
       [s.user_id, `${s.kind === 'practice' ? 'Practice' : 'Explain-it'}, automatic review: ${MODULE_BY_KEY[s.module_key]?.title || s.module_key}`, JSON.stringify(scenario ? [{ scenario, rating: a.rating }] : [])]);
     // A practice that is not a gap is signed off automatically. A gap asks the trainee to try again.
-    if (s.kind === 'practice' && a.rating !== 'gap') await q(`INSERT INTO plan_progress (user_id,item_key,status,note,signed_off_at) VALUES ($1,$2,'done','Reviewed automatically',now())
-      ON CONFLICT (user_id,item_key) DO UPDATE SET signed_off_at=COALESCE(plan_progress.signed_off_at, now())`, [s.user_id, `${s.module_key}.practice`]);
+    // The first practice submission completes the step; it is signed off when it is not a gap.
+    if (s.kind === 'practice') await q(`INSERT INTO plan_progress (user_id,item_key,status,note,signed_off_at) VALUES ($1,$2,'done',$3,$4)
+      ON CONFLICT (user_id,item_key) DO NOTHING`, [s.user_id, `${s.module_key}.practice`, `Reviewed automatically: ${a.rating}`, a.rating !== 'gap' ? new Date() : null]);
     await refreshPlan(s.user_id);
   } catch (e) {
     console.error('Auto-review failed', id, e.message);

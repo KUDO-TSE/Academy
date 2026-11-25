@@ -25,7 +25,7 @@ export async function buildBoard() {
     q("SELECT user_id,version,status,data,started_on,created_at FROM plans WHERE status IN ('draft','approved')"),
     q("SELECT s.id,s.user_id,s.module_key,s.kind,s.created_at,s.status,s.human_requested,s.auto FROM submissions s WHERE s.needs_human AND s.status IN ('submitted','auto') ORDER BY s.created_at"),
     q('SELECT module_key, count(*)::int n, avg(clear)::float clear, avg(relevant)::float relevant, avg(confidence)::float confidence FROM module_feedback WHERE user_id IN (SELECT id FROM users WHERE NOT is_demo) GROUP BY module_key'),
-    q("SELECT answers FROM quiz_attempts WHERE kind='check' AND module_key <> 'baseline' AND user_id IN (SELECT id FROM users WHERE NOT is_demo)"),
+    q("SELECT answers FROM quiz_attempts WHERE kind='check' AND counts AND module_key <> 'baseline' AND user_id IN (SELECT id FROM users WHERE NOT is_demo)"),
     q('SELECT task_key,snoozed_until,handled_at FROM board_tasks'),
     boardSettings(),
     q(`SELECT user_id, max(at) AS at FROM (
