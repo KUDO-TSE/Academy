@@ -10,11 +10,12 @@
 import crypto from 'node:crypto';
 import { MODULES, MODULE_BY_KEY } from './curriculum.js';
 import { EXTRA_ITEMS, WALKTHROUGHS } from './curriculum-extra.js';
+import { BANK } from './curriculum-bank.js';
 
 export const DRAW = 6;
 const CBM = { 1: [1, 0], 2: [2, -2], 3: [3, -6] };
 
-export const POOLS = Object.fromEntries(MODULES.map((m) => [m.key, [...m.quiz, ...(EXTRA_ITEMS[m.key] || [])].map((x, i) => ({ t: 'mcq', ...x, id: `${m.key}.${i}`, module: m.key, scenario: m.scenario }))]));
+export const POOLS = Object.fromEntries(MODULES.map((m) => [m.key, [...m.quiz, ...(EXTRA_ITEMS[m.key] || []), ...(BANK[m.key] || [])].map((x, i) => ({ t: 'mcq', ...x, id: `${m.key}.${i}`, module: m.key, scenario: m.scenario }))]));
 const BY_ID = new Map(Object.values(POOLS).flat().map((x) => [x.id, x]));
 export const itemById = (id) => BY_ID.get(id) || null;
 
@@ -38,16 +39,18 @@ const validPerm = (p, n) => Array.isArray(p) && p.length === n && new Set(p).siz
 const shuffle = (a) => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
 
 /** A fresh draw for each attempt: at least one of each format the module has, the rest at random. */
-export function draw(moduleKey, n = DRAW) {
-  const pool = POOLS[moduleKey] || [];
+// Reserve items (parallel forms) are kept back until the second assessment cycle opens.
+const usable = (x, reserve) => reserve || !x.reserve;
+export function draw(moduleKey, n = DRAW, { reserve = false } = {}) {
+  const pool = (POOLS[moduleKey] || []).filter((x) => usable(x, reserve));
   if (pool.length <= n) return shuffle(pool);
   const picked = [];
   for (const t of ['multi', 'match', 'order']) { const c = shuffle(pool.filter((x) => x.t === t))[0]; if (c) picked.push(c); }
   for (const x of shuffle(pool)) { if (picked.length >= n) break; if (!picked.includes(x)) picked.push(x); }
   return shuffle(picked);
 }
-export function drawMixed(moduleKeys, n = 4) {
-  const pool = shuffle(moduleKeys.flatMap((k) => POOLS[k] || []));
+export function drawMixed(moduleKeys, n = 4, { reserve = false } = {}) {
+  const pool = shuffle(moduleKeys.flatMap((k) => POOLS[k] || []).filter((x) => usable(x, reserve)));
   const out = []; const seen = new Set();
   for (const x of pool) { if (out.length >= n) break; if (seen.has(x.module) && pool.length > n * 2) continue; seen.add(x.module); out.push(x); }
   return out;

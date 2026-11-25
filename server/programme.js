@@ -54,7 +54,7 @@ meProgramme.get('/modules/:key', async (req, res, next) => {
       q('SELECT id,kind,counts,status,rubric,review_comment,text_answer,transcript,auto,needs_human,human_requested,audio_seconds,(audio IS NOT NULL) AS has_audio,self_points,created_at,reviewed_at FROM submissions WHERE user_id=$1 AND module_key=$2 ORDER BY created_at DESC', [uid, key]),
     ]);
     res.json({
-      ...rest, check: draw(key).map(publicItem), poolSize: POOLS[key].length, pass: PASS,
+      ...rest, check: draw(key, undefined, { reserve: await reserveOpen() }).map(publicItem), poolSize: POOLS[key].length, pass: PASS,
       attempts: at.rows.filter((a) => a.kind === 'check'), walkAttempts: at.rows.filter((a) => a.kind === 'scenario'),
       progress: prog.rows, feedbackGiven: fb.rowCount > 0,
       walkthrough: walkthroughIntro(key), explain: EXPLAIN[key] ? { prompt: EXPLAIN[key].prompt } : null, submissions: subs.rows.filter((x) => x.kind !== 'practice'), rubric: RUBRIC,
@@ -66,6 +66,8 @@ meProgramme.get('/modules/:key', async (req, res, next) => {
 
 // The first attempt in the current assessment cycle is the score of record; later attempts are practice.
 // A cycle starts with each knowledge test round (the 3-month retest starts a new one).
+// Reserve questions open once a second knowledge test round exists (the 3-month reassessment).
+async function reserveOpen() { return (await q("SELECT count(*)::int AS n FROM rounds WHERE kind='live'")).rows[0].n >= 2; }
 async function currentCycle() { return (await q("SELECT COALESCE(max(id),0)::int AS c FROM rounds WHERE kind='live'")).rows[0].c; }
 async function attemptCounts(uid, moduleKey, kind, itemKey, cycle) {
   const rk = itemKey && itemKey.startsWith('review.') ? itemKey : '';
@@ -221,7 +223,7 @@ meProgramme.get('/challenge', async (req, res, next) => {
     const touched = await q("SELECT DISTINCT split_part(item_key,'.',1) AS k FROM plan_progress WHERE user_id=$1 UNION SELECT DISTINCT module_key FROM quiz_attempts WHERE user_id=$1 AND kind IN ('check','scenario')", [uid]);
     let keys = touched.rows.map((r) => r.k).filter((k) => POOLS[k]);
     if (keys.length < 2) keys = ['foundations', 'platform', 'ai', 'teams'];
-    res.json({ ...(await challengeState(uid)), items: drawMixed(keys, 4).map(publicItem) });
+    res.json({ ...(await challengeState(uid)), items: drawMixed(keys, 4, { reserve: await reserveOpen() }).map(publicItem) });
   } catch (e) { next(e); }
 });
 meProgramme.post('/challenge', async (req, res, next) => {

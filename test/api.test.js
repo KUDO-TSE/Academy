@@ -351,6 +351,10 @@ test('scoring: shuffled options are graded by meaning, order questions get credi
   for (const x of shown.slice(0, 5)) assert.equal(grade([{ id: x.id, k: x.k, v: x.o.indexOf(mcq.o[mcq.a]), c: 2 }]).results[0].score, 1);
   const forged = { ...shown[0], k: shown[1].k.slice(0, -2) + 'AA' };
   assert.ok(grade([{ id: forged.id, k: forged.k, v: 0 }]).error, 'a tampered order token is refused');
+  const { draw } = await import('../server/assess.js');
+  for (let i = 0; i < 20; i++) assert.ok(draw('marketplace').every((x) => !x.reserve), 'reserve questions stay out in the first cycle');
+  assert.ok(Array.from({ length: 30 }, () => draw('marketplace', 6, { reserve: true })).flat().some((x) => x.reserve), 'and come in for the next cycle');
+  assert.ok(Object.keys(POOLS).every((k) => POOLS[k].length >= 10), 'every module has at least 10 questions');
   const ord = Object.values(POOLS).flat().find((x) => x.t === 'order' && x.steps.length >= 5);
   const sc = (v) => grade([{ id: ord.id, v }]).results[0].score;
   assert.equal(sc(ord.steps), 1);

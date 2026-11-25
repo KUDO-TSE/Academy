@@ -137,8 +137,15 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
     } }));
   };
   if (admin) {
-    quizBox.append(h('p', { class: 'muted small' }, `Pool of ${m.pool.length} items; each attempt draws ${Math.min(6, m.pool.length)}, with at least one of each format.`),
+    const LVL = { recall: 'Recall', apply: 'Apply', decide: 'Decide' };
+    const tagged = m.pool.filter((x) => x.obj != null);
+    const cover = (m.objectives || []).map((o, oi) => ({ o, n: tagged.filter((x) => x.obj === oi).length }));
+    quizBox.append(h('p', { class: 'muted small' }, `Pool of ${m.pool.length} items (${m.pool.filter((x) => x.reserve).length} kept back for the next cycle); each attempt draws ${Math.min(6, m.pool.filter((x) => !x.reserve).length)}, with at least one of each format.`),
+      tagged.length ? h('div', { class: 'note-box' }, h('b', null, 'Objective coverage (tagged questions)'), h('ul', { class: 'ans-list' }, cover.map((c, ci) => h('li', null, `O${ci + 1} · ${c.o} `, h('span', { class: `chip ${c.n ? 'green' : 'coral'}` }, c.n ? `${c.n}` : 'no question'))))) : null,
       ...m.pool.map((x, i) => h('div', { class: 'qq' }, h('b', null, `${i + 1}. ${x.q}`), h('span', { class: 'chip grey', style: 'margin-left:6px' }, { mcq: 'Single answer + certainty', multi: 'Pick all that fit', match: 'Match', order: 'Order' }[x.t]),
+        x.obj != null ? h('span', { class: 'chip grey', style: 'margin-left:4px' }, `O${x.obj + 1} · ${LVL[x.lvl] || ''}`) : null,
+        x.reserve ? h('span', { class: 'chip amber', style: 'margin-left:4px' }, 'Next cycle') : null,
+        x.obj != null ? h('span', { class: 'chip coral', style: 'margin-left:4px', title: 'Drafted from the lesson content; Jack checks before the January cycle.' }, 'New: to check') : null,
         x.t === 'mcq' || x.t === 'multi' ? h('ul', null, x.o.map((o, oi) => h('li', { class: (x.t === 'mcq' ? x.a === oi : x.a.includes(oi)) ? 'right' : '' }, o))) : null,
         x.t === 'match' ? h('ul', null, x.pairs.map((p) => h('li', null, `${p[0]} → `, h('b', null, p[1])))) : null,
         x.t === 'order' ? h('ol', null, x.steps.map((st) => h('li', null, st))) : null,
