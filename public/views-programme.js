@@ -1,4 +1,5 @@
 import { h, api, toast, fmtDate, svg } from './ui.js';
+import { roadmap, trajectoryChart } from './charts.js';
 import { checkForm, resultView, walkthroughCard, explainCard, feedbackCard, challengeCard, spacedCard } from './assess-ui.js';
 
 // ------------------------------------------------------------------ shared bits
@@ -42,16 +43,9 @@ function levelBars(levels) {
         h('i', { class: 'lv-base', style: `width:${l.baseline}%` }), h('i', { class: 'lv-now', style: `width:${l.now}%` }),
         h('i', { class: 'lv-range', style: `left:${Math.max(0, l.now - 10)}%;width:${Math.min(100, l.now + 10) - Math.max(0, l.now - 10)}%` }), h('i', { class: 'lv-tgt', style: `left:${l.target}%` })),
       h('div', { class: 'lv-val' }, h('b', null, `${l.now}%`), l.baseline != null && l.now - l.baseline >= 5 ? h('span', { class: 'chip green', title: 'Since the start of your plan' }, `+${l.now - l.baseline}`) : h('span', { class: 'muted small' }, '±10'), h('span', { class: `chip ${BAND_CHIP[l.band.key]}` }, l.band.label)))),
-    h('p', { class: 'muted small', style: 'margin-top:6px' }, 'Each level is an estimate. The shaded range shows where it most likely sits; small moves inside it do not change your plan.'));
+    h('p', { class: 'muted small', style: 'margin-top:6px' }, 'Each level is an estimate. The thin line under each bar shows where it most likely sits; small moves inside it do not change your plan.'));
 }
 
-function timeline(data, st) {
-  const W = st.weeks;
-  return h('div', { class: 'tl' },
-    h('div', { class: 'tl-bar' }, data.phases.map((p) => h('div', { class: `tl-ph ${st.week >= p.weeks[0] && st.week <= p.weeks[1] ? 'on' : st.week > p.weeks[1] ? 'past' : ''}`, style: `flex:${p.weeks[1] - p.weeks[0] + 1}` },
-      h('b', null, p.name), h('span', null, p.weeks[0] === p.weeks[1] ? `Week ${p.weeks[0]}` : `Weeks ${p.weeks[0]}–${p.weeks[1]}`))),
-    h('i', { class: 'tl-you', style: `left:calc(${((st.week - 0.5) / W) * 100}% - 1px)` }, h('span', null, `You: week ${st.week}`))));
-}
 
 // The module's explainer video: played in the page when the link is an embed link (SharePoint or Stream embed,
 // YouTube no-cookie), otherwise opened in a new tab. Admins paste the link from the Curriculum page.
@@ -138,13 +132,20 @@ export function programmeView(data, { readOnly = false, banner = null } = {}) {
       h('div', { class: 'hero-ring' }, h('div', { class: 'ring big', style: `--p:${st.progress.pct}`, role: 'img', 'aria-label': `${st.progress.pct}% of your plan done` }, h('b', null, `${st.progress.pct}%`)),
         h('div', null, `${st.progress.done} of ${st.progress.total} steps done`), h('span', { class: `chip ${paceChip[0]}` }, paceChip[1]))),
 
+    h('section', { class: 'card roadmap-card' },
+      h('div', { class: 'row spread' }, h('div', null, h('div', { class: 'jr-k' }, 'Your 12 weeks at a glance'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, 'Each square is a step in your plan. Click one to open it.')),
+        h('div', { class: 'chart-key' }, h('span', null, h('i', { class: 'k-sq done' }), 'Done'), h('span', null, h('i', { class: 'k-sq now' }), 'This week'), h('span', null, h('i', { class: 'k-sq due' }), 'Overdue'), h('span', null, h('i', { class: 'k-sq next' }), 'Coming up'), h('span', null, h('i', { class: 'k-flag' }), 'With Jack'))),
+      roadmap({ items: st.items, week: st.week, weeks: st.weeks, phases: data.phases, hrefFor: readOnly ? () => null : itemHref }),
+      h('div', { class: 'jr-phases' }, data.phases.map((p) => { const its = st.items.filter((i) => i.phase === p.n); const d = its.filter((i) => i.done).length;
+        return h('div', null, h('b', null, p.name), h('span', { class: 'muted small' }, p.aim), h('div', { class: 'ph-bar', title: `${d} of ${its.length} done` }, h('i', { style: `width:${its.length ? Math.round((d / its.length) * 100) : 0}%` })), h('span', { class: 'muted small' }, `${d} of ${its.length} done`)); }))),
     h('section', { class: 'journey' },
       h('div', { class: 'card jr' }, h('div', { class: 'jr-k' }, '1 · Where you are now'), h('div', { class: 'jr-big' }, `${st.readiness.now}%`), h('div', { class: 'muted' }, `Average readiness across the 12 scenarios. Ready on ${st.readiness.ready} of ${st.readiness.of}.`),
         st.readiness.now !== st.readiness.start ? h('div', { class: 'small', style: 'margin-top:6px' }, `You started at ${st.readiness.start}%.`) : null,
         h('div', { class: 'jr-chips' }, focusRows.map((l) => h('span', { class: 'chip coral' }, `${l.short} ${l.now}%`))),
         reached.length ? h('div', { class: 'milestone' }, h('b', null, 'Target reached: '), reached.map((l) => l.short).join(', ')) : null),
-      h('div', { class: 'card jr wide' }, h('div', { class: 'jr-k' }, '2 · Your next 12 weeks'), timeline(data, st),
-        h('div', { class: 'jr-phases' }, data.phases.map((p) => h('div', null, h('b', null, p.name), h('span', { class: 'muted small' }, p.aim))))),
+      h('div', { class: 'card jr wide' }, h('div', { class: 'jr-k' }, '2 · Your readiness, week by week'),
+        trajectoryChart({ trajectory: st.trajectory || [], start: st.readiness.start, now: st.readiness.now, end: st.readiness.end, target: Math.round(st.levels.reduce((t, l) => t + l.target, 0) / st.levels.length), week: st.week, weeks: st.weeks }),
+        h('div', { class: 'chart-key' }, h('span', null, h('i', { class: 'k-line' }), 'So far'), h('span', null, h('i', { class: 'k-dash' }), 'Where the plan takes you'), h('span', null, h('i', { class: 'k-tgt-line' }), 'Your target'))),
       h('div', { class: 'card jr' }, h('div', { class: 'jr-k' }, '3 · Where you will be'), h('div', { class: 'jr-big' }, `${st.readiness.end}%`), h('div', { class: 'muted' }, `Ready on all ${st.readiness.of} scenarios at your role's depth:`),
         h('ul', { class: 'jr-out' }, st.outcomes.map((o) => h('li', null, h('b', null, `${o.label}: `), o.can.toLowerCase(), ' — ', h('span', { class: 'muted' }, o.scenarios.join(', '))))))),
 

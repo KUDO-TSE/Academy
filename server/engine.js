@@ -353,8 +353,20 @@ export function liveState(u, planRow, ctx) {
     return { scenario: s.key, label: s.label, short: s.short, now: L.est, baseline: data.baseline?.[s.key]?.v ?? L.baseline, source: L.source, note: L.note, target: tg, projected: Math.max(L.est, data.projected?.[s.key] ?? tg), band: band(L.est, tg), focus: data.focus.includes(s.key), depth: MODULE_BY_KEY[MODULE_FOR_SCENARIO[s.key]]?.depth, history: L.history };
   });
   const avg = (a) => round(a.reduce((x, y) => x + y, 0) / a.length);
+  // Readiness week by week since the plan started: each scenario's level at the end of each week (from its history),
+  // averaged. Week 0 is the start of the plan; the current week shows today's level.
+  const trajectory = [];
+  if (start) for (let w = 0; w <= week; w++) {
+    const at = w === week ? Date.now() : start.getTime() + w * 7 * 864e5;
+    const vals = levelRows.map((l) => {
+      if (w === week) return l.now;
+      const past = (l.history || []).filter((h) => { const t = new Date(h.at).getTime(); return t >= start.getTime() && t <= at; });
+      return past.length ? past[past.length - 1].v : l.baseline;
+    });
+    trajectory.push({ week: w, v: avg(vals) });
+  }
   return {
-    items, week, weeks: WEEKS, started_on: planRow.started_on,
+    items, week, weeks: WEEKS, started_on: planRow.started_on, trajectory,
     progress: { done: doneN, total: items.length, pct: items.length ? round((doneN / items.length) * 100) : 0, pace: expected ? (doneBy >= expected ? 'on' : doneBy >= expected - 2 ? 'close' : 'behind') : 'on' },
     next: mine.filter((i) => !i.done).slice(0, 3),
     jackNext: items.filter((i) => i.owner === 'jack' && !i.done).slice(0, 2),

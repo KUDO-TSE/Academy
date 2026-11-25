@@ -1,5 +1,6 @@
 import { h, api, toast, fmtDate, dateOnly, modal } from './ui.js';
 import { programmeView, moduleView, KIND_LABEL, DEPTH_LABEL } from './views-programme.js';
+import { roadmap, trajectoryChart } from './charts.js';
 
 const STATUS = { draft: ['amber', 'Draft: needs approval'], changes: ['amber', 'Changes waiting'], approved: ['green', 'Approved'] };
 const RATING = [['', '–'], ['gap', 'Gap'], ['developing', 'Developing'], ['solid', 'Solid']];
@@ -71,6 +72,10 @@ export function tabProgramme(personId, reload) {
         h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Week'), h('div', { class: 'value' }, `${d.approved.state.week}/12`), h('div', { class: 'note' }, { on: 'On pace', close: 'Slightly behind', behind: 'Behind pace' }[d.approved.state.progress.pace])),
         h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Done'), h('div', { class: 'value' }, `${d.approved.state.progress.pct}%`), h('div', { class: 'note' }, `${d.approved.state.progress.done} of ${d.approved.state.progress.total}`)),
         h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Readiness'), h('div', { class: 'value' }, `${d.approved.state.readiness.now}%`), h('div', { class: 'note' }, `Started ${d.approved.state.readiness.start}% · target ${d.approved.state.readiness.end}%`))) : null,
+      d.approved ? (() => { const st = d.approved.state; return h('div', { class: 'grid g-8-4' },
+        h('div', { class: 'card roadmap-card', style: 'margin-top:0' }, h('h2', null, '12 weeks at a glance'), h('p', { class: 'sub' }, 'Dark: done. Coral: overdue. Outlined: this week and coming up. Flags: sessions with you and milestones.'),
+          roadmap({ items: st.items, week: st.week, weeks: st.weeks, phases: META.phases || d.phases || [] })),
+        h('div', { class: 'card jr wide' }, h('h2', null, 'Readiness'), trajectoryChart({ trajectory: st.trajectory || [], start: st.readiness.start, now: st.readiness.now, end: st.readiness.end, target: Math.round(st.levels.reduce((t, l) => t + l.target, 0) / st.levels.length), week: st.week, weeks: st.weeks }))); })() : null,
       h('div', { class: 'row' }, d.approved ? h('a', { class: 'btn', href: `#pview-${personId}` }, 'View as trainee') : null),
       h('div', { class: 'card' }, h('h2', null, 'Levels now'), h('p', { class: 'sub' }, 'Estimate per scenario and what last moved it.'),
         h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Scenario', 'Start', 'Now', 'Self', 'Test', 'Source'].map((x, i) => h('th', { class: i && i < 5 ? 'num' : '' }, x)))),
