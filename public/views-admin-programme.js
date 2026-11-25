@@ -222,3 +222,26 @@ export async function feedbackView() {
       h('h3', { style: 'margin-top:12px' }, 'Used it with a client yet?'), d.survey.applied.map((a) => h('div', { class: 'row spread' }, h('span', null, a.o), h('b', null, a.n))),
       d.survey.texts.map((t) => h('div', { style: 'margin-top:12px' }, h('h3', null, t.q), t.answers.length ? t.answers.map((a) => h('div', { class: 'note-box' }, a)) : h('div', { class: 'muted' }, 'No answers.')))) : h('div', { class: 'muted' }, 'Opens in week 12 of each plan.')))
 }
+
+// ------------------------------------------------------------------ test trainees (Users & access)
+export function testTraineesCard() {
+  const box = h('div', { class: 'card', style: 'margin-top:16px' }, h('div', { class: 'muted' }, 'Loading…'));
+  const draw = async () => {
+    const list = await api('GET', '/api/admin/demo');
+    const first = h('input', { type: 'text', placeholder: 'Tester first name, e.g. Erick', maxlength: 30, style: 'max-width:260px' });
+    box.replaceChildren(
+      h('h2', null, 'Test trainees'), h('p', { class: 'sub' }, 'Fictional trainees for trying the trainee side: same plan, lessons, checks and recordings as a real person, but never counted in team results, priorities, feedback or the board\'s schedule. One per tester, because the first sign-in changes the password. Sign in with the generic password.'),
+      list.length ? h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Test trainee', 'Sign-in email', 'Status', ''].map((x) => h('th', null, x)))),
+        h('tbody', null, list.map((u) => h('tr', null, h('td', null, h('b', null, u.name)), h('td', null, h('code', { class: 'k' }, u.email)),
+          h('td', null, u.must_change_password ? h('span', { class: 'chip grey' }, 'Not used yet') : h('span', { class: 'chip green' }, `In use${u.last_login_at ? ` · ${fmtDate(u.last_login_at)}` : ''}`)),
+          h('td', null, h('div', { class: 'row' }, h('a', { class: 'btn sm', href: `#person-${u.id}` }, 'Open'), h('button', { class: 'btn sm', on: { click: async () => {
+            if (!confirmBox(`Reset ${u.name}? Its progress, recordings and password go back to the start.`)) return;
+            try { await api('POST', `/api/admin/demo/${u.id}/reset`); toast('Reset. Sign in again with the generic password.'); draw(); } catch (e) { toast(e.message, true); }
+          } } }, 'Reset to start')))))))) : h('div', { class: 'muted' }, 'None yet.'),
+      h('div', { class: 'row', style: 'margin-top:12px;gap:8px' }, first, h('button', { class: 'btn primary', on: { click: async () => {
+        try { const r = await api('POST', '/api/admin/demo', { name: first.value }); toast(`Created: sign in as ${r.email}`); draw(); } catch (e) { toast(e.message, true); }
+      } } }, 'Create a test trainee')));
+  };
+  draw().catch((e) => box.replaceChildren(h('div', { class: 'muted' }, e.message)));
+  return box;
+}

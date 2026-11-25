@@ -5,6 +5,7 @@ import { MODULES, MODULE_BY_KEY, MODULE_FOR_SCENARIO, DEPTH, SOURCE_DECISIONS, A
 import { POOLS, draw, drawMixed, publicItem, grade, walk, walkthroughIntro, itemById } from './assess.js';
 import { EXPLAIN, RUBRIC, SURVEY, WALKTHROUGHS } from './curriculum-extra.js';
 import { enqueue } from './autoreview.js';
+import { DEMO_FILTER, resetDemo, createDemo } from './demo.js';
 const AUTO = () => process.env.AUTO_REVIEW !== 'off';
 import { loadContext, refreshPlan, refreshAll, approvePlan, diffPlans, liveState, buildPlan, getSettings, PASS, PHASES } from './engine.js';
 
@@ -440,10 +441,10 @@ adminProgramme.post('/submissions/:id/review', async (req, res, next) => {
 adminProgramme.get('/feedback', async (_req, res, next) => {
   try {
     const [mods, comments, surveys, attempts] = await Promise.all([
-      q('SELECT module_key, count(*)::int n, avg(clear)::float clear, avg(relevant)::float relevant, avg(confidence)::float confidence FROM module_feedback GROUP BY module_key'),
-      q('SELECT module_key, comment, created_at FROM module_feedback WHERE comment IS NOT NULL AND comment <> \'\' ORDER BY created_at DESC LIMIT 200'),
-      q('SELECT answers, created_at FROM survey_responses ORDER BY created_at DESC'),
-      q("SELECT module_key, answers FROM quiz_attempts WHERE kind='check' AND module_key <> 'baseline'"),
+      q(`SELECT module_key, count(*)::int n, avg(clear)::float clear, avg(relevant)::float relevant, avg(confidence)::float confidence FROM module_feedback WHERE ${DEMO_FILTER} GROUP BY module_key`),
+      q(`SELECT module_key, comment, created_at FROM module_feedback WHERE ${DEMO_FILTER} AND comment IS NOT NULL AND comment <> '' ORDER BY created_at DESC LIMIT 200`),
+      q(`SELECT answers, created_at FROM survey_responses WHERE ${DEMO_FILTER} ORDER BY created_at DESC`),
+      q(`SELECT module_key, answers FROM quiz_attempts WHERE ${DEMO_FILTER} AND kind='check' AND module_key <> 'baseline'`),
     ]);
     // Item analysis: which questions are missed most, and which are answered wrongly with high certainty (a sign of a misconception).
     const items = new Map();
@@ -463,6 +464,31 @@ adminProgramme.get('/feedback', async (_req, res, next) => {
       survey: { n: sv.length, nps, averages: Object.fromEntries(SURVEY.filter((x) => x.type === 'scale5').map((x) => [x.q, avgOf(x.key)])), applied: SURVEY.find((x) => x.key === 'applied').o.map((o) => ({ o, n: sv.filter((a) => a.applied === o).length })), texts: SURVEY.filter((x) => x.type === 'text').map((x) => ({ q: x.q, answers: sv.map((a) => a[x.key]).filter(Boolean) })) },
       hardest,
     });
+  } catch (e) { next(e); }
+});
+
+// ------------------------------------------------------------------ test trainees
+adminProgramme.get('/demo', async (_req, res, next) => {
+  try { res.json((await q('SELECT id,email,name,must_change_password,last_login_at,created_at FROM users WHERE is_demo ORDER BY name')).rows); } catch (e) { next(e); }
+});
+adminProgramme.post('/demo', async (req, res, next) => {
+  try {
+    const first = String(req.body?.name || '').trim().replace(/[^A-Za-z -]/g, '').slice(0, 30);
+    if (!first) return bad(res, 'Give the tester\'s first name.');
+    const email = `demo.${first.toLowerCase().replace(/[^a-z]+/g, '.')}@kudo.ai`;
+    if ((await q('SELECT 1 FROM users WHERE lower(email)=$1', [email])).rowCount) return bad(res, 'That test trainee already exists. Reset it instead.');
+    const id = await createDemo(email, `Test Trainee (${first})`);
+    if (!id) return bad(res, 'Could not create it: the generic password is not set on the server.');
+    await audit(req, 'demo.create', email);
+    res.json({ id, email });
+  } catch (e) { next(e); }
+});
+adminProgramme.post('/demo/:id/reset', async (req, res, next) => {
+  try {
+    const id = await resetDemo(Number(req.params.id));
+    if (!id) return res.status(404).json({ error: 'Not a test trainee.' });
+    await audit(req, 'demo.reset', String(id));
+    res.json({ id });
   } catch (e) { next(e); }
 });
 

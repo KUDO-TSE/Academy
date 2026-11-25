@@ -245,3 +245,22 @@ test('explain-it recordings are reviewed automatically and spot-checks reach the
   assert.ok(board.tasks.some((t) => t.type === 'review' && /asked for your view/.test(t.detail)));
   process.env.AUTO_REVIEW = 'off';
 });
+
+test('test trainees are created and reset by admins and never count in team results', async () => {
+  const adm = client(); await adm('POST', '/api/auth/login', { email: 'boss@test.local', password: 'Quiet-harbor-pass-55' });
+  const c = await adm('POST', '/api/admin/demo', { name: 'Jack' });
+  assert.equal(c.status, 200); assert.equal(c.json.email, 'demo.jack@kudo.ai');
+  assert.equal((await adm('POST', '/api/admin/demo', { name: 'Jack' })).status, 400, 'no duplicates');
+  const t = client(); await t('POST', '/api/auth/login', { email: 'demo.jack@kudo.ai', password: GEN });
+  await t('POST', '/api/auth/change-password', { current: GEN, next: 'Test-orchard-pass-62' });
+  const p = await t('GET', '/api/me/programme'); assert.equal(p.json.status, 'approved', 'ready to use straight away');
+  await t('POST', '/api/me/modules/teams/feedback', { clear: 1, relevant: 1, confidence: 1 });
+  const fb = (await adm('GET', '/api/admin/feedback')).json.modules.find((m) => m.key === 'teams');
+  assert.notEqual(fb.clear, 1, 'test feedback stays out of the team averages');
+  const team = (await adm('GET', '/api/admin/trainees')).json; assert.ok(!team.some((x) => x.email === 'demo.jack@kudo.ai'), 'not on the team list');
+  const r = await adm('POST', `/api/admin/demo/${c.json.id}/reset`); assert.equal(r.status, 200);
+  assert.equal((await t('GET', '/api/me/programme')).status, 401, 'old session is gone');
+  assert.equal((await client()('POST', '/api/auth/login', { email: 'demo.jack@kudo.ai', password: GEN })).status, 200, 'generic password again');
+  const realId = (await q("SELECT id FROM users WHERE email='bob@test.local'")).rows[0].id;
+  assert.equal((await adm('POST', `/api/admin/demo/${realId}/reset`)).status, 404, 'a real person can never be reset');
+});

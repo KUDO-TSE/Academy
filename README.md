@@ -112,3 +112,10 @@ Facts are never marked wrong automatically (embeddings cannot see negation). Jac
 Recordings are kept 60 days, then deleted; transcripts and scores stay.
 
 Deployment notes: set `ONNXRUNTIME_NODE_INSTALL_CUDA=skip` on the service (the GPU binaries are not needed). Models (about 120 MB) download from Hugging Face on first start into `MODEL_CACHE_DIR` (default `/tmp/academy-models`); the service needs about 1 GB of memory. Set `AUTO_REVIEW=off` to send every recording to Jack instead.
+
+## Test trainees
+
+Fictional trainees for the admin team to try the trainee side. Set `DEMO_TRAINEE_EMAILS` (comma-separated; `demo.jack@kudo.ai` becomes "Test Trainee (Jack)"), or create one under **Users & access › Test trainees**.
+Each starts with fictional October results and an approved plan two weeks in. They sign in with the generic password and must change it, so use one per tester.
+"Reset to start" deletes everything a test trainee did and recreates it with the generic password.
+Test trainees are excluded from team results, priorities, the team list, module feedback, item analysis and the board's schedule.
