@@ -215,6 +215,8 @@ test('programme: built automatically, approved by an admin, graded on the server
   assert.equal((await ann('POST', '/api/me/modules/teams/feedback', { clear: 5, relevant: 4, confidence: 9 })).status, 400);
   assert.equal((await ann('POST', '/api/me/modules/teams/feedback', { clear: 5, relevant: 4, confidence: 3, comment: 'Good' })).status, 200);
   const ch = await ann('GET', '/api/me/challenge'); assert.equal(ch.json.items.length, 4);
+  const chDone = await ann('POST', '/api/me/challenge', { answers: ch.json.items.map(shownRight) });
+  assert.equal(chDone.json.weeksActive, 1); assert.ok(chDone.json.weeksSoFar >= 1); assert.equal(chDone.json.streak, undefined, 'no streak that resets');
   // Trainees can tick lessons but not sessions with Jack.
   assert.equal((await ann('POST', '/api/me/items/kickoff/done', {})).status, 400);
   const lesson = p.json.state.items.find((i) => i.kind === 'lesson');
@@ -236,6 +238,8 @@ test('programme: built automatically, approved by an admin, graded on the server
   assert.equal(rr.json.rating, 'solid');
   assert.equal((await ann('GET', '/api/admin/reviews')).status, 403);
   const fbk = await adm('GET', '/api/admin/feedback'); assert.equal(fbk.json.modules.find((m) => m.key === 'teams').n, 1);
+  assert.ok(fbk.json.stats.some((x) => x.module === 'teams' && x.verdict === 'too few answers yet'), 'item statistics per question');
+  assert.ok(fbk.json.agreement && Array.isArray(fbk.json.agreement.lines));
   const board = await adm('GET', '/api/admin/board');
   assert.equal(board.status, 200); assert.ok(Array.isArray(board.json.tasks)); assert.ok(board.json.week.days.length >= 0);
   assert.equal((await ann('GET', '/api/admin/board')).status, 403);

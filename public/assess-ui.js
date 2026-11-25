@@ -103,7 +103,8 @@ function resultBox(s, rubric) {
   const who = s.status === 'reviewed' ? 'Jack\'s review' : 'Automatic review';
   return h('div', { class: 'review' },
     h('div', { class: 'row spread' }, h('b', null, who), auto.rating && s.status !== 'reviewed' ? h('span', { class: `chip ${{ solid: 'green', developing: 'amber', gap: 'coral' }[auto.rating]}` }, { solid: 'Solid', developing: 'Developing', gap: 'Gap' }[auto.rating]) : null),
-    s.rubric ? h('div', { class: 'rub' }, rubric.map((c) => h('span', { class: `chip ${chipCls[s.rubric[c.key]]}` }, `${c.label}: ${s.rubric[c.key]}/3`))) : null,
+    s.rubric ? h('div', { class: 'rub' }, rubric.map((c) => { const fbOnly = s.status !== 'reviewed' && (auto.feedbackOnly || []).includes(c.key);
+      return h('span', { class: `chip ${fbOnly ? 'grey' : chipCls[s.rubric[c.key]]}`, title: fbOnly ? 'Feedback only: pace and filler words do not count towards your level.' : null }, `${c.label}: ${s.rubric[c.key]}/3${fbOnly ? ' · tip only' : ''}`); })) : null,
     s.review_comment ? h('div', { style: 'margin-top:8px' }, s.review_comment) : null,
     s.counts === false ? h('div', { class: 'practice-note' }, 'Practice attempt: your recorded result is the one from your first submission.') : s.counts ? h('div', { class: 'practice-note rec' }, 'First submission: this is your recorded result. Try again any time to practise.') : null,
     auto.points && s.status !== 'reviewed' ? h('ul', { class: 'pts' }, auto.points.map((p) => h('li', { class: p.covered ? 'yes' : 'no' }, p.covered ? '✓ ' : '✗ ', p.point))) : null,
@@ -192,10 +193,10 @@ export function challengeCard() {
   (async () => {
     const c = await api('GET', '/api/me/challenge');
     const head = h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'Weekly challenge'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, 'Four mixed questions from what you have already studied. Two minutes. Mixing topics is what makes it stick.')),
-      h('div', { class: 'streak' }, h('b', null, c.streak), h('span', null, c.streak === 1 ? 'week in a row' : 'weeks in a row')));
+      h('div', { class: 'streak', title: 'Weeks with a challenge done. It never resets: a busy week costs nothing.' }, h('b', null, c.weeksSoFar ? `${c.weeksActive} of ${c.weeksSoFar}` : c.weeksActive), h('span', null, c.weeksSoFar ? 'weeks active so far' : (c.weeksActive === 1 ? 'week active' : 'weeks active'))));
     if (c.doneThisWeek) { box.replaceChildren(head, h('div', { class: 'ok', style: 'margin-top:10px' }, 'Done for this week. A new one opens on Monday.')); return; }
     const body = h('div', { style: 'margin-top:10px' }, h('button', { class: 'btn primary', on: { click: () => {
-      body.replaceChildren(checkForm(c.items, { url: '/api/me/challenge', onResult: (r, items) => { body.replaceChildren(resultView({ ...r, passed: true }, items, { baseline: true }), h('div', { class: 'ok', style: 'margin-top:8px' }, `Streak: ${r.streak} week${r.streak === 1 ? '' : 's'}.`)); } }));
+      body.replaceChildren(checkForm(c.items, { url: '/api/me/challenge', onResult: (r, items) => { body.replaceChildren(resultView({ ...r, passed: true }, items, { baseline: true }), h('div', { class: 'ok', style: 'margin-top:8px' }, `Done for this week. Weeks active: ${r.weeksActive}${r.weeksSoFar ? ` of ${r.weeksSoFar}` : ''}.`)); } }));
     } } }, 'Take this week\'s challenge'));
     box.replaceChildren(head, body);
   })().catch(() => box.replaceChildren(h('div', { class: 'muted' }, 'The weekly challenge could not load.')));

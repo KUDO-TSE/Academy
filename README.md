@@ -90,7 +90,7 @@ Checks are no longer a fixed multiple-choice list. Each module has a pool of mix
 Other formats in the plan:
 - **Decision walkthroughs** (`WALKTHROUGHS` in `server/curriculum-extra.js`): a realistic client situation, three or four decisions, feedback after each. Graded on the server.
 - **Explain it**: the trainee records up to 3 minutes of audio in the browser (or writes it), then ticks the key points they covered. Jack scores four criteria from 1 to 3 on the **Reviews** page; the average becomes a Gap / Developing / Solid input on their level.
-- **Weekly challenge**: four mixed questions from modules already started, with a weekly streak. It does not change levels.
+- **Weekly challenge**: four mixed questions from modules already started. Progress shows as "weeks active: 7 of 9", which never resets (a broken streak is a common reason self-paced trainees quit). It does not change levels.
 - **Feedback**: three ratings and a comment after each module check, and a ten-question end-of-programme survey (adapted from Coursecheck's templates, including NPS). Results and the most-missed questions are on the **Feedback** page.
 
 ## Action board (admins)

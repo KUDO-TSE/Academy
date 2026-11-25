@@ -216,11 +216,36 @@ export async function feedbackView() {
     h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Questions missed most'), h('p', { class: 'sub' }, 'Low success points to unclear content or a misconception. "Certain but wrong" is the strongest misconception signal.'),
       d.hardest.length ? h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Question', 'Module', 'Answered', 'Success', 'Certain but wrong'].map((x, i) => h('th', { class: i > 1 ? 'num' : '' }, x)))),
         h('tbody', null, d.hardest.map((x) => h('tr', null, h('td', null, x.q), h('td', null, x.module), h('td', { class: 'num' }, x.n), h('td', { class: 'num' }, `${x.rate}%`), h('td', { class: 'num' }, x.confWrong || '')))))) : h('div', { class: 'muted' }, 'Appears once questions have been answered at least twice.')),
+    qualityCard(d.stats || []),
+    agreementCard(d.agreement),
     h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Comments on modules'), d.comments.length ? d.comments.map((c) => h('div', { class: 'note-box' }, h('b', null, c.module), h('div', null, c.comment), h('div', { class: 'when' }, fmtDate(c.created_at)))) : h('div', { class: 'muted' }, 'No comments yet.')),
     h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'End-of-programme survey'), d.survey.n ? h('div', null,
       Object.entries(d.survey.averages).map(([q, v]) => h('div', { class: 'row spread', style: 'padding:6px 0;border-top:1px solid var(--border-soft)' }, h('span', null, q), h('b', null, f1(v)))),
       h('h3', { style: 'margin-top:12px' }, 'Used it with a client yet?'), d.survey.applied.map((a) => h('div', { class: 'row spread' }, h('span', null, a.o), h('b', null, a.n))),
       d.survey.texts.map((t) => h('div', { style: 'margin-top:12px' }, h('h3', null, t.q), t.answers.length ? t.answers.map((a) => h('div', { class: 'note-box' }, a)) : h('div', { class: 'muted' }, 'No answers.')))) : h('div', { class: 'muted' }, 'Opens in week 12 of each plan.')))
+}
+
+const VERDICT_CHIP = { keep: 'green', 'too few answers yet': 'grey' };
+function qualityCard(stats) {
+  const flagged = stats.filter((x) => !['keep', 'too few answers yet'].includes(x.verdict));
+  const row = (x) => h('tr', null,
+    h('td', null, x.q, x.options ? h('details', null, h('summary', { class: 'small' }, 'Options picked'), h('ul', { class: 'ans-list' }, x.options.map((o) => h('li', null, o.key ? h('b', null, o.o) : o.o, ` · ${o.n}${!o.key && o.n === 0 && x.n >= 20 ? ' · never picked' : ''}`)))) : null),
+    h('td', null, x.module), h('td', { class: 'num' }, x.n), h('td', { class: 'num' }, `${x.p}%`), h('td', { class: 'num' }, x.d == null ? '–' : x.d.toFixed(2)),
+    h('td', null, h('span', { class: `chip ${VERDICT_CHIP[x.verdict] || 'coral'}` }, x.verdict)));
+  return h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Question quality'),
+    h('p', { class: 'sub' }, 'From first attempts only. Success is the share answered right. Separation is how much better strong trainees do on this question than weak ones (0.2 or more is good; below 0 means the key may be wrong). The numbers mean little under 20 answers.'),
+    stats.length ? h('div', null,
+      h('p', null, flagged.length ? `${flagged.length} question${flagged.length > 1 ? 's' : ''} to look at.` : 'No question needs attention yet.'),
+      h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Question', 'Module', 'Answers', 'Success', 'Separation', 'Verdict'].map((x, i) => h('th', { class: i > 1 && i < 5 ? 'num' : '' }, x)))),
+        h('tbody', null, [...flagged, ...stats.filter((x) => !flagged.includes(x))].map(row))))) : h('div', { class: 'muted' }, 'Appears once trainees have taken checks.'));
+}
+function agreementCard(a) {
+  if (!a) return null;
+  return h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Automatic review compared with Jack'),
+    h('p', { class: 'sub' }, `Every recording or practice that Jack also reviewed (${a.n} so far). ${a.enough ? 'Enough to judge: tune the automatic review where agreement is low.' : 'About 30 are needed before tuning anything.'} Clarity is a tip only and does not count towards levels until it agrees well.`),
+    a.n ? h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Rubric line', 'Compared', 'Same score', 'Within 1 point'].map((x, i) => h('th', { class: i ? 'num' : '' }, x)))),
+      h('tbody', null, a.lines.map((l) => h('tr', null, h('td', null, l.label), h('td', { class: 'num' }, l.n), h('td', { class: 'num' }, l.exactPct == null ? '–' : `${l.exactPct}%`), h('td', { class: 'num' }, l.within1Pct == null ? '–' : `${l.within1Pct}%`))),
+        h('tr', null, h('td', null, h('b', null, 'Overall rating (Gap / Developing / Solid)')), h('td', { class: 'num' }, a.rating.n), h('td', { class: 'num' }, a.rating.samePct == null ? '–' : `${a.rating.samePct}%`), h('td', null, ''))))) : h('div', { class: 'muted' }, 'Appears once Jack has spot-checked a submission.'));
 }
 
 // ------------------------------------------------------------------ test trainees (Users & access)

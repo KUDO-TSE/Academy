@@ -81,7 +81,7 @@ function validAnswers(body, allowed) {
   for (const a of ans) { if (typeof a?.id !== 'string' || ids.has(a.id) || !itemById(a.id) || !allowed(itemById(a.id))) return null; ids.add(a.id); }
   return ans;
 }
-const compact = (g) => JSON.stringify(g.results.map((r) => ({ id: r.id, score: r.score, knowledge: r.knowledge, conf: r.conf ?? null, scenario: r.scenario || null })));
+const compact = (g) => JSON.stringify(g.results.map((r) => ({ id: r.id, score: r.score, knowledge: r.knowledge, conf: r.conf ?? null, scenario: r.scenario || null, ...(r.t === 'mcq' ? { pick: r.given } : {}) })));
 
 meProgramme.post('/modules/:key/attempt', async (req, res, next) => {
   try {
@@ -208,9 +208,12 @@ async function challengeState(uid) {
   const wk = (d) => { const x = new Date(d); const day = (x.getUTCDay() + 6) % 7; x.setUTCHours(0, 0, 0, 0); x.setUTCDate(x.getUTCDate() - day); return x.getTime(); };
   const weeks = [...new Set(r.rows.map((x) => wk(x.created_at)))].sort((a, b) => b - a);
   const thisWeek = wk(new Date());
-  let streak = 0; let cursor = weeks[0] === thisWeek ? thisWeek : thisWeek - 7 * 864e5;
-  for (const w of weeks) { if (w === cursor) { streak++; cursor -= 7 * 864e5; } else if (w < cursor) break; }
-  return { doneThisWeek: weeks[0] === thisWeek, streak, total: r.rowCount };
+  // "Weeks active" never resets: a busy client week costs nothing, and coming back always counts.
+  const plan = await q("SELECT started_on FROM plans WHERE user_id=$1 AND started_on IS NOT NULL ORDER BY version LIMIT 1", [uid]);
+  const start = plan.rows[0]?.started_on ? wk(plan.rows[0].started_on) : null;
+  const inPlan = start ? weeks.filter((w) => w >= start) : weeks;
+  const weeksSoFar = start ? Math.min(12, Math.max(1, Math.floor((thisWeek - start) / (7 * 864e5)) + 1)) : null;
+  return { doneThisWeek: weeks[0] === thisWeek, weeksActive: Math.min(inPlan.length, 12), weeksSoFar, total: r.rowCount };
 }
 meProgramme.get('/challenge', async (req, res, next) => {
   try {
@@ -474,6 +477,7 @@ adminProgramme.get('/feedback', async (_req, res, next) => {
       q(`SELECT answers, created_at FROM survey_responses WHERE ${DEMO_FILTER} ORDER BY created_at DESC`),
       q(`SELECT module_key, answers FROM quiz_attempts WHERE ${DEMO_FILTER} AND kind='check' AND counts AND module_key <> 'baseline'`),
     ]);
+    const agree = await q(`SELECT kind, auto, rubric FROM submissions WHERE ${DEMO_FILTER} AND status='reviewed' AND auto IS NOT NULL AND rubric IS NOT NULL`);
     // Item analysis: which questions are missed most, and which are answered wrongly with high certainty (a sign of a misconception).
     const items = new Map();
     for (const a of attempts.rows) for (const x of a.answers || []) {
@@ -482,6 +486,8 @@ adminProgramme.get('/feedback', async (_req, res, next) => {
       it.n++; it.score += Number(x.score ?? (x.ok ? 1 : 0)); if (x.conf === 3 && Number(x.score) === 0) it.confWrong++;
       items.set(x.id, it);
     }
+    const stats = itemStats(attempts.rows);
+    const agreement = autoAgreement(agree.rows);
     const hardest = [...items.values()].filter((x) => x.n >= 2).map((x) => ({ ...x, rate: Math.round((x.score / x.n) * 100), q: itemById(x.id)?.q, module: itemById(x.id)?.module })).sort((a, b) => a.rate - b.rate).slice(0, 15);
     const sv = surveys.rows.map((r) => r.answers);
     const nps = sv.length ? Math.round(((sv.filter((a) => a.nps >= 9).length - sv.filter((a) => a.nps <= 6).length) / sv.length) * 100) : null;
@@ -490,10 +496,50 @@ adminProgramme.get('/feedback', async (_req, res, next) => {
       modules: MODULES.map((m) => ({ key: m.key, title: m.title, ...(mods.rows.find((r) => r.module_key === m.key) || { n: 0 }) })),
       comments: comments.rows.map((c) => ({ ...c, module: MODULE_BY_KEY[c.module_key]?.title || c.module_key })),
       survey: { n: sv.length, nps, averages: Object.fromEntries(SURVEY.filter((x) => x.type === 'scale5').map((x) => [x.q, avgOf(x.key)])), applied: SURVEY.find((x) => x.key === 'applied').o.map((o) => ({ o, n: sv.filter((a) => a.applied === o).length })), texts: SURVEY.filter((x) => x.type === 'text').map((x) => ({ q: x.q, answers: sv.map((a) => a[x.key]).filter(Boolean) })) },
-      hardest,
+      hardest, stats, agreement,
     });
   } catch (e) { next(e); }
 });
+
+// Classical item analysis on first attempts (scores of record): success rate (P), discrimination (correlation of the item
+// with the rest of the check) and, for single-answer items, how often each option was picked. Needs about 20 answers
+// per item before the numbers mean much; fewer are shown but marked.
+function itemStats(rows) {
+  const per = new Map();
+  for (const a of rows) {
+    const ans = (a.answers || []).filter((x) => x.id);
+    const total = ans.reduce((t, x) => t + Number(x.score || 0), 0);
+    for (const x of ans) {
+      const it = per.get(x.id) || { id: x.id, s: [], rest: [], picks: {} };
+      const sc = Number(x.score || 0); it.s.push(sc); it.rest.push(ans.length > 1 ? (total - sc) / (ans.length - 1) : 0);
+      if (Number.isInteger(x.pick)) it.picks[x.pick] = (it.picks[x.pick] || 0) + 1;
+      per.set(x.id, it);
+    }
+  }
+  const corr = (a, b) => { const n = a.length; if (n < 3) return null; const ma = a.reduce((t, v) => t + v, 0) / n, mb = b.reduce((t, v) => t + v, 0) / n;
+    let num = 0, da = 0, db = 0; for (let i = 0; i < n; i++) { num += (a[i] - ma) * (b[i] - mb); da += (a[i] - ma) ** 2; db += (b[i] - mb) ** 2; }
+    return da && db ? num / Math.sqrt(da * db) : null; };
+  return [...per.values()].map((it) => {
+    const src = itemById(it.id); const n = it.s.length; const p = it.s.reduce((t, v) => t + v, 0) / n; const d = corr(it.s, it.rest);
+    const verdict = n < 20 ? 'too few answers yet' : d != null && d < 0 ? 'check the key: strong trainees miss it more' : p < 0.3 ? 'too hard or unclear: review' : p > 0.95 ? 'too easy: everyone gets it' : d != null && d < 0.15 ? 'does not separate strong from weak: revise' : 'keep';
+    const options = src?.t === 'mcq' ? src.o.map((o, i) => ({ o, key: i === src.a, n: it.picks[i] || 0 })) : null;
+    const dead = options ? options.filter((o) => !o.key && o.n === 0).length : 0;
+    return { id: it.id, module: src?.module, q: src?.q, t: src?.t, n, p: Math.round(p * 100), d: d == null ? null : Math.round(d * 100) / 100, verdict, options, deadDistractors: n >= 20 ? dead : null };
+  }).sort((a, b) => (a.module || '').localeCompare(b.module || '') || a.id.localeCompare(b.id, undefined, { numeric: true }));
+}
+
+// How often the automatic review agrees with Jack on the same submission, per rubric line and on the overall rating.
+function autoAgreement(rows) {
+  const lines = RUBRIC.map((c) => ({ key: c.key, label: c.label, n: 0, exact: 0, within1: 0 }));
+  let ratingN = 0, ratingSame = 0;
+  const rate = (r) => { const k = ['accurate', 'complete', 'handover'].filter((x) => r?.[x]); if (!k.length) return null; const avg = k.reduce((t, x) => t + Number(r[x]), 0) / k.length; return avg >= 2.5 ? 'solid' : avg >= 1.75 ? 'developing' : 'gap'; };
+  for (const r of rows) {
+    const a = r.auto?.rubric, h = r.rubric; if (!a || !h) continue;
+    for (const l of lines) { if (a[l.key] == null || h[l.key] == null) continue; l.n++; const diff = Math.abs(Number(a[l.key]) - Number(h[l.key])); if (!diff) l.exact++; if (diff <= 1) l.within1++; }
+    const ra = r.auto?.rating, rh = rate(h); if (ra && rh) { ratingN++; if (ra === rh) ratingSame++; }
+  }
+  return { n: rows.length, lines: lines.map((l) => ({ ...l, exactPct: l.n ? Math.round((l.exact / l.n) * 100) : null, within1Pct: l.n ? Math.round((l.within1 / l.n) * 100) : null })), rating: { n: ratingN, samePct: ratingN ? Math.round((ratingSame / ratingN) * 100) : null }, enough: rows.length >= 30 };
+}
 
 // ------------------------------------------------------------------ test trainees
 adminProgramme.get('/demo', async (_req, res, next) => {

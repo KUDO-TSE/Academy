@@ -68,7 +68,7 @@ function gradeOne(x, ans) {
   const v = ans?.v, c = [1, 2, 3].includes(ans?.c) ? ans.c : 2;
   if (x.t === 'mcq') {
     const ok = Number.isInteger(v) && v === x.a;
-    return { score: ok ? 1 : 0, knowledge: ok ? (c === 1 ? 0.5 : 1) : 0, cbm: CBM[c][ok ? 0 : 1], conf: c, confidentWrong: !ok && c === 3, correct: { a: x.a, o: x.o } };
+    return { score: ok ? 1 : 0, knowledge: ok ? (c === 1 ? 0.5 : 1) : 0, cbm: CBM[c][ok ? 0 : 1], conf: c, confidentWrong: !ok && c === 3, correct: { a: x.a, o: x.o }, given: Number.isInteger(v) ? v : null };
   }
   if (x.t === 'multi') {
     const picks = Array.isArray(v) ? [...new Set(v.filter(Number.isInteger))] : [];

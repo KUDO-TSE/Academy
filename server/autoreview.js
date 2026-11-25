@@ -102,7 +102,10 @@ export async function assess(moduleKey, text, seconds, spec = specFor('explain',
   const unsureCount = points.filter((x) => x.unsure).length;
   const accurate = coverage >= 0.8 && unsureCount === 0 ? 3 : coverage >= 0.4 ? 2 : 1; // facts are not marked wrong automatically
   const rubric = { accurate, complete, clear, handover: ho };
-  const avg = Object.values(rubric).reduce((a, b) => a + b, 0) / RUBRIC.length;
+  // Clarity (pace, filler words) is feedback only: it is not yet validated against Jack's reviews and would mark down
+  // non-native speakers for something that is not KUDO knowledge. It does not count towards the rating or the level.
+  const SCORED = ['accurate', 'complete', 'handover'];
+  const avg = SCORED.reduce((a, k) => a + rubric[k], 0) / SCORED.length;
   const rating = avg >= 2.5 ? 'solid' : avg >= 1.75 ? 'developing' : 'gap';
 
   // Where each missed point is taught, so the note can point to it.
@@ -126,7 +129,7 @@ export async function assess(moduleKey, text, seconds, spec = specFor('explain',
     missed.length ? `Next time, add: ${missed.map((x) => x.point).join('; ')}. See "${missed[0].section}" in the lesson.` : 'Every key point was there.',
     ...tips,
   ].join(' ');
-  return { rubric, rating, avg: Math.round(avg * 100) / 100, points, missed, flags, metrics: { words, wpm, fillers, handover }, note };
+  return { rubric, feedbackOnly: ['clear'], rating, avg: Math.round(avg * 100) / 100, points, missed, flags, metrics: { words, wpm, fillers, handover }, note };
 }
 
 /** Process one submission end to end and record the result. */
