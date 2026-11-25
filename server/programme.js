@@ -236,6 +236,46 @@ meProgramme.post('/challenge', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Spaced review: questions the trainee missed or guessed on come back one week later, then three weeks after the miss.
+// A right answer given with some certainty on the second return closes the question; a miss starts the clock again.
+// Practice only: it never changes levels or the recorded score.
+const DAY = 864e5;
+async function spacedDue(uid) {
+  const r = await q("SELECT kind, answers, created_at FROM quiz_attempts WHERE user_id=$1 AND kind IN ('check','challenge','spaced') ORDER BY created_at", [uid]);
+  const st = new Map(); // id -> { t0, reviews, closed }
+  for (const a of r.rows) for (const x of a.answers || []) {
+    if (!x.id || !itemById(x.id)) continue;
+    const weak = Number(x.score) < 0.999 || x.conf === 1;
+    const cur = st.get(x.id);
+    if (a.kind === 'spaced') {
+      if (!cur || cur.closed) continue;
+      if (weak) st.set(x.id, { t0: new Date(a.created_at), reviews: 0 });
+      else { cur.reviews++; if (cur.reviews >= 2) cur.closed = true; }
+    } else if (weak) st.set(x.id, { t0: new Date(a.created_at), reviews: 0 });
+  }
+  const now = Date.now();
+  const due = [...st.entries()].filter(([, v]) => !v.closed && now - v.t0 >= (v.reviews === 0 ? 7 : 21) * DAY).map(([id]) => id);
+  return { due, waiting: [...st.values()].filter((v) => !v.closed).length - due.length };
+}
+meProgramme.get('/review', async (req, res, next) => {
+  try {
+    const d = await spacedDue(req.user.id);
+    const items = d.due.slice(0, 6).map(itemById);
+    res.json({ due: d.due.length, waiting: d.waiting, items: items.map(publicItem) });
+  } catch (e) { next(e); }
+});
+meProgramme.post('/review', async (req, res, next) => {
+  try {
+    const d = await spacedDue(req.user.id); const ok = new Set(d.due);
+    const ans = validAnswers(req.body, (x) => ok.has(x.id));
+    if (!ans) return bad(res, 'These questions are not due for review. Reload the page.');
+    const g = grade(ans);
+    if (g.error) return bad(res, g.error);
+    await q("INSERT INTO quiz_attempts (user_id,module_key,correct,total,knowledge,cbm,kind,answers,counts) VALUES ($1,'spaced',$2,$3,$4,$5,'spaced',$6,FALSE)", [req.user.id, g.correct, g.total, g.knowledge, g.cbm, compact(g)]);
+    res.json({ ...g, counts: false });
+  } catch (e) { next(e); }
+});
+
 meProgramme.post('/items/:key/done', async (req, res, next) => {
   try {
     const key = req.params.key;

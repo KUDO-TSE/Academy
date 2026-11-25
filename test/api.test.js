@@ -341,6 +341,18 @@ test('the first attempt is the score of record; retakes are practice', async () 
   const w1 = await playWalk(d, 'zoom', (i, st) => (best(i, st) + 1) % st.choices.length);
   const w2 = await playWalk(d, 'zoom', best);
   assert.equal(w1.json.counts, true); assert.equal(w2.json.counts, false); assert.equal(w2.json.record.correct, w1.json.score);
+  // Spaced review: missed questions come back after a week, as practice.
+  assert.equal((await d('GET', '/api/me/review')).json.due, 0, 'nothing due on the day');
+  await q("UPDATE quiz_attempts SET created_at = now() - interval '8 days' WHERE user_id=$1", [id]);
+  const rv = await d('GET', '/api/me/review');
+  assert.ok(rv.json.due > 0 && rv.json.items.length > 0, 'missed questions are due a week later');
+  const lvBefore = computeLevels(ctx.users.find((u) => u.id === id), await loadContext(id)).per.zoom.est;
+  const done = await d('POST', '/api/me/review', { answers: rv.json.items.map(right) });
+  assert.equal(done.status, 200); assert.equal(done.json.counts, false);
+  const ctx2 = await loadContext(id);
+  assert.equal(computeLevels(ctx2.users.find((u) => u.id === id), ctx2).per.zoom.est, lvBefore, 'review does not change levels');
+  const after = (await d('GET', '/api/me/review')).json;
+  assert.ok(after.due < rv.json.due || after.items.every((x) => !rv.json.items.some((y) => y.id === x.id)), 'reviewed questions wait for their next return');
 });
 
 test('scoring: shuffled options are graded by meaning, order questions get credit per correct next step', async () => {

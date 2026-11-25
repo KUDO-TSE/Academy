@@ -169,8 +169,8 @@ export const MODULES = [
     objectives: [
       'Set up interpretation language channels and explain how interpreters work on them.',
       'Explain how interpreters are booked and why preparation materials matter.',
-      'Know the timing rules for interpreters and the bot on Human Interpretation meetings.',
-      'Know which hybrid audio options apply to Human Interpretation only.',
+      'Tell a client when the bot and the interpreters join, and how many interpreters a long meeting needs.',
+      'Say which hybrid audio option works only with Human Interpretation, and which works with both.',
     ],
     sections: [
       { title: 'Channels', points: [
@@ -467,8 +467,8 @@ export const MODULES = [
     summary: 'Connecting KUDO to a venue conference system (Bosch, Televic, TAIDEN) through the Audio Manager and Dante.',
     objectives: [
       'Explain what the Audio Manager does and when Hybrid is the answer.',
-      'Know the difference between Venue Audio IN and OUT, and which meetings each supports.',
-      'Know what the client\'s AV engineer needs, and hand the routing to Technical Support.',
+      'Choose Venue Audio IN or OUT for a client need, and say which meetings each supports.',
+      'List what the client\'s AV engineer needs, and hand the routing to Technical Support.',
     ],
     sections: [
       { title: 'The bridge', points: [
@@ -501,9 +501,9 @@ export const MODULES = [
     summary: 'Pushing each KUDO language as its own live stream to social or video platforms.',
     objectives: [
       'Explain RTMP and when to propose it instead of HLS.',
-      'Know the prerequisites and the per-platform limits.',
+      'Check the prerequisites and tell a client the per-platform limits.',
       'Avoid the most common mistake: reusing a stream key.',
-      'Know the first troubleshooting checks and when to hand over.',
+      'Run the first troubleshooting checks and decide when to hand over.',
     ],
     sections: [
       { title: 'Prerequisites and limits', points: [
@@ -536,7 +536,7 @@ export const MODULES = [
     summary: 'An unlimited audience on the client\'s own web page through the Broadcasting widget.',
     objectives: [
       'Say when HLS is the right choice and how it differs from RTMP and the real-time widget.',
-      'Know the setup steps and the limits to flag up front.',
+      'Walk a client through the setup steps and flag the limits up front.',
       'Set expectations on delay and auto-floor.',
     ],
     sections: [
@@ -570,7 +570,7 @@ export const MODULES = [
     summary: 'The briefing pack for the AI: the five actions, the limits and how a glossary reaches each meeting.',
     objectives: [
       'Choose the right action for a term.',
-      'Know the limits and who can create glossaries.',
+      'State the limits and who can create glossaries.',
       'Apply a glossary to a meeting and know what happens live.',
     ],
     sections: [
@@ -602,7 +602,7 @@ export const MODULES = [
   {
     key: 'network', title: 'IT, security and network basics', scenario: null, related: ['onsite', 'teams', 'widget', 'platform'], track: 'cross', depth: 'know', minutes: 40, delivery: 'both',
     summary: 'What to tell a client IT team: domains, ports, proxies, VPNs and the signs of a blocked network.',
-    objectives: ['Give IT the domains and ports KUDO needs.', 'Recognise the signs of a network restriction.', 'Know when to bring in Technical Support.'],
+    objectives: ['Give IT the domains and ports KUDO needs.', 'Recognise the signs of a network restriction.', 'Decide when to bring in Technical Support.'],
     sections: [
       { title: 'What IT allows', points: [
         'Domains by region: *.kudoway.com (USA and Asia-Pacific), *.kudoway.eu (Europe), *.kudoway.ca (Canada), plus *.tokbox.com and *.opentok.com.',
@@ -653,7 +653,7 @@ export const MODULES = [
   {
     key: 'ringcentral', title: 'KUDO for RingCentral events', scenario: null, related: ['widget', 'external'], track: 'cross', depth: 'handover', minutes: 30, delivery: 'both',
     summary: 'A KUDO tab inside RingCentral stages and sessions, fed by the event audio. Not a bot.',
-    objectives: ['Explain the two parts that must run together.', 'Know where the KUDO Meeting ID goes in RingCentral.', 'Run the basic checks.'],
+    objectives: ['Explain the two parts that must run together.', 'Put the KUDO Meeting ID in the right place in RingCentral.', 'Run the basic checks.'],
     sections: [
       { title: 'How it works', points: [
         'Not a bot: a KUDO tab inside the RingCentral stage or session. AI or Human Interpretation.',

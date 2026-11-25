@@ -122,7 +122,7 @@ export function computeLevels(u, ctx, { forPlanning = false } = {}) {
         }
         continue;
       }
-      const s = MODULE_BY_KEY[a.module_key]?.scenario; if (!s || forPlanning || a.kind === 'challenge') continue;
+      const s = MODULE_BY_KEY[a.module_key]?.scenario; if (!s || forPlanning || a.kind === 'challenge' || a.kind === 'spaced') continue;
       // The level uses the certainty-adjusted score: a lucky low-certainty answer counts half.
       const sc = ((a.knowledge ?? a.correct) / a.total) * 100;
       const w = a.kind === 'scenario' ? 0.4 : 0.6;

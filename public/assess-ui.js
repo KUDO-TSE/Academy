@@ -187,6 +187,22 @@ export function feedbackCard(moduleKey, { onDone } = {}) {
   return box;
 }
 
+// ------------------------------------------------------------------ spaced review (programme page)
+export function spacedCard() {
+  const box = h('div');
+  (async () => {
+    const r = await api('GET', '/api/me/review');
+    if (!r.due && !r.waiting) return;
+    const head = h('div', null, h('h2', null, 'Come back to these'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, 'Questions you missed or guessed on return one week later, then three weeks later. Answering them again is what moves them into long-term memory. Practice only: it never changes your score.'));
+    if (!r.due) { box.replaceChildren(h('div', { class: 'card' }, head, h('div', { class: 'muted', style: 'margin-top:8px' }, `${r.waiting} question${r.waiting > 1 ? 's' : ''} will come back over the next weeks.`))); return; }
+    const body = h('div', { style: 'margin-top:10px' }, h('button', { class: 'btn primary', on: { click: () => {
+      body.replaceChildren(checkForm(r.items, { url: '/api/me/review', onResult: (res, items) => body.replaceChildren(resultView({ ...res, passed: true }, items, { baseline: true }), h('div', { class: 'muted small', style: 'margin-top:8px' }, 'The ones you got right come back once more in two weeks; the others in a week.')) }));
+    } } }, `Review ${r.items.length} question${r.items.length > 1 ? 's' : ''} now`));
+    box.replaceChildren(h('div', { class: 'card' }, head, body));
+  })().catch(() => {});
+  return box;
+}
+
 // ------------------------------------------------------------------ weekly challenge (programme page)
 export function challengeCard() {
   const box = h('div', { class: 'card challenge' }, h('div', { class: 'muted' }, 'Loading…'));
@@ -196,7 +212,7 @@ export function challengeCard() {
       h('div', { class: 'streak', title: 'Weeks with a challenge done. It never resets: a busy week costs nothing.' }, h('b', null, c.weeksSoFar ? `${c.weeksActive} of ${c.weeksSoFar}` : c.weeksActive), h('span', null, c.weeksSoFar ? 'weeks active so far' : (c.weeksActive === 1 ? 'week active' : 'weeks active'))));
     if (c.doneThisWeek) { box.replaceChildren(head, h('div', { class: 'ok', style: 'margin-top:10px' }, 'Done for this week. A new one opens on Monday.')); return; }
     const body = h('div', { style: 'margin-top:10px' }, h('button', { class: 'btn primary', on: { click: () => {
-      body.replaceChildren(checkForm(c.items, { url: '/api/me/challenge', onResult: (r, items) => { body.replaceChildren(resultView({ ...r, passed: true }, items, { baseline: true }), h('div', { class: 'ok', style: 'margin-top:8px' }, `Done for this week. Weeks active: ${r.weeksActive}${r.weeksSoFar ? ` of ${r.weeksSoFar}` : ''}.`)); } }));
+      body.replaceChildren(checkForm(c.items, { url: '/api/me/challenge', onResult: (r, items) => { body.replaceChildren(resultView({ ...r, passed: true, counts: false }, items, { baseline: true }), h('div', { class: 'ok', style: 'margin-top:8px' }, `Done for this week. Weeks active: ${r.weeksActive}${r.weeksSoFar ? ` of ${r.weeksSoFar}` : ''}.`)); } }));
     } } }, 'Take this week\'s challenge'));
     box.replaceChildren(head, body);
   })().catch(() => box.replaceChildren(h('div', { class: 'muted' }, 'The weekly challenge could not load.')));

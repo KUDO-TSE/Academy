@@ -1,5 +1,5 @@
 import { h, api, toast, fmtDate, svg } from './ui.js';
-import { checkForm, resultView, walkthroughCard, explainCard, feedbackCard, challengeCard } from './assess-ui.js';
+import { checkForm, resultView, walkthroughCard, explainCard, feedbackCard, challengeCard, spacedCard } from './assess-ui.js';
 
 // ------------------------------------------------------------------ shared bits
 export const KIND_LABEL = { scenario: 'Decision walkthrough', explain: 'Explain it', survey: 'Survey', lesson: 'Lesson', practice: 'Practice', check: 'Check', review: 'Spaced review', baseline: 'Baseline check', one_to_one: 'With Jack', milestone: 'Milestone', missed: 'Review', teach: 'Teach-back' };
@@ -41,7 +41,7 @@ function levelBars(levels) {
       h('div', { class: 'lv-track', title: `${l.note}. Likely between ${Math.max(0, l.now - 10)}% and ${Math.min(100, l.now + 10)}%: a short check is one question away from 15 points.` },
         h('i', { class: 'lv-base', style: `width:${l.baseline}%` }), h('i', { class: 'lv-now', style: `width:${l.now}%` }),
         h('i', { class: 'lv-range', style: `left:${Math.max(0, l.now - 10)}%;width:${Math.min(100, l.now + 10) - Math.max(0, l.now - 10)}%` }), h('i', { class: 'lv-tgt', style: `left:${l.target}%` })),
-      h('div', { class: 'lv-val' }, h('b', null, `${l.now}%`), h('span', { class: 'muted small' }, '±10'), h('span', { class: `chip ${BAND_CHIP[l.band.key]}` }, l.band.label)))),
+      h('div', { class: 'lv-val' }, h('b', null, `${l.now}%`), l.baseline != null && l.now - l.baseline >= 5 ? h('span', { class: 'chip green', title: 'Since the start of your plan' }, `+${l.now - l.baseline}`) : h('span', { class: 'muted small' }, '±10'), h('span', { class: `chip ${BAND_CHIP[l.band.key]}` }, l.band.label)))),
     h('p', { class: 'muted small', style: 'margin-top:6px' }, 'Each level is an estimate. The shaded range shows where it most likely sits; small moves inside it do not change your plan.'));
 }
 
@@ -64,6 +64,10 @@ export function programmeView(data, { readOnly = false, banner = null } = {}) {
   const focusRows = st.levels.filter((l) => l.focus);
   const paceChip = { on: ['green', 'On pace'], close: ['amber', 'Slightly behind pace'], behind: ['coral', 'Behind pace'] }[st.progress.pace];
   const byPhase = data.phases.map((p) => ({ ...p, items: st.items.filter((i) => i.phase === p.n) }));
+  // This week = what is due by now and not done yet, on the trainee's side, oldest first.
+  const thisWeek = st.items.filter((i) => !i.done && (i.owner || 'you') === 'you' && i.week <= st.week).sort((a, b) => a.week - b.week).slice(0, 6);
+  const fmtMin = (m) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? `${m % 60} min` : ''}`.trim() : `${m} min`);
+  const reached = st.levels.filter((l) => l.now >= l.target && (l.baseline ?? 0) < l.target);
 
   return h('div', { class: 'page prog' }, banner,
     h('section', { class: 'hero' },
@@ -78,29 +82,33 @@ export function programmeView(data, { readOnly = false, banner = null } = {}) {
     h('section', { class: 'journey' },
       h('div', { class: 'card jr' }, h('div', { class: 'jr-k' }, '1 · Where you are now'), h('div', { class: 'jr-big' }, `${st.readiness.now}%`), h('div', { class: 'muted' }, `Average readiness across the 12 scenarios. Ready on ${st.readiness.ready} of ${st.readiness.of}.`),
         st.readiness.now !== st.readiness.start ? h('div', { class: 'small', style: 'margin-top:6px' }, `You started at ${st.readiness.start}%.`) : null,
-        h('div', { class: 'jr-chips' }, focusRows.map((l) => h('span', { class: 'chip coral' }, `${l.short} ${l.now}%`)))),
+        h('div', { class: 'jr-chips' }, focusRows.map((l) => h('span', { class: 'chip coral' }, `${l.short} ${l.now}%`))),
+        reached.length ? h('div', { class: 'milestone' }, h('b', null, 'Target reached: '), reached.map((l) => l.short).join(', ')) : null),
       h('div', { class: 'card jr wide' }, h('div', { class: 'jr-k' }, '2 · Your next 12 weeks'), timeline(data, st),
         h('div', { class: 'jr-phases' }, data.phases.map((p) => h('div', null, h('b', null, p.name), h('span', { class: 'muted small' }, p.aim))))),
       h('div', { class: 'card jr' }, h('div', { class: 'jr-k' }, '3 · Where you will be'), h('div', { class: 'jr-big' }, `${st.readiness.end}%`), h('div', { class: 'muted' }, `Ready on all ${st.readiness.of} scenarios at your role's depth:`),
         h('ul', { class: 'jr-out' }, st.outcomes.map((o) => h('li', null, h('b', null, `${o.label}: `), o.can.toLowerCase(), ' — ', h('span', { class: 'muted' }, o.scenarios.join(', '))))))),
 
     h('div', { class: 'grid g-8-4', style: 'margin-top:16px' },
-      h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('h2', null, 'Up next'), h('span', { class: 'muted small' }, 'In the order of your plan')),
-        st.next.length ? st.next.map((it) => itemRow(it, { readOnly })) : h('div', { class: 'ok', style: 'margin-top:10px' }, 'Everything on your side is done. Well done.'),
+      h('div', { class: 'card this-week' }, h('div', { class: 'row spread' }, h('h2', null, thisWeek.length ? 'This week' : 'Up next'),
+          h('span', { class: 'muted small' }, thisWeek.length ? `${thisWeek.length} step${thisWeek.length > 1 ? 's' : ''} · about ${fmtMin(thisWeek.reduce((t, i) => t + (i.minutes || 0), 0))}` : 'You are ahead of your plan')),
+        thisWeek.length ? thisWeek.map((it) => itemRow(it, { readOnly })) : st.next.length ? st.next.map((it) => itemRow(it, { readOnly })) : h('div', { class: 'ok', style: 'margin-top:10px' }, 'Everything on your side is done. Well done.'),
         st.jackNext.length ? h('div', { class: 'jack-next' }, h('b', null, 'Coming up with Jack: '), st.jackNext.map((i) => i.title).join(' · ')) : null),
       h('div', { class: 'card' }, h('h2', null, 'Why these three focus areas'), h('p', { class: 'sub' }, plan.focusPinned ? 'Chosen with Jack.' : 'Picked from your results, your clients and the team priorities.'),
         plan.focus.length ? plan.focus.map((s) => { const l = st.levels.find((x) => x.scenario === s); return h('div', { class: 'focus-why' }, h('div', { class: 'row spread' }, h('b', null, l.label), h('span', { class: `chip ${BAND_CHIP[l.band.key]}` }, `${l.now}% → ${l.target}%`)), h('div', { class: 'muted small' }, `Because ${plan.focusReasons[s]}.`)); }) : h('div', { class: 'muted' }, 'You are already at target on every scenario: your plan keeps it sharp and proves it.'),
         plan.tip ? h('div', { class: 'tip' }, h('b', null, 'How you like to learn: '), plan.tip) : null)),
 
+    readOnly ? null : h('div', { style: 'margin-top:16px' }, spacedCard()),
     readOnly ? null : h('div', { style: 'margin-top:16px' }, challengeCard()),
     h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Your level, scenario by scenario'), h('p', { class: 'sub' }, 'The light bar is where you started in October, the dark bar is where you are now, the line is your target. Targets depend on what your role needs: Set up 80%, Hand over 70%.'), levelBars(st.levels)),
 
-    h('h2', { class: 'sec-h' }, 'Your plan, week by week'),
+    h('h2', { class: 'sec-h' }, 'Your plan, week by week'), h('p', { class: 'sub' }, 'The phase you are in is open. Open the others to look back or ahead.'),
     h('div', { class: 'phases' }, byPhase.map((p) => {
       const done = p.items.filter((i) => i.done).length;
       const weeks = [...new Set(p.items.map((i) => i.week))].sort((a, b) => a - b);
-      return h('div', { class: `card phase ${st.week >= p.weeks[0] && st.week <= p.weeks[1] ? 'now' : ''}` },
-        h('div', { class: 'row spread' }, h('div', null, h('div', { class: 'eyebrow dark' }, `Phase ${p.n} · weeks ${p.weeks[0]}–${p.weeks[1]}`), h('h2', null, p.name), h('p', { class: 'sub', style: 'margin:2px 0 0' }, p.aim)), h('span', { class: 'chip grey' }, `${done}/${p.items.length}`)),
+      const isNow = st.week >= p.weeks[0] && st.week <= p.weeks[1];
+      return h('details', { class: `card phase ${isNow ? 'now' : ''}`, open: isNow },
+        h('summary', { class: 'row spread' }, h('div', null, h('div', { class: 'eyebrow dark' }, `Phase ${p.n} · weeks ${p.weeks[0]}–${p.weeks[1]}${isNow ? ' · you are here' : ''}`), h('h2', null, p.name), h('p', { class: 'sub', style: 'margin:2px 0 0' }, p.aim)), h('span', { class: 'chip grey' }, `${done}/${p.items.length}`)),
         weeks.map((w) => h('div', { class: 'wk' }, h('div', { class: `wk-h ${w === st.week ? 'now' : ''}` }, `Week ${w}${w === st.week ? ' · this week' : ''}`), p.items.filter((i) => i.week === w).map((it) => itemRow(it, { readOnly, compact: false })))));
     })),
 

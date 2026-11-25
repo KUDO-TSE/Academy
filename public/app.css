@@ -347,3 +347,9 @@ audio{max-width:100%}
 
 .practice-note{margin-top:6px;font-size:13px;font-weight:600;color:#8a5a00}
 .practice-note.rec{color:var(--primary-600)}
+/* v4: this week, milestones, folded phases */
+details.phase > summary{cursor:pointer;list-style:none}
+details.phase > summary::-webkit-details-marker{display:none}
+details.phase > summary::after{content:'▸';margin-left:8px;color:var(--ink-500)}
+details.phase[open] > summary::after{content:'▾'}
+.milestone{margin-top:8px;padding:6px 10px;border-radius:8px;background:var(--teal-100);font-size:13px}
