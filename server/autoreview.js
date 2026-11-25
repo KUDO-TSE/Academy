@@ -55,11 +55,15 @@ async function decode(buf) {
   return new Float32Array(r.stdout.buffer, r.stdout.byteOffset, Math.floor(r.stdout.byteLength / 4));
 }
 
+// Our brand is always KUDO. Speech recognition hears it as Kudo, Cudo, Cuda, Kudu, Koodo, Q-Do...: fix every variant.
+const BRAND_RE = /\b(?:kudo|kudoh|kudow|cudo|cuda|kuda|kudu|koodo|koodoo|coodo|kuudo|q[- ]?do)\b/gi;
+export const brand = (t) => String(t || '').replace(BRAND_RE, 'KUDO');
+
 export async function transcribe(buf) {
   const { asr } = await loadModels();
   const pcm = await decode(buf);
   const out = await asr(pcm, { chunk_length_s: 30, stride_length_s: 5, language: 'english', task: 'transcribe' });
-  return { text: String(out.text || '').trim(), seconds: pcm.length / 16000 };
+  return { text: brand(String(out.text || '').trim()), seconds: pcm.length / 16000 };
 }
 
 const sentences = (t) => { const s = t.split(/(?<=[.!?])\s+|\n+/).map((x) => x.trim()).filter((x) => x.length > 3); const w = [...s]; for (let i = 0; i < s.length - 1; i++) w.push(`${s[i]} ${s[i + 1]}`); return w.length ? w : [t]; };
@@ -130,7 +134,7 @@ export async function processSubmission(id) {
   const r = await q('SELECT id,user_id,module_key,kind,text_answer,audio,audio_seconds,status FROM submissions WHERE id=$1', [id]);
   const s = r.rows[0]; if (!s || s.status !== 'processing') return;
   try {
-    let text = s.text_answer || '', seconds = s.audio_seconds || null;
+    let text = brand(s.text_answer || ''), seconds = s.audio_seconds || null;
     if (s.audio) { const t = await transcribe(s.audio); text = [t.text, s.text_answer].filter(Boolean).join('\n'); seconds = t.seconds; }
     const a = await assess(s.module_key, text, s.audio ? seconds : null, specFor(s.kind, s.module_key));
     const spot = a.flags.length > 0 || a.rating === 'gap' || Math.random() < SAMPLE_RATE;
