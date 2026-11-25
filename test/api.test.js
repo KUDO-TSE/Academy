@@ -213,6 +213,12 @@ test('programme: built automatically, approved by an admin, graded on the server
   assert.equal(rr.json.rating, 'solid');
   assert.equal((await ann('GET', '/api/admin/reviews')).status, 403);
   const fbk = await adm('GET', '/api/admin/feedback'); assert.equal(fbk.json.modules.find((m) => m.key === 'teams').n, 1);
+  const board = await adm('GET', '/api/admin/board');
+  assert.equal(board.status, 200); assert.ok(Array.isArray(board.json.tasks)); assert.ok(board.json.week.days.length >= 0);
+  assert.equal((await ann('GET', '/api/admin/board')).status, 403);
+  assert.equal((await adm('POST', '/api/admin/board/tasks', { key: 'nudge:1:2026-11-23', action: 'snooze' })).status, 200);
+  assert.equal((await adm('POST', '/api/admin/board/group-done', { itemKey: 'kickoff', userIds: [annId] })).status, 200);
+  assert.equal((await ann('GET', '/api/me/programme')).json.state.items.find((i) => i.key === 'kickoff').done, true);
   // Admin-only routes stay closed to trainees.
   assert.equal((await ann('POST', `/api/admin/trainees/${annId}/programme/approve`)).status, 403);
   assert.equal((await ann('GET', `/api/admin/trainees/${annId}/programme`)).status, 403);

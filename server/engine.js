@@ -51,7 +51,7 @@ export async function getSettings() {
 /** Load everything the engine needs, for one user or for all trainees. */
 export async function loadContext(userId = null) {
   const [users, scoreRows, rounds, qres, attempts, inputs, progress, crit, settings, subs, surveys] = await Promise.all([
-    q(`SELECT id,name,email,region,team,weight,demand_scenario,struggle_scenarios,profile,plan_overrides,is_demo,role,is_trainee
+    q(`SELECT id,name,email,region,team,weight,demand_scenario,struggle_scenarios,profile,plan_overrides,is_demo,role,is_trainee,last_login_at
          FROM users WHERE (role='trainee' OR is_trainee) AND active ORDER BY name`),
     q(`SELECT s.user_id,s.scenario,s.pct,s.correct,s.total,r.kind,r.sort,r.id AS round_id,r.taken_on FROM scores s JOIN rounds r ON r.id=s.round_id`),
     q('SELECT id,key,label,kind,taken_on,sort FROM rounds ORDER BY sort,id'),

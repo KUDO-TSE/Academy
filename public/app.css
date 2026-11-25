@@ -318,3 +318,20 @@ audio{max-width:100%}
 .streak b{font-size:26px;line-height:1}
 .streak span{font-size:11px;color:var(--ink-500)}
 @media (max-width:700px){.match-row{grid-template-columns:1fr}}
+
+/* ---------- action board ---------- */
+.task{display:flex;gap:14px;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid var(--border-soft)}
+.task.overdue{border-left:4px solid var(--danger);padding-left:10px}
+.task.now{border-left:4px solid var(--coral);padding-left:10px}
+.task-main{flex:1;min-width:0}
+.task-t{font-weight:700;margin:3px 0}
+.task-act{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex:none}
+.daybox{display:inline-flex;align-items:center;gap:3px;font-size:12px}
+.weekgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px}
+.wday{background:var(--bg-app);border-radius:var(--radius-md);padding:10px;min-height:120px}
+.wday.today{outline:2px solid var(--primary)}
+.wday-h{display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;margin-bottom:8px}
+.wtask{background:#fff;border-radius:8px;padding:7px 9px;margin-bottom:6px;font-size:12px;border-left:3px solid var(--border)}
+.wtask.session,.wtask.milestone{border-color:var(--coral)} .wtask.approval{border-color:var(--amber)} .wtask.review{border-color:var(--teal)} .wtask.signoff{border-color:var(--green)}
+.warn-line{margin-top:10px;background:var(--danger-100);color:var(--danger);padding:8px 12px;border-radius:8px;font-size:13px;font-weight:600}
+@media (max-width:700px){.task{flex-direction:column;align-items:flex-start}.task-act{justify-content:flex-start}}

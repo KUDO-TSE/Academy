@@ -90,3 +90,12 @@ Other formats in the plan:
 - **Explain it**: the trainee records up to 3 minutes of audio in the browser (or writes it), then ticks the key points they covered. Jack scores four criteria from 1 to 3 on the **Reviews** page; the average becomes a Gap / Developing / Solid input on their level.
 - **Weekly challenge**: four mixed questions from modules already started, with a weekly streak. It does not change levels.
 - **Feedback**: three ratings and a comment after each module check, and a ten-question end-of-programme survey (adapted from Coursecheck's templates, including NPS). Results and the most-missed questions are on the **Feedback** page.
+
+## Action board (admins)
+
+**My board** is the admin landing page. It lists everything waiting on the Academy owner, derived from live data so that doing the action clears the task:
+approvals, sessions due (dated from each plan's start: overdue, this week, next week), explain-it recordings to review, focus practice to sign off,
+trainees to nudge (after their first week, when behind pace or inactive for 10 days, with a ready-to-paste message), and content to fix (low module ratings, questions most people miss).
+When four or more kick-offs or mid-point check-ins fall due together, they become one group session; "Mark held" logs it for everyone who attended.
+The suggested week fills the owner's available days and hours (set on the board), sessions first, and lists what does not fit.
+"Add this week's sessions to my calendar" downloads an .ics file. Tasks can be snoozed for a week or marked done.

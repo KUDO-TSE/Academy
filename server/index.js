@@ -11,6 +11,7 @@ import { meRouter } from './routes-me.js';
 import { adminRouter } from './routes-admin.js';
 import { meProgramme, adminProgramme } from './programme.js';
 import { ensureDemo } from './demo.js';
+import { boardRouter } from './board.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const prod = process.env.NODE_ENV === 'production';
@@ -112,6 +113,7 @@ export async function createApp() {
   app.use('/api/me', requireAuth, meProgramme);
   app.use('/api/admin', requireAdmin, adminRouter);
   app.use('/api/admin', requireAdmin, adminProgramme);
+  app.use('/api/admin', requireAdmin, boardRouter);
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found.' }));
 
   app.use(express.static(path.join(here, '..', 'public'), { index: 'index.html', maxAge: prod ? '1h' : 0 }));

@@ -208,3 +208,12 @@ CREATE TABLE IF NOT EXISTS submissions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS submissions_user ON submissions (user_id, module_key);
+
+-- ---- Action board: snoozed or handled board tasks
+CREATE TABLE IF NOT EXISTS board_tasks (
+  task_key TEXT PRIMARY KEY,
+  snoozed_until DATE,
+  handled_at TIMESTAMPTZ,
+  handled_by INT REFERENCES users(id) ON DELETE SET NULL,
+  note TEXT
+);
