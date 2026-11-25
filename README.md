@@ -82,8 +82,10 @@ Set `DEMO_TRAINEE_EMAIL` (for example `demo.trainee@kudo.ai`) and restart: a tra
 Checks are no longer a fixed multiple-choice list. Each module has a pool of mixed items and every attempt draws a new set of six with at least one of each format:
 
 - **Single answer with certainty** (certainty-based marking): right at low/mid/high certainty scores 1/2/3, wrong scores 0/-2/-6. A lucky low-certainty answer counts half towards the level. "Certain but wrong" answers are flagged as likely misconceptions.
-- **Pick all that fit**: every wrong pick cancels a right one, so ticking everything does not pay.
-- **Match** and **Order**: credit per correct pair or position.
+- **Pick all that fit**: the number of answers is shown ("Pick 3"), every wrong pick cancels a right one, and items have several wrong options, so ticking everything scores about 25%.
+- **Match**: credit per correct pair. **Order**: credit for each step directly followed by the right next step, so a random order scores close to nothing and one misplaced step keeps the rest of the sequence.
+- **No answer pattern**: options and walkthrough choices are shuffled every time they are shown. The order is sealed in an encrypted token (AES-GCM, keyed from `SESSION_SECRET`) that the browser sends back, so neither the screen nor the network traffic shows where the answer sits. Option lengths were evened out so the longest option is no longer a hint.
+- **Levels are shown as a range** (±10 points), and within one assessment cycle the plan's focus only changes when a level moves by 15 points or more (`STABLE_POINTS` in `server/engine.js`).
 
 Other formats in the plan:
 - **Decision walkthroughs** (`WALKTHROUGHS` in `server/curriculum-extra.js`): a realistic client situation, three or four decisions, feedback after each. Graded on the server.

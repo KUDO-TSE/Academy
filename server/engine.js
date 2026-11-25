@@ -167,7 +167,8 @@ function personalPriority(u, levels, ctx) {
 }
 
 /** Build the plan structure (what gets approved). */
-export function buildPlan(u, ctx) {
+export const STABLE_POINTS = 15; // a level change smaller than this is within the noise of a 6-question check
+export function buildPlan(u, ctx, { keepFocus = null } = {}) {
   // Structure is planned from assessments, the baseline check and Jack's inputs only. The trainee's own module checks
   // move their live levels and progress but do not reshuffle the plan, so approved plans stay stable.
   const levels = computeLevels(u, ctx, { forPlanning: true });
@@ -180,7 +181,7 @@ export function buildPlan(u, ctx) {
   const missed = (ctx.qres.get(u.id) || []).filter((r) => !r.correct && r.round_id === levels.liveRound?.id);
   const missedBy = (s) => missed.filter((r) => r.scenario === s);
 
-  let focus = Array.isArray(ov.focus) && ov.focus.length ? ov.focus.filter((s) => SCENARIO_KEYS.includes(s)).slice(0, 3) : pri.filter((p) => p.gapPts >= 5).slice(0, 3).map((p) => p.scenario);
+  let focus = Array.isArray(ov.focus) && ov.focus.length ? ov.focus.filter((s) => SCENARIO_KEYS.includes(s)).slice(0, 3) : keepFocus || pri.filter((p) => p.gapPts >= 5).slice(0, 3).map((p) => p.scenario);
   const focusPinned = Array.isArray(ov.focus) && ov.focus.length > 0;
   const items = [];
   const placed = new Set();
@@ -268,9 +269,17 @@ export function buildPlan(u, ctx) {
 export async function refreshPlan(userId, ctx = null) {
   ctx = ctx || await loadContext(userId);
   const u = ctx.users.find((x) => x.id === userId); if (!u) return null;
-  const { data, signature } = buildPlan(u, ctx);
-  const r = await q("SELECT id,version,status,signature FROM plans WHERE user_id=$1 AND status IN ('draft','approved') ORDER BY version DESC", [userId]);
+  const r = await q("SELECT id,version,status,signature,data FROM plans WHERE user_id=$1 AND status IN ('draft','approved') ORDER BY version DESC", [userId]);
   const draft = r.rows.find((p) => p.status === 'draft'), approved = r.rows.find((p) => p.status === 'approved');
+  let { data, signature } = buildPlan(u, ctx);
+  // Stability: within the same assessment cycle, the focus only changes when a level has really moved. A swap driven by
+  // differences under STABLE_POINTS (one question on a 6-question check) keeps the approved focus.
+  const ad = approved?.data;
+  if (ad && !data.focusPinned && !ad.focusPinned && ad.baseline_round === data.baseline_round && JSON.stringify(ad.focus) !== JSON.stringify(data.focus)) {
+    const swapped = [...new Set([...ad.focus, ...data.focus])].filter((s) => !(ad.focus.includes(s) && data.focus.includes(s)));
+    const moved = swapped.some((s) => Math.abs((data.baseline[s]?.v ?? 0) - (ad.baseline?.[s]?.v ?? 0)) >= STABLE_POINTS);
+    if (!moved) ({ data, signature } = buildPlan(u, ctx, { keepFocus: ad.focus }));
+  }
   const maxV = (await q('SELECT COALESCE(max(version),0)::int v FROM plans WHERE user_id=$1', [userId])).rows[0].v;
   if (approved && approved.signature === signature) { if (draft) await q('DELETE FROM plans WHERE id=$1', [draft.id]); return 'unchanged'; }
   if (draft) { if (draft.signature !== signature) await q('UPDATE plans SET data=$2, signature=$3, created_at=now() WHERE id=$1', [draft.id, data, signature]); return 'draft'; }

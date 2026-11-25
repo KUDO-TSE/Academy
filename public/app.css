@@ -237,6 +237,7 @@ code.k{background:var(--border-soft);padding:1px 6px;border-radius:6px;font-size
 .lv-track i{position:absolute;left:0;top:0;bottom:0;border-radius:7px}
 .lv-base{background:var(--teal-100)}
 .lv-now{background:var(--primary-600);top:3px!important;bottom:3px!important}
+.lv-range{background:var(--primary-600);opacity:.18;top:-2px!important;bottom:-2px!important;border-radius:4px!important}
 .lv-tgt{width:3px;background:var(--coral);top:-3px!important;bottom:-3px!important;border-radius:2px!important}
 .lv-val{display:flex;gap:8px;align-items:center}
 .sec-h{margin:24px 0 10px}

@@ -102,19 +102,25 @@ meProgramme.post('/modules/:key/attempt', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+meProgramme.get('/modules/:key/walk', (req, res) => {
+  const w = walkthroughIntro(req.params.key);
+  return w ? res.json({ first: w.first }) : res.status(404).json({ error: 'Not found.' });
+});
 meProgramme.post('/modules/:key/walk', async (req, res, next) => {
   try {
     const key = req.params.key;
-    const r = walk(key, req.body?.path);
+    const r = walk(key, req.body?.path, req.body?.keys);
     if (r.error) return bad(res, r.error);
     if (r.end) {
       const cycle = await currentCycle();
       const { counts, record } = await attemptCounts(req.user.id, key, 'scenario', null, cycle);
-      await q("INSERT INTO quiz_attempts (user_id,module_key,item_key,correct,total,kind,answers,counts,cycle) VALUES ($1,$2,$3,$4,$5,'scenario',$6,$7,$8)", [req.user.id, key, `${key}.scenario`, r.score, r.max, JSON.stringify(req.body.path), counts, cycle]);
+      await q("INSERT INTO quiz_attempts (user_id,module_key,item_key,correct,total,kind,answers,counts,cycle) VALUES ($1,$2,$3,$4,$5,'scenario',$6,$7,$8)", [req.user.id, key, `${key}.scenario`, r.score, r.max, JSON.stringify(r.path), counts, cycle]);
       await audit(req, 'walkthrough', key, `${r.score}/${r.max}${counts ? '' : ' (practice)'}`);
-      return res.json({ ...r, counts, record: counts ? { correct: r.score, total: r.max } : record });
+      const { path: _p, ...out } = r; void _p;
+      return res.json({ ...out, counts, record: counts ? { correct: r.score, total: r.max } : record });
     }
-    res.json(r);
+    const { path: _p, ...out } = r; void _p;
+    res.json(out);
   } catch (e) { next(e); }
 });
 

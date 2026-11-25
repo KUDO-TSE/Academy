@@ -6,12 +6,12 @@ const pctOf = (a, b) => Math.round((a / b) * 100);
 // ------------------------------------------------------------------ mixed-format check
 /** items: public items from the server. opts: { url, itemKey, onResult, title } */
 export function checkForm(items, { url, itemKey, onResult, submitLabel = 'Check my answers', certainty = true } = {}) {
-  const state = items.map((x) => ({ id: x.id, v: x.t === 'multi' ? [] : x.t === 'order' ? [...x.steps] : x.t === 'match' ? x.lefts.map(() => '') : null, c: null }));
+  const state = items.map((x) => ({ id: x.id, k: x.k, v: x.t === 'multi' ? [] : x.t === 'order' ? [...x.steps] : x.t === 'match' ? x.lefts.map(() => '') : null, c: null }));
   const box = h('form', { class: 'quiz', novalidate: true });
   const renderItem = (x, i) => {
     const st = state[i];
     const head = h('legend', null, `${i + 1}. ${x.q}`);
-    const tag = { mcq: null, multi: 'Pick all that fit · wrong picks cancel right ones', match: 'Match each one', order: 'Put in order' }[x.t];
+    const tag = { mcq: null, multi: x.pick ? `Pick ${x.pick} · a wrong pick cancels a right one` : 'Pick all that fit · wrong picks cancel right ones', match: 'Match each one', order: 'Put in order' }[x.t];
     let body;
     if (x.t === 'mcq') body = x.o.map((opt, oi) => h('label', { class: 'opt' }, h('input', { type: 'radio', name: `q${i}`, on: { change: () => { st.v = oi; } } }), h('span', null, opt)));
     else if (x.t === 'multi') body = x.o.map((opt, oi) => h('label', { class: 'opt' }, h('input', { type: 'checkbox', on: { change: (e) => { st.v = e.target.checked ? [...st.v, oi] : st.v.filter((z) => z !== oi); } } }), h('span', null, opt)));
@@ -37,7 +37,7 @@ export function checkForm(items, { url, itemKey, onResult, submitLabel = 'Check 
       if (x.t === 'mcq' && certainty && st.c == null) return toast(`Say how sure you are on question ${i + 1}.`, true);
       if (x.t === 'match' && st.v.some((v) => !v)) return toast(`Match every line in question ${i + 1}.`, true);
     }
-    try { onResult(await api('POST', url, { answers: state.map((s) => ({ id: s.id, v: s.v, c: s.c ?? 2 })), item_key: itemKey || null }), items); }
+    try { onResult(await api('POST', url, { answers: state.map((s) => ({ id: s.id, k: s.k, v: s.v, c: s.c ?? 2 })), item_key: itemKey || null }), items); }
     catch (err) { toast(err.message, true); }
   });
   return box;
@@ -68,15 +68,21 @@ export function resultView(r, items, { pass = 0.8, baseline = false, onRetry } =
 // ------------------------------------------------------------------ decision walkthrough
 export function walkthroughCard(moduleKey, w, { done } = {}) {
   const box = h('div');
-  const path = [];
-  const start = () => { path.length = 0; draw({ next: w.first, done: [] }); };
+  const path = [], keys = [];
+  const start = async () => {
+    path.length = 0; keys.length = 0;
+    // A fresh shuffle for every play: the first step comes from the server again.
+    let first = w.first;
+    try { const fresh = await api('GET', `/api/me/modules/${moduleKey}/walk`); if (fresh?.first) first = fresh.first; } catch { /* keep the one we have */ }
+    draw({ next: first, done: [] });
+  };
   const draw = (r) => {
     box.replaceChildren(...[
       h('div', { class: 'walk-intro' }, w.intro),
       ...r.done.map((d) => h('div', { class: `walk-step q${d.quality}` }, h('div', { class: 'muted small' }, d.step), h('div', null, h('b', null, 'You: '), d.chose), h('div', { class: 'walk-fb' }, d.fb), d.best ? h('div', { class: 'small' }, h('b', null, 'Best move: '), d.best) : null)),
       r.next ? h('div', { class: 'walk-now' }, h('b', null, r.next.text), r.next.choices.map((c, ci) => h('button', { class: 'walk-choice', type: 'button', on: { click: async () => {
-        path.push(ci);
-        try { draw(await api('POST', `/api/me/modules/${moduleKey}/walk`, { path })); } catch (e) { path.pop(); toast(e.message, true); }
+        path.push(ci); keys.push(r.next.k);
+        try { draw(await api('POST', `/api/me/modules/${moduleKey}/walk`, { path, keys })); } catch (e) { path.pop(); keys.pop(); toast(e.message, true); }
       } } }, c))) : null,
       r.end ? h('div', { class: `result ${r.score / r.max >= 0.75 ? 'pass' : 'fail'}` }, h('div', { class: 'big' }, `${r.score}/${r.max}`), h('div', null, h('b', null, r.score === r.max ? 'Every call was the best one.' : 'Done. Read the feedback on the calls that were not the best.'), r.counts === false && r.record ? h('div', { class: 'practice-note' }, `Practice round: your recorded result stays ${r.record.correct}/${r.record.total}.`) : r.counts ? h('div', { class: 'practice-note rec' }, 'This is your recorded result. Play again any time to practise.') : null, h('div', null, h('button', { class: 'btn sm', style: 'margin-top:8px', on: { click: start } }, 'Play it again')))) : null].filter(Boolean));
   };

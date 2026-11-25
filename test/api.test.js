@@ -4,7 +4,26 @@ import assert from 'node:assert/strict';
 import { createApp } from '../server/index.js';
 import { pool, q } from '../server/db.js';
 import * as imp from '../server/importers.js';
-import { itemById, POOLS } from '../server/assess.js';
+import { itemById, POOLS, seal } from '../server/assess.js';
+import { WALKTHROUGHS } from '../server/curriculum-extra.js';
+
+// Answers in the order the browser was shown them (options are shuffled and the order is sealed in x.k).
+const shownRight = (x) => { const it = itemById(x.id); const at = (i) => x.o.indexOf(it.o[i]);
+  return { id: x.id, k: x.k, c: 3, v: it.t === 'mcq' ? at(it.a) : it.t === 'multi' ? it.a.map(at) : it.t === 'match' ? it.pairs.map((p) => p[1]) : it.steps }; };
+const shownWrong = (x) => { const it = itemById(x.id); const at = (i) => x.o.indexOf(it.o[i]);
+  return { id: x.id, k: x.k, c: 1, v: it.t === 'mcq' ? at((it.a + 1) % it.o.length) : it.t === 'multi' ? [] : it.t === 'match' ? it.pairs.map(() => 'x') : [...it.steps].reverse() }; };
+// An item as if shown in its stored order.
+const asShown = (it) => ({ id: it.id, ...(it.o ? { o: it.o, k: seal({ i: it.id, p: it.o.map((_, i) => i) }) } : {}) });
+// Play a walkthrough the way the browser does: one step at a time, clicking the choice whose stored position is pick(i).
+async function playWalk(cl, key, pick) {
+  let next = (await cl('GET', `/api/me/modules/${key}/walk`)).json.first; const path = [], keys = []; let r;
+  for (const [i, st] of WALKTHROUGHS[key].steps.entries()) {
+    path.push(next.choices.indexOf(st.choices[pick(i, st)].t)); keys.push(next.k);
+    r = await cl('POST', `/api/me/modules/${key}/walk`, { path, keys }); next = r.json.next;
+  }
+  return r;
+}
+const best = (i, st) => st.choices.findIndex((c) => c.q === 2);
 
 process.env.INITIAL_PASSWORD ||= 'Generic-Pass-1!';
 process.env.AUTO_REVIEW ||= 'off';
@@ -173,21 +192,23 @@ test('programme: built automatically, approved by an admin, graded on the server
   assert.ok(items.length >= 5 && items.some((x) => x.t !== 'mcq'), 'a mixed draw');
   assert.ok(items.every((x) => x.a === undefined && x.why === undefined && x.pairs === undefined), 'no answers sent before an attempt');
   assert.equal((await ann('POST', '/api/me/modules/teams/attempt', { answers: [{ id: 'zoom.0', v: 1, c: 3 }] })).status, 400, 'questions from another module are refused');
-  const right = (x) => { const it = itemById(x.id); return { id: x.id, c: 3, v: it.t === 'mcq' ? it.a : it.t === 'multi' ? it.a : it.t === 'match' ? it.pairs.map((p) => p[1]) : it.steps }; };
+  const right = shownRight;
+  assert.ok(items.filter((x) => x.t === 'mcq').every((x) => typeof x.k === 'string' && x.k.length > 20), 'option order is sealed');
+  assert.equal((await ann('POST', '/api/me/modules/teams/attempt', { answers: items.map((x) => ({ ...right(x), k: undefined })) })).status, 400, 'answers without the sealed order are refused');
   const at = await ann('POST', '/api/me/modules/teams/attempt', { answers: items.map(right) });
   assert.equal(at.json.correct, items.length); assert.equal(at.json.passed, true); assert.equal(at.json.planChanged, false, 'own checks do not reshuffle the plan');
   // Guessing does not pay: ticking every box in a "pick all that fit" question scores less than the right picks.
   const multi = Object.values(POOLS).flat().find((x) => x.t === 'multi' && x.module === 'teams');
-  const g = await ann('POST', '/api/me/modules/teams/attempt', { answers: [{ id: multi.id, v: multi.o.map((_, i) => i) }, ...items.filter((x) => x.id !== multi.id).slice(0, 3).map(right)] });
+  const g = await ann('POST', '/api/me/modules/teams/attempt', { answers: [{ ...asShown(multi), v: multi.o.map((_, i) => i) }, ...items.filter((x) => x.id !== multi.id).slice(0, 3).map(right)] });
   assert.ok(g.json.results.find((r) => r.id === multi.id).score < 1);
   // A certain wrong single answer is flagged and counts zero.
   const mcq = Object.values(POOLS).flat().find((x) => x.t === 'mcq' && x.module === 'teams');
-  const w = await ann('POST', '/api/me/modules/teams/attempt', { answers: [{ id: mcq.id, v: (mcq.a + 1) % mcq.o.length, c: 3 }, ...items.filter((x) => x.id !== mcq.id).slice(0, 3).map(right)] });
+  const w = await ann('POST', '/api/me/modules/teams/attempt', { answers: [{ ...asShown(mcq), v: (mcq.a + 1) % mcq.o.length, c: 3 }, ...items.filter((x) => x.id !== mcq.id).slice(0, 3).map(right)] });
   assert.equal(w.json.confidentWrong, 1);
   // Walkthrough, explain-it, feedback and the survey.
-  const walk = await ann('POST', '/api/me/modules/teams/walk', { path: [0, 0, 0, 0] });
+  const walk = await playWalk(ann, 'teams', best);
   assert.equal(walk.json.end, true); assert.equal(walk.json.score, walk.json.max);
-  assert.equal((await ann('POST', '/api/me/modules/teams/walk', { path: [9] })).status, 400);
+  assert.equal((await ann('POST', '/api/me/modules/teams/walk', { path: [0, 0, 0, 0] })).status, 400, 'a path without the sealed order is refused');
   assert.equal((await ann('POST', '/api/me/explain/teams', { text: 'short' })).status, 400);
   const ex = await ann('POST', '/api/me/explain/teams', { text: 'IT approves the KUDO app in the Teams admin center and reviews the external bot policy, starting now.' });
   assert.equal(ex.status, 200); assert.ok(ex.json.points.length > 2);
@@ -297,8 +318,7 @@ test('the first attempt is the score of record; retakes are practice', async () 
   await imp.importRoster([{ email: 'dana@test.local', name: 'Dana Four', region: 'EMEA', team: 'Sales' }]);
   const d = client(); await d('POST', '/api/auth/login', { email: 'dana@test.local', password: GEN });
   await d('POST', '/api/auth/change-password', { current: GEN, next: 'Quiet-valley-pass-73' });
-  const right = (x) => { const it = itemById(x.id); return { id: x.id, c: 3, v: it.t === 'mcq' ? it.a : it.t === 'multi' ? it.a : it.t === 'match' ? it.pairs.map((p) => p[1]) : it.steps }; };
-  const wrong = (x) => { const it = itemById(x.id); return { id: x.id, c: 1, v: it.t === 'mcq' ? (it.a + 1) % it.o.length : it.t === 'multi' ? [] : it.t === 'match' ? it.pairs.map(() => 'x') : [...it.steps].reverse() }; };
+  const right = shownRight, wrong = shownWrong;
   const set1 = (await d('GET', '/api/me/modules/zoom')).json.check;
   const first = await d('POST', '/api/me/modules/zoom/attempt', { answers: set1.map(wrong) });
   assert.equal(first.json.counts, true); assert.ok(first.json.correct < first.json.total / 2);
@@ -314,7 +334,22 @@ test('the first attempt is the score of record; retakes are practice', async () 
   const ctx = await loadContext(id); const lv = computeLevels(ctx.users.find((u) => u.id === id), ctx);
   assert.ok(lv.per.zoom.est < 60, `level reflects the poor first attempt (${lv.per.zoom.est})`);
   // Walkthroughs follow the same rule.
-  const w1 = await d('POST', '/api/me/modules/zoom/walk', { path: [1, 1, 2, 1] });
-  const w2 = await d('POST', '/api/me/modules/zoom/walk', { path: [0, 0, 0, 0] });
+  const w1 = await playWalk(d, 'zoom', (i, st) => (best(i, st) + 1) % st.choices.length);
+  const w2 = await playWalk(d, 'zoom', best);
   assert.equal(w1.json.counts, true); assert.equal(w2.json.counts, false); assert.equal(w2.json.record.correct, w1.json.score);
+});
+
+test('scoring: shuffled options are graded by meaning, order questions get credit per correct next step', async () => {
+  const { grade, publicItem } = await import('../server/assess.js');
+  const mcq = Object.values(POOLS).flat().find((x) => x.t === 'mcq');
+  const shown = Array.from({ length: 40 }, () => publicItem(mcq));
+  assert.ok(new Set(shown.map((x) => x.o.indexOf(mcq.o[mcq.a]))).size > 1, 'the answer moves between draws');
+  for (const x of shown.slice(0, 5)) assert.equal(grade([{ id: x.id, k: x.k, v: x.o.indexOf(mcq.o[mcq.a]), c: 2 }]).results[0].score, 1);
+  const forged = { ...shown[0], k: shown[1].k.slice(0, -2) + 'AA' };
+  assert.ok(grade([{ id: forged.id, k: forged.k, v: 0 }]).error, 'a tampered order token is refused');
+  const ord = Object.values(POOLS).flat().find((x) => x.t === 'order' && x.steps.length >= 5);
+  const sc = (v) => grade([{ id: ord.id, v }]).results[0].score;
+  assert.equal(sc(ord.steps), 1);
+  assert.equal(sc([...ord.steps.slice(1), ord.steps[0]]), (ord.steps.length - 2) / (ord.steps.length - 1), 'one step out of place keeps the rest of the sequence');
+  assert.equal(sc([...ord.steps].reverse()), 0);
 });

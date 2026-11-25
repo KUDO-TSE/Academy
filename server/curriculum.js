@@ -61,7 +61,7 @@ export const MODULES = [
       'A setting is locked or a meeting must be recreated: Technical Support, with the meeting link and what the client expected.',
     ],
     quiz: [
-      { q: 'A client runs a keynote with one speaker and 400 listeners who want to hear a translated voice. Which AI type fits?', o: ['AI Captions Only', 'AI Speech & Captions', 'Human Interpretation only', 'Either, it makes no difference'], a: 1, why: 'One speaker to many listeners who want a voice is the AI Speech & Captions case. Captions Only gives text, no AI speech.' },
+      { q: 'A client runs a keynote with one speaker and 400 listeners who want to hear a translated voice. Which AI type fits?', o: ['AI Captions Only', 'AI Speech & Captions', 'Human Interpretation only', 'Meet Now on the speaker\'s phone'], a: 1, why: 'One speaker to many listeners who want a voice is the AI Speech & Captions case. Captions Only gives text, no AI speech.' },
       { q: 'Which decision cannot be changed once an AI meeting has started?', o: ['The translation languages', 'The speaker languages', 'The Host', 'The meeting links shared'], a: 1, why: 'Speaker languages (and AI customisation) are locked once live. Translation languages can still be updated.' },
       { q: 'Who operates the live meeting (recording, ending it, managing participants)?', o: ['The Client account', 'The Host', 'Any Viewer', 'The interpreter'], a: 1, why: 'The Host is the live operator. They join from an email link and are separate from the Client account.' },
       { q: 'How long are KUDO recordings and transcripts kept?', o: ['7 days', '30 days', '90 days', 'Forever'], a: 1, why: 'They are permanently deleted after 30 days, so the habit is to download them on event day.' },
@@ -115,10 +115,10 @@ export const MODULES = [
     ],
     quiz: [
       { q: 'An attendee will only watch a livestream in a browser and never speak. Which link do they get?', o: ['Participant link', 'Viewer Only link', 'Host email link', 'Operator link'], a: 1, why: 'Viewer Only is browser only with no mic. The Participant link is for people with mic and camera.' },
-      { q: 'Translation quality drops during a live AI meeting. What is the first step?', o: ['End and recreate the meeting', 'Restart the translation service', 'Change the speaker language', 'Ask everyone to rejoin'], a: 1, why: 'Restarting the translation service resolves most real-time quality issues without disrupting the meeting.' },
+      { q: 'Translation quality drops during a live AI meeting. What is the first step?', o: ['End the meeting and recreate it with the same links', 'Restart the translation service', 'Change the speaker language to match the speaker', 'Ask every participant to leave and rejoin'], a: 1, why: 'Restarting the translation service resolves most real-time quality issues without disrupting the meeting.' },
       { q: 'Which browser is not recommended for joining KUDO?', o: ['Chrome', 'Edge', 'Firefox', 'Safari'], a: 3, why: 'KUDO needs the latest Chrome, Firefox or Edge. Safari has limitations, such as no screen sharing.' },
-      { q: 'The meeting runs past its scheduled end time. What happens by default?', o: ['It stops immediately', 'A one-hour grace period applies', 'It runs until midnight', 'It pauses'], a: 1, why: 'A one-hour grace period applies by default. Force Close stops it exactly at the end time.' },
-      { q: 'Where does the client find recordings after the meeting?', o: ['In the Host email', 'In the Content tab of the meeting', 'In the Mobile Link', 'They are emailed automatically'], a: 1, why: 'The Content tab, 15 to 20 minutes after the end. One MP4 and one VTT per language.' },
+      { q: 'The meeting runs past its scheduled end time. What happens by default?', o: ['It stops at the scheduled end time', 'A one-hour grace period applies', 'It keeps running until the Host ends it', 'It pauses until the Host resumes it'], a: 1, why: 'A one-hour grace period applies by default. Force Close stops it exactly at the end time.' },
+      { q: 'Where does the client find recordings after the meeting?', o: ['In the Host invitation email', 'In the Content tab of the meeting', 'Behind the Mobile Link, after the event', 'In an email sent to the client automatically'], a: 1, why: 'The Content tab, 15 to 20 minutes after the end. One MP4 and one VTT per language.' },
     ],
   },
   {
@@ -203,8 +203,8 @@ export const MODULES = [
     quiz: [
       { q: 'When does the KUDO bot join a Human Interpretation meeting?', o: ['1 minute before', '5 minutes before', '15 minutes before', 'At the start time'], a: 2, why: 'Fifteen minutes before, so interpreters can prepare. On AI meetings it joins 1 minute before.' },
       { q: 'Where should the client upload preparation materials so interpreters receive them?', o: ['The Documents tab', 'Users, Interpreters', 'The Mobile Link', 'By email to the Host'], a: 1, why: 'Users, Interpreters. The Documents tab does not reach interpreters.' },
-      { q: 'Venue Audio IN (bringing booth audio into KUDO) is available for which meetings?', o: ['AI meetings only', 'Human Interpretation only', 'Both', 'Neither'], a: 1, why: 'Human Interpretation only. On AI meetings the channels are already used by the AI translation.' },
-      { q: 'A client asks for interpreters for a French-English meeting in 30 hours. What do you tell them?', o: ['Impossible under 72 hours', 'Possible: common pairs can go down to 24 hours, contact Language Services now', 'Book through the Mobile Link', 'Only AI is available'], a: 1, why: 'The sooner the better, 48 hours is the usual minimum, and common pairs such as French-English can go down to 24 hours.' },
+      { q: 'Venue Audio IN (bringing booth audio into KUDO) is available for which meetings?', o: ['AI meetings only', 'Human Interpretation only', 'AI and Human Interpretation meetings', 'Neither'], a: 1, why: 'Human Interpretation only. On AI meetings the channels are already used by the AI translation.' },
+      { q: 'A client asks for interpreters for a French-English meeting in 30 hours. What do you tell them?', o: ['Not possible: Language Services needs at least 72 hours for every pair', 'Likely: common pairs can go to 24 hours, ask Language Services now', 'Book interpreters yourself in the meeting settings', 'Not possible: offer an AI meeting instead'], a: 1, why: 'The sooner the better, 48 hours is the usual minimum, and common pairs such as French-English can go down to 24 hours.' },
     ],
   },
   {
@@ -256,11 +256,11 @@ export const MODULES = [
       'Town hall, webinar, channel meeting or browser Teams: offer the manual setup with the Mobile Link and involve Technical Support before scheduling.',
     ],
     quiz: [
-      { q: 'The KUDO bot is waiting in the Teams lobby although the lobby is open to everyone. What is going on?', o: ['A KUDO fault, call support', 'Expected: Teams holds detected bots in the lobby, the host admits it', 'The meeting is recurring', 'The glossary is wrong'], a: 1, why: 'Teams treats it as an external bot and holds it in the lobby by default. The host admits it from People.' },
-      { q: 'Which Teams setup does KUDO NOT support?', o: ['A scheduled meeting on Teams desktop', 'A recurring scheduled meeting', 'A Teams town hall through the KUDO app', 'Teams on mobile'], a: 2, why: 'Town halls, webinars, channel meetings, Live events, breakout rooms and browser Teams are not supported in-app. Town halls use a manual setup with the Mobile Link.' },
+      { q: 'The KUDO bot is waiting in the Teams lobby although the lobby is open to everyone. What is going on?', o: ['A KUDO fault: the bot should skip the lobby, so call Technical Support', 'Expected: Teams holds detected bots in the lobby, the host admits it', 'The Teams admin has blocked the KUDO app for the organisation', 'The bot joined too early and waits for the scheduled start time'], a: 1, why: 'Teams treats it as an external bot and holds it in the lobby by default. The host admits it from People.' },
+      { q: 'Which Teams setup does KUDO NOT support?', o: ['A scheduled meeting on Teams desktop', 'A recurring scheduled meeting', 'A Teams town hall through the KUDO app', 'A scheduled meeting joined from the Teams mobile app'], a: 2, why: 'Town halls, webinars, channel meetings, Live events, breakout rooms and browser Teams are not supported in-app. Town halls use a manual setup with the Mobile Link.' },
       { q: 'A Teams meeting with KUDO is moved to another time. What does the client do in KUDO?', o: ['Nothing', 'Sync Meeting', 'Cancel and recreate', 'Add Bot'], a: 1, why: 'Sync Meeting updates the KUDO meeting and bot timing.' },
-      { q: 'What is the in-app attendee limit, and what takes the overflow?', o: ['300, the Widget', '1,000, the Mobile Link', '5,000, nothing', 'Unlimited'], a: 1, why: '1,000 attendees in the app. The Mobile Link takes the overflow.' },
-      { q: 'An attendee hears nothing in the KUDO tab. What is the first check?', o: ['Recreate the meeting', 'Match the audio device in Teams and on the computer', 'Change the speaker language', 'Switch to Captions Only'], a: 1, why: 'The common cause is a device mismatch between Teams and the computer.' },
+      { q: 'What is the in-app attendee limit, and what takes the overflow?', o: ['300, with the Widget on the event page taking the overflow', '1,000, with the Mobile Link taking the overflow', '5,000, with no overflow needed', 'No limit, so no overflow is needed'], a: 1, why: '1,000 attendees in the app. The Mobile Link takes the overflow.' },
+      { q: 'An attendee hears nothing in the KUDO tab. What is the first check?', o: ['Recreate the meeting and send everyone the new Teams link', 'Match the audio device in Teams and on the computer', 'Change the speaker language in the KUDO tab', 'Switch the meeting to AI Captions Only'], a: 1, why: 'The common cause is a device mismatch between Teams and the computer.' },
     ],
   },
   {
@@ -302,10 +302,10 @@ export const MODULES = [
     ],
     escalate: ['Bot still refused after the four checks and a new meeting: Technical Support with the Zoom account type and a screenshot of the admin settings.'],
     quiz: [
-      { q: 'Which Zoom setting stops the KUDO bot from capturing audio?', o: ['Waiting room', 'End-to-end encryption', 'Gallery view', 'Breakout rooms off'], a: 1, why: 'With end-to-end encryption on, the bot cannot capture audio. Use Enhanced encryption.' },
-      { q: 'Which Zoom meeting is right for KUDO?', o: ['A Webinar', 'The Personal Meeting Room', 'A new, standard, non-recurring Meeting', 'A recurring meeting'], a: 2, why: 'Standard Meeting, new Meeting ID, not recurring.' },
-      { q: 'The bot is in the Zoom meeting but nothing is translated. What is the likely cause?', o: ['The glossary', 'The host did not approve the recording request', 'Too many attendees', 'The meeting name'], a: 1, why: 'Zoom treats the bot as a recorder. Without approval, the bot hears nothing.' },
-      { q: 'How do Zoom attendees follow the translation?', o: ['In a Zoom tab', 'In the KUDO Mobile Link, on a phone or second tab', 'Through Zoom interpretation channels', 'They need a KUDO account'], a: 1, why: 'Through the Mobile Link or its QR code: no login, no app, no Zoom account needed.' },
+      { q: 'Which Zoom setting stops the KUDO bot from capturing audio?', o: ['A waiting room with the host admitting people', 'End-to-end encryption', 'Enhanced encryption', 'Gallery view for all participants'], a: 1, why: 'With end-to-end encryption on, the bot cannot capture audio. Use Enhanced encryption.' },
+      { q: 'Which Zoom meeting is right for KUDO?', o: ['A Zoom Webinar with panelists and attendees', 'The Personal Meeting Room', 'A new, standard, non-recurring Meeting', 'A recurring meeting reused every week'], a: 2, why: 'Standard Meeting, new Meeting ID, not recurring.' },
+      { q: 'The bot is in the Zoom meeting but nothing is translated. What is the likely cause?', o: ['The glossary is missing the speaker names', 'The host did not approve the recording request', 'Too many attendees for the bot to translate at once', 'The meeting name has special characters'], a: 1, why: 'Zoom treats the bot as a recorder. Without approval, the bot hears nothing.' },
+      { q: 'How do Zoom attendees follow the translation?', o: ['In a KUDO tab inside the Zoom meeting window', 'In the KUDO Mobile Link, on a phone or second tab', 'Through the Zoom language interpretation channels in the toolbar', 'In the KUDO app, signed in with a KUDO account'], a: 1, why: 'Through the Mobile Link or its QR code: no login, no app, no Zoom account needed.' },
     ],
   },
   {
@@ -344,10 +344,10 @@ export const MODULES = [
     ],
     escalate: ['A platform not listed, or a client admin who cannot change the guest settings: Technical Support before scheduling.'],
     quiz: [
-      { q: 'On ON24, attendees hear two voices at once. What is the fix?', o: ['Restart the bot', 'Mute the ON24 webcast player', 'Change the glossary', 'Use Captions Only'], a: 1, why: 'KUDO is the audio source in the Widget, so the ON24 player must stay muted.' },
-      { q: 'Which Webex setting was built to keep AI bots out and can refuse the KUDO bot?', o: ['Blocked email domains', 'Screen share', 'Breakout sessions', 'Video layout'], a: 0, why: 'Admins can block external users by email domain in Control Hub. Ask them to remove the bot\'s domain.' },
+      { q: 'On ON24, attendees hear two voices at once. What is the fix?', o: ['Restart the KUDO bot in the webcast', 'Mute the ON24 webcast player', 'Remove the glossary from the KUDO meeting', 'Switch the meeting to AI Captions Only'], a: 1, why: 'KUDO is the audio source in the Widget, so the ON24 player must stay muted.' },
+      { q: 'Which Webex setting was built to keep AI bots out and can refuse the KUDO bot?', o: ['Blocked email domains', 'Screen share permissions', 'Breakout session assignment', 'Video layout lock'], a: 0, why: 'Admins can block external users by email domain in Control Hub. Ask them to remove the bot\'s domain.' },
       { q: 'When does the bot try to join a Google Meet or Webex AI meeting?', o: ['15 minutes before', '1 minute before', 'At the end', 'Only when the host clicks Add Bot'], a: 1, why: 'For AI meetings the bot joins 1 minute before the start.' },
-      { q: 'Where does the KUDO Mobile Link go in ON24?', o: ['The webcast title', 'The URL tool in Console Builder', 'The registration form', 'The speaker notes'], a: 1, why: 'Tools Manager, URL tool, Configuration: paste the Mobile Link there.' },
+      { q: 'Where does the KUDO Mobile Link go in ON24?', o: ['The webcast title and description', 'The URL tool in Console Builder', 'A field on the registration form', 'The presenter notes in Studio'], a: 1, why: 'Tools Manager, URL tool, Configuration: paste the Mobile Link there.' },
     ],
   },
   {
@@ -390,9 +390,9 @@ export const MODULES = [
     escalate: ['Venues with more than a few hundred listeners, or a venue that cannot meet the network requirements: involve Technical Support early.'],
     quiz: [
       { q: 'How much wireless capacity should be planned per listener?', o: ['8 kbps', '48 kbps', '1 Mbps', '5 Mbps'], a: 1, why: '48 kbps per listener is the minimum in KUDO\'s guide, so 500 listeners need about 24 Mbps.' },
-      { q: 'What usually limits how many listeners a venue Wi-Fi can serve?', o: ['Internet speed', 'Airtime per access point', 'The number of languages', 'Phone brand'], a: 1, why: 'Each listener receives many small audio packets, so the limit is listeners per access point.' },
+      { q: 'What usually limits how many listeners a venue Wi-Fi can serve?', o: ['Internet speed at the venue', 'Airtime per access point', 'The number of languages offered', 'The phone brands attendees use'], a: 1, why: 'Each listener receives many small audio packets, so the limit is listeners per access point.' },
       { q: 'What should the room laptop use to connect?', o: ['Venue guest Wi-Fi', 'Wired internet', 'A phone hotspot', 'Bluetooth'], a: 1, why: 'Wired internet, 20 Mbps down and 10 up.' },
-      { q: 'An attendee scanned the QR code and hears nothing. First question?', o: ['Which phone do you have?', 'Do you have earphones in and the volume up?', 'Did you register?', 'Is your app updated?'], a: 1, why: 'The most common cause is no earphones or volume. No app is needed.' },
+      { q: 'An attendee scanned the QR code and hears nothing. First question?', o: ['Which phone and operating system do you have?', 'Do you have earphones in and the volume up?', 'Did you register for the event first?', 'Is the KUDO app updated on your phone?'], a: 1, why: 'The most common cause is no earphones or volume. No app is needed.' },
       { q: 'The audience also asks questions into microphones. What scenario is this?', o: ['Onsite', 'Hybrid', 'Meet Now', 'HLS'], a: 1, why: 'The onsite setup is for a passive audience. An interactive audience is a hybrid meeting.' },
     ],
   },
@@ -427,8 +427,8 @@ export const MODULES = [
     escalate: ['Recording or export requests: product team, through Technical Support.'],
     quiz: [
       { q: 'A participant only wants to listen and does not want to install anything. Which mode?', o: ['Two-Way', 'One-Way', 'Only Captions', 'Speaker mode'], a: 1, why: 'One-Way: scan the QR and listen or read along. No app, no login.' },
-      { q: 'What cannot change once a Meet Now meeting starts?', o: ['The participants', 'Speaker and translation languages', 'The volume', 'The QR code display'], a: 1, why: 'Set the languages before tapping Start.' },
-      { q: 'A client asks to download the Meet Now transcript. What do you say?', o: ['It is in the Content tab', 'There is no documented export: you will take it to the product team', 'It is emailed after 30 days', 'Use the Widget'], a: 1, why: 'Meet Now has no documented recording or transcript export.' },
+      { q: 'What cannot change once a Meet Now meeting starts?', o: ['Who can join the meeting', 'Speaker and translation languages', 'The listening volume on each phone', 'Whether the QR code is on screen'], a: 1, why: 'Set the languages before tapping Start.' },
+      { q: 'A client asks to download the Meet Now transcript. What do you say?', o: ['It is in the meeting\'s Content tab, like any other KUDO recording', 'There is no documented export: you take it to the product team', 'It is emailed to the organiser automatically after the meeting ends', 'Embed the Widget on a page and export the transcript from there'], a: 1, why: 'Meet Now has no documented recording or transcript export.' },
     ],
   },
   {
@@ -457,9 +457,9 @@ export const MODULES = [
     practice: ['Draw the two-track runsheet (AV ingest and web) for a client webinar on their own platform and review it with a TSE.'],
     escalate: ['Every first Widget deployment and any ingest setup: Technical Support, with the platform name, who the AV operator is and the event date.'],
     quiz: [
-      { q: 'The Widget shows on the page but nothing is translated. What is missing?', o: ['The glossary', 'The AV ingest into the KUDO session', 'A Zoom bot', 'Captions Only'], a: 1, why: 'Without someone capturing the platform audio and sending it into KUDO, there is nothing to translate.' },
-      { q: 'Can the same Widget code be reused for next month\'s event?', o: ['Yes, always', 'No, the code is session-specific', 'Only for the same platform', 'Only with Auto Floor'], a: 1, why: 'Each session has its own code. Updating it is a fixed step every time.' },
-      { q: 'Which tools are typically used for AV ingest?', o: ['Dante and DVS', 'OBS Studio or VB-Cable', 'YouTube Studio', 'The KUDO Live app'], a: 1, why: 'OBS Studio or VB-Cable capture the platform audio and send it into KUDO as a Participant.' },
+      { q: 'The Widget shows on the page but nothing is translated. What is missing?', o: ['A glossary for the speaker names', 'The AV ingest into the KUDO session', 'A KUDO bot admitted to the platform meeting', 'AI Captions Only on the session'], a: 1, why: 'Without someone capturing the platform audio and sending it into KUDO, there is nothing to translate.' },
+      { q: 'Can the same Widget code be reused for next month\'s event?', o: ['Yes, the code stays valid for the account', 'No, the code is session-specific', 'Only if the event uses the same platform', 'Only if Auto Floor is switched on'], a: 1, why: 'Each session has its own code. Updating it is a fixed step every time.' },
+      { q: 'Which tools are typically used for AV ingest?', o: ['Dante and DVS on the venue network', 'OBS Studio or VB-Cable', 'YouTube Studio', 'The KUDO Live app on a phone'], a: 1, why: 'OBS Studio or VB-Cable capture the platform audio and send it into KUDO as a Participant.' },
     ],
   },
   {
@@ -491,9 +491,9 @@ export const MODULES = [
     practice: ['Write the hand-over email to Technical Support for a client with a Televic system, using what you would ask on the first call.'],
     escalate: ['Any Hybrid request: Technical Support, with the conference system, whether Dante is available, the AV contact and the date.'],
     quiz: [
-      { q: 'A client wants onsite interpreter booth audio sent into KUDO for an AI meeting. Is that possible?', o: ['Yes, with Venue Audio IN', 'No: Venue Audio IN is for Human Interpretation only', 'Yes, with the Widget', 'Yes, with Meet Now'], a: 1, why: 'Venue Audio IN works only for Human Interpretation. Venue Audio OUT works for both.' },
-      { q: 'Who usually acts as Audio Manager?', o: ['The keynote speaker', 'The client\'s AV engineer', 'An interpreter', 'Any attendee'], a: 1, why: 'A technical person, usually the AV engineer or conference system operator.' },
-      { q: 'What is your role on a first Hybrid deployment?', o: ['Configure Dante yourself', 'Spot it, brief Technical Support and stay in the conversation', 'Decline it', 'Send the Mobile Link only'], a: 1, why: 'Hybrid is a hand-over scenario: the first routing is a technical project for Technical Support.' },
+      { q: 'A client wants onsite interpreter booth audio sent into KUDO for an AI meeting. Is that possible?', o: ['Yes: Venue Audio IN works for AI and Human Interpretation meetings', 'No: Venue Audio IN is for Human Interpretation only', 'Yes, if the AV ingest sends it through the Widget', 'Yes, by running it as a Meet Now session'], a: 1, why: 'Venue Audio IN works only for Human Interpretation. Venue Audio OUT works for both.' },
+      { q: 'Who usually acts as Audio Manager?', o: ['The keynote speaker', 'The client\'s AV engineer', 'An interpreter in the booth', 'Any attendee with a laptop'], a: 1, why: 'A technical person, usually the AV engineer or conference system operator.' },
+      { q: 'What is your role on a first Hybrid deployment?', o: ['Configure the Dante routing yourself with the AV team', 'Spot it, brief Technical Support, stay in the loop', 'Decline it: KUDO does not support hybrid events', 'Send the Mobile Link and let the venue handle the rest'], a: 1, why: 'Hybrid is a hand-over scenario: the first routing is a technical project for Technical Support.' },
     ],
   },
   {
@@ -527,8 +527,8 @@ export const MODULES = [
     escalate: ['First RTMP setup for a client, IBM streams and sign language combinations: Technical Support.'],
     quiz: [
       { q: 'A client wants English, French and Spanish on YouTube. How many stream keys?', o: ['One', 'Two', 'Three', 'None'], a: 2, why: 'One language, one destination, one key. Reusing a key interrupts the stream.' },
-      { q: 'The Broadcast tab is missing in the meeting. Most likely reason?', o: ['Safari', 'RTMP is not enabled on the account or it is not a Large Meeting', 'Too many languages', 'No glossary'], a: 1, why: 'RTMP must be enabled on the account and the meeting set to Large Meeting.' },
-      { q: 'In which order do you start things?', o: ['Broadcast, then meeting', 'Meeting, then broadcast', 'Either', 'YouTube starts both'], a: 1, why: 'The RTMP stream needs a live session to connect.' },
+      { q: 'The Broadcast tab is missing in the meeting. Most likely reason?', o: ['The Host joined from Safari, which hides the Broadcast tab', 'RTMP is off for the account, or it is not a Large Meeting', 'The meeting has more languages than the Broadcast tab allows', 'The glossary has not been published for the meeting'], a: 1, why: 'RTMP must be enabled on the account and the meeting set to Large Meeting.' },
+      { q: 'In which order do you start things?', o: ['Broadcast first, then the meeting', 'Meeting first, then the broadcast', 'Either order works', 'YouTube starts both together'], a: 1, why: 'The RTMP stream needs a live session to connect.' },
     ],
   },
   {
@@ -622,8 +622,8 @@ export const MODULES = [
     escalate: ['Firewall inspection, regional restrictions or SSO setup: Technical Support with the client IT contact.'],
     quiz: [
       { q: 'Which port is required for KUDO?', o: ['TCP 21', 'TCP 443', 'UDP 53', 'TCP 8080'], a: 1, why: 'TCP 443 is required. UDP 3478 is recommended for quality.' },
-      { q: 'The page and captions load but there is no audio on a corporate network. First thing to check?', o: ['The glossary', 'Whether UDP is blocked', 'The meeting name', 'The browser zoom'], a: 1, why: 'Blocked or filtered UDP is the first suspect.' },
-      { q: 'Which proxies does KUDO not support?', o: ['Transparent proxies', 'Proxies set in the browser', 'Proxies that require authentication', 'None'], a: 2, why: 'Proxies that need authentication are not supported.' },
+      { q: 'The page and captions load but there is no audio on a corporate network. First thing to check?', o: ['Whether the glossary loaded', 'Whether UDP is blocked', 'Whether the meeting name is valid', 'The browser zoom level'], a: 1, why: 'Blocked or filtered UDP is the first suspect.' },
+      { q: 'Which proxies does KUDO not support?', o: ['Transparent proxies', 'Proxies set in the browser', 'Proxies that require authentication', 'None: every proxy is supported'], a: 2, why: 'Proxies that need authentication are not supported.' },
     ],
   },
   {
@@ -646,7 +646,7 @@ export const MODULES = [
     practice: ['Explain Marketplace to a colleague in one minute, including the lead time and where materials go.'],
     escalate: ['Everything beyond surface level (rates, specific interpreters, quality complaints, last-minute bookings): Language Services.'],
     quiz: [
-      { q: 'What lead time do you give a client for interpreters?', o: ['12 hours is fine', 'The sooner the better; 48 hours usually, 24 hours for common pairs', 'One month minimum', 'Same day always'], a: 1, why: 'Language Services can usually do 48 hours, down to 24 hours for common pairs like French-English.' },
+      { q: 'What lead time do you give a client for interpreters?', o: ['12 hours is enough for any language pair', '48 hours usually, 24 for common pairs', 'One month minimum for any human interpretation', 'Same day is always possible for common pairs'], a: 1, why: 'Language Services can usually do 48 hours, down to 24 hours for common pairs like French-English.' },
       { q: 'A client cancels 50 hours before the meeting. What applies?', o: ['No charge', '50%', '100%', 'It depends on the interpreter'], a: 1, why: 'Between 72 and 24 hours: 50%. More than 72 hours: free. Under 24 hours: 100%.' },
     ],
   },
@@ -669,8 +669,8 @@ export const MODULES = [
     practice: ['Walk a colleague through where the Meeting ID goes in RingCentral, from memory.'],
     escalate: ['Every first RingCentral event and the AV ingest: Technical Support.'],
     quiz: [
-      { q: 'What does RingCentral need from KUDO to show the KUDO tab?', o: ['The Zoom link', 'The KUDO Meeting ID from the Mobile Link', 'A stream key', 'The glossary'], a: 1, why: 'The 11 or 12 digit Meeting ID inside the Mobile Link goes into Widget ID.' },
-      { q: 'The KUDO tab shows but there is no audio. Likely cause?', o: ['The KUDO meeting has not started', 'Wrong tab name', 'RingCentral captions are on', 'Too many attendees'], a: 0, why: 'No audio usually means the KUDO meeting is not running.' },
+      { q: 'What does RingCentral need from KUDO to show the KUDO tab?', o: ['The Zoom link of the event', 'The KUDO Meeting ID from the Mobile Link', 'The Webinar ID that RingCentral shows on the event page', 'The glossary file for the event'], a: 1, why: 'The 11 or 12 digit Meeting ID inside the Mobile Link goes into Widget ID.' },
+      { q: 'The KUDO tab shows but there is no audio. Likely cause?', o: ['The KUDO meeting has not started', 'The tab name is wrong', 'RingCentral captions are switched on for the event', 'Too many attendees in the event'], a: 0, why: 'No audio usually means the KUDO meeting is not running.' },
     ],
   },
 ];

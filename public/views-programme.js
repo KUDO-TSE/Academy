@@ -38,9 +38,11 @@ function levelBars(levels) {
     h('div', { class: 'lv-legend' }, h('span', null, h('i', { class: 'k-base' }), 'October start'), h('span', null, h('i', { class: 'k-now' }), 'Now'), h('span', null, h('i', { class: 'k-tgt' }), 'Your target')),
     levels.map((l) => h('div', { class: `lv-row ${l.focus ? 'focus' : ''}` },
       h('div', { class: 'lv-name' }, h('b', null, l.short), l.focus ? h('span', { class: 'chip coral' }, 'Focus') : null, h('span', { class: 'muted small' }, DEPTH_LABEL[l.depth] || '')),
-      h('div', { class: 'lv-track', title: `${l.note}` },
-        h('i', { class: 'lv-base', style: `width:${l.baseline}%` }), h('i', { class: 'lv-now', style: `width:${l.now}%` }), h('i', { class: 'lv-tgt', style: `left:${l.target}%` })),
-      h('div', { class: 'lv-val' }, h('b', null, `${l.now}%`), h('span', { class: `chip ${BAND_CHIP[l.band.key]}` }, l.band.label)))));
+      h('div', { class: 'lv-track', title: `${l.note}. Likely between ${Math.max(0, l.now - 10)}% and ${Math.min(100, l.now + 10)}%: a short check is one question away from 15 points.` },
+        h('i', { class: 'lv-base', style: `width:${l.baseline}%` }), h('i', { class: 'lv-now', style: `width:${l.now}%` }),
+        h('i', { class: 'lv-range', style: `left:${Math.max(0, l.now - 10)}%;width:${Math.min(100, l.now + 10) - Math.max(0, l.now - 10)}%` }), h('i', { class: 'lv-tgt', style: `left:${l.target}%` })),
+      h('div', { class: 'lv-val' }, h('b', null, `${l.now}%`), h('span', { class: 'muted small' }, '±10'), h('span', { class: `chip ${BAND_CHIP[l.band.key]}` }, l.band.label)))),
+    h('p', { class: 'muted small', style: 'margin-top:6px' }, 'Each level is an estimate. The shaded range shows where it most likely sits; small moves inside it do not change your plan.'));
 }
 
 function timeline(data, st) {
