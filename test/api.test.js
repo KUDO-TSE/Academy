@@ -262,5 +262,20 @@ test('test trainees are created and reset by admins and never count in team resu
   assert.equal((await t('GET', '/api/me/programme')).status, 401, 'old session is gone');
   assert.equal((await client()('POST', '/api/auth/login', { email: 'demo.jack@kudo.ai', password: GEN })).status, 200, 'generic password again');
   const realId = (await q("SELECT id FROM users WHERE email='bob@test.local'")).rows[0].id;
+  // Admins step into a test trainee, take a course, and come back.
+  const demoId = (await q("SELECT id FROM users WHERE email='demo.jack@kudo.ai'")).rows[0].id;
+  assert.equal((await adm('POST', '/api/auth/act-as', { id: realId })).status, 404, 'never a real person');
+  assert.equal((await adm('POST', '/api/auth/act-as', { id: demoId })).status, 200);
+  const meNow = (await adm('GET', '/api/auth/me')).json.user;
+  assert.equal(meNow.email, 'demo.jack@kudo.ai'); assert.ok(meNow.actingAs); assert.equal(meNow.mustChange, false);
+  const prog = await adm('GET', '/api/me/programme'); assert.equal(prog.status, 200);
+  const lesson = prog.json.state.items.find((i) => i.kind === 'lesson' && !i.done);
+  assert.equal((await adm('POST', `/api/me/items/${lesson.key}/done`, {})).status, 200);
+  assert.equal((await adm('GET', '/api/admin/board')).status, 403, 'no admin rights while acting');
+  assert.equal((await adm('POST', '/api/auth/change-password', { current: 'x', next: 'Whatever-pass-99' })).status, 400);
+  assert.equal((await adm('POST', '/api/auth/act-as/stop')).status, 200);
+  assert.equal((await adm('GET', '/api/admin/board')).status, 200, 'admin again');
+  const tr = client(); await tr('POST', '/api/auth/login', { email: 'demo.jack@kudo.ai', password: GEN });
+  assert.equal((await tr('POST', '/api/auth/act-as', { id: demoId })).status, 403, 'trainees cannot act as anyone');
   assert.equal((await adm('POST', `/api/admin/demo/${realId}/reset`)).status, 404, 'a real person can never be reset');
 });

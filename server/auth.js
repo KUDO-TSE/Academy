@@ -50,9 +50,17 @@ export async function loadUser(req, _res, next) {
   const id = req.session?.userId;
   if (!id) return next();
   try {
-    const r = await q('SELECT id,email,name,role,region,team,is_trainee,must_change_password,active FROM users WHERE id=$1', [id]);
+    const r = await q('SELECT id,email,name,role,region,team,is_trainee,is_demo,must_change_password,active FROM users WHERE id=$1', [id]);
     const u = r.rows[0];
     if (u && u.active) req.user = u; else req.session.userId = null;
+    // An admin can step into a test trainee to take the courses. The session stays the admin's; while acting, the
+    // request runs as the test trainee only (no admin rights), and only ever for accounts flagged as test trainees.
+    const actAs = req.session?.actAs;
+    if (req.user && actAs) {
+      const d = (await q('SELECT id,email,name,role,region,team,is_trainee,is_demo,must_change_password,active FROM users WHERE id=$1 AND is_demo AND active', [actAs])).rows[0];
+      if (d && req.user.role === 'admin' && !req.user.must_change_password) { req.realAdmin = req.user; req.user = { ...d, must_change_password: false }; }
+      else req.session.actAs = null;
+    }
   } catch (e) { return next(e); }
   next();
 }

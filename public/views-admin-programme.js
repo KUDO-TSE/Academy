@@ -234,7 +234,7 @@ export function testTraineesCard() {
       list.length ? h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Test trainee', 'Sign-in email', 'Status', ''].map((x) => h('th', null, x)))),
         h('tbody', null, list.map((u) => h('tr', null, h('td', null, h('b', null, u.name)), h('td', null, h('code', { class: 'k' }, u.email)),
           h('td', null, u.must_change_password ? h('span', { class: 'chip grey' }, 'Not used yet') : h('span', { class: 'chip green' }, `In use${u.last_login_at ? ` · ${fmtDate(u.last_login_at)}` : ''}`)),
-          h('td', null, h('div', { class: 'row' }, h('a', { class: 'btn sm', href: `#person-${u.id}` }, 'Open'), h('button', { class: 'btn sm', on: { click: async () => {
+          h('td', null, h('div', { class: 'row' }, h('button', { class: 'btn sm primary', on: { click: () => actAs(u.id) } }, 'Take the courses'), h('a', { class: 'btn sm', href: `#person-${u.id}` }, 'Admin view'), h('button', { class: 'btn sm', on: { click: async () => {
             if (!confirmBox(`Reset ${u.name}? Its progress, recordings and password go back to the start.`)) return;
             try { await api('POST', `/api/admin/demo/${u.id}/reset`); toast('Reset. Sign in again with the generic password.'); draw(); } catch (e) { toast(e.message, true); }
           } } }, 'Reset to start')))))))) : h('div', { class: 'muted' }, 'None yet.'),
@@ -244,4 +244,19 @@ export function testTraineesCard() {
   };
   draw().catch((e) => box.replaceChildren(h('div', { class: 'muted' }, e.message)));
   return box;
+}
+
+export async function actAs(id) {
+  try { await api('POST', '/api/auth/act-as', { id }); location.hash = 'programme'; location.reload(); } catch (e) { toast(e.message, true); }
+}
+
+// "Try as a trainee": step straight into the admin's own test trainee (demo.<first name>@kudo.ai), or pick one.
+export async function tryView(me) {
+  const list = await api('GET', '/api/admin/demo');
+  const first = String(me.email || '').split('@')[0].split(/[._-]/)[0].toLowerCase();
+  const mine = list.find((u) => u.email.toLowerCase() === `demo.${first}@kudo.ai`);
+  const page = h('div', { class: 'page' }, h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Try as a trainee'), h('p', null, 'Step into a test trainee and take the courses for real: lessons, checks, walkthroughs, recordings. Nothing counts in the team results. A banner brings you back to admin in one click.'))),
+    mine ? h('div', { class: 'card' }, h('h2', null, mine.name), h('p', { class: 'sub' }, 'Your own test trainee.'), h('button', { class: 'btn primary', on: { click: () => actAs(mine.id) } }, 'Start as my test trainee')) : null,
+    testTraineesCard());
+  return page;
 }

@@ -9,7 +9,7 @@ const BAND_CHIP = { ready: 'green', nearly: 'blue', developing: 'amber', gap: 'c
 const SOURCE = { test: 'Knowledge test', estimated: 'Estimated', self: 'Self Assessment (estimate)', check: 'Updated by your checks', coach: 'Updated by Jack', none: 'No data yet' };
 const check = () => svg('<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>');
 const moduleTitle = (data, key) => data.modules.find((m) => m.key === key)?.title || key;
-const first = (n) => String(n || '').split(' ')[0];
+const first = (n) => { const m = String(n || '').match(/\(([^)]+)\)/); return m ? `${m[1]} (test)` : String(n || '').split(' ')[0]; };
 
 function itemHref(it) {
   if (it.kind === 'baseline') return '#module-baseline';

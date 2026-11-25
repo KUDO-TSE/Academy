@@ -64,7 +64,7 @@ export async function createApp() {
 
   const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: Number(process.env.LOGIN_RATE_LIMIT) || 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many attempts. Try again in a few minutes.' } });
 
-  const publicUser = (u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, region: u.region, team: u.team, isTrainee: u.role === 'trainee' || !!u.is_trainee, mustChange: !!u.must_change_password });
+  const publicUser = (u, admin = null) => ({ id: u.id, name: u.name, email: u.email, role: u.role, region: u.region, team: u.team, isTrainee: u.role === 'trainee' || !!u.is_trainee, mustChange: !!u.must_change_password, actingAs: admin ? { adminName: admin.name } : null });
 
   app.post('/api/auth/login', loginLimiter, async (req, res, next) => {
     try {
@@ -91,12 +91,32 @@ export async function createApp() {
 
   app.get('/api/auth/me', (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Not signed in.' });
-    res.json({ user: publicUser(req.user) });
+    res.json({ user: publicUser(req.user, req.realAdmin) });
+  });
+
+  // Admins step into a test trainee to take the courses, then come back.
+  app.post('/api/auth/act-as', async (req, res, next) => {
+    try {
+      if (!req.user || req.realAdmin || req.user.role !== 'admin' || req.user.must_change_password) return res.status(403).json({ error: 'Admin access only.' });
+      const id = Number(req.body?.id);
+      const d = await q('SELECT id,name FROM users WHERE id=$1 AND is_demo AND active', [id]);
+      if (!d.rowCount) return res.status(404).json({ error: 'Not a test trainee.' });
+      req.session.actAs = id;
+      await audit(req, 'act_as.start', d.rows[0].name);
+      req.session.save((err) => (err ? next(err) : res.json({ ok: true })));
+    } catch (e) { next(e); }
+  });
+  app.post('/api/auth/act-as/stop', (req, res, next) => {
+    if (!req.session?.actAs) return res.json({ ok: true });
+    const name = req.user?.name; req.session.actAs = null;
+    audit({ user: req.realAdmin }, 'act_as.stop', name);
+    req.session.save((err) => (err ? next(err) : res.json({ ok: true })));
   });
 
   app.post('/api/auth/change-password', async (req, res, next) => {
     try {
       if (!req.user) return res.status(401).json({ error: 'Please sign in.' });
+      if (req.realAdmin) return res.status(400).json({ error: 'Go back to your admin account to change your password.' });
       const { current, next: np } = req.body || {};
       const r = await q('SELECT password_hash FROM users WHERE id=$1', [req.user.id]);
       if (!(await verify(String(current || ''), r.rows[0].password_hash))) return res.status(400).json({ error: 'Your current password is not right.' });
