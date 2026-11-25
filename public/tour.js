@@ -65,7 +65,7 @@ export function startTour(steps, { go, onEnd } = {}) {
   const close = (completed) => {
     if (closed) return; closed = true; active = null;
     window.removeEventListener('resize', place); window.removeEventListener('keydown', onKey, true); document.getElementById('main')?.removeEventListener('scroll', place);
-    layer.remove(); onEnd?.(completed);
+    layer.remove(); document.body.classList.remove('nav-open'); window.removeEventListener('scroll', place, true); onEnd?.(completed);
   };
   let target = null;
   function place() {
@@ -78,6 +78,10 @@ export function startTour(steps, { go, onEnd } = {}) {
     const r = target.getBoundingClientRect(), pad = 8;
     Object.assign(spot.style, { top: `${r.top - pad}px`, left: `${r.left - pad}px`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px` });
     const pw = Math.min(380, window.innerWidth - 24), ph = pop.offsetHeight || 220, vw = window.innerWidth, vh = window.innerHeight;
+    if (vw <= 600) { // phones: the card sits at the bottom (or top, if the highlight is low on the screen)
+      const low = r.top + r.height / 2 > vh / 2;
+      pop.style.cssText = `left:12px;right:12px;width:auto;${low ? 'top:12px' : 'bottom:12px'}`; return;
+    }
     let top, left;
     if (r.right + pad + 16 + pw < vw && r.width < vw * 0.5) { left = r.right + pad + 16; top = r.top; } // beside (nav items, small cards)
     else if (r.bottom + pad + 14 + ph < vh) { top = r.bottom + pad + 14; left = r.left; } // below
@@ -90,9 +94,17 @@ export function startTour(steps, { go, onEnd } = {}) {
     const s = steps[i];
     pop.replaceChildren(h('div', { class: 'tour-loading' }, '…'));
     if (s.route && go) await go(s.route);
-    target = s.center ? null : await waitFor(s.sel);
+    // Phones: menu items live in the drawer (or the trainee tab bar); open what holds the step's target.
+    let sel = s.sel;
+    const small = window.innerWidth <= 860;
+    if (small && sel && sel.startsWith('.nav ')) {
+      const tab = sel.replace(/^\.nav /, '.tabbar ');
+      if (document.querySelector(tab)?.getBoundingClientRect().height) { sel = tab; document.body.classList.remove('nav-open'); }
+      else document.body.classList.add('nav-open');
+    } else if (small) document.body.classList.remove('nav-open');
+    target = s.center ? null : await waitFor(sel, 2500);
     if (closed) return;
-    if (target) { const tall = target.getBoundingClientRect().height > window.innerHeight * 0.6; target.scrollIntoView({ block: tall ? 'start' : 'center' }); if (tall) document.getElementById('main')?.scrollBy(0, -16); await new Promise((r) => setTimeout(r, 80)); }
+    if (target) { const tall = target.getBoundingClientRect().height > window.innerHeight * (window.innerWidth <= 600 ? 0.45 : 0.6); target.scrollIntoView({ block: tall ? 'start' : 'center' }); if (tall) document.getElementById('main')?.scrollBy(0, -16); await new Promise((r) => setTimeout(r, 80)); }
     const last = i === steps.length - 1;
     pop.replaceChildren(
       h('div', { class: 'tour-head' }, h('span', { class: 'tour-count' }, `${i + 1} of ${steps.length}`), h('button', { class: 'tour-skip', type: 'button', on: { click: () => close(false) } }, last ? 'Close' : 'Skip tour')),
@@ -110,6 +122,7 @@ export function startTour(steps, { go, onEnd } = {}) {
     else if (e.key === 'ArrowLeft') { e.preventDefault(); if (i > 0) show(i - 1); }
   }
   window.addEventListener('resize', place); window.addEventListener('keydown', onKey, true); document.getElementById('main')?.addEventListener('scroll', place);
+  window.addEventListener('scroll', place, true);
   active = { close };
   show(0);
   return active;

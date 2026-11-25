@@ -164,3 +164,7 @@ Admin menu, **Sessions** (`server/sessions.js`, `public/views-sessions.js`).
 ## Collectibles
 
 `server/collectibles.js`, `public/collectibles.js`. 29 cards in four sets: Journey (plan approved, each phase cleared, mock call, retest), Scenarios (one per scenario, earned at target level), Craft (first step, perfect walkthrough, Solid explanation, well-judged certainty, spaced-review comeback, teach-back, a session question added to the Academy) and Habit (3, 6, 10 active weeks, not necessarily in a row). Worked out from existing data each time the trainee opens the app, stored with the date earned, never taken back, never shown to anyone else, and they never change a score. New cards are revealed once with a card flip (no animation when the device asks for reduced motion). "My collection" in the trainee menu; a strip on the programme page. Card art is original, drawn in code: generic symbols, no product logos.
+
+## Phones and laptops
+
+The app adapts below 860 px wide: the menu becomes a top bar with a menu button (drawer), trainees get a tab bar at the bottom (Programme, Collection, Results, Progress), grids stack, tables scroll sideways, and charts are redrawn for the screen (the 12-week roadmap becomes one row per week; other charts get a narrower drawing so text stays readable). Charts redraw when the screen crosses the phone breakpoint. The guided tour docks its card at the top or bottom on phones and opens the menu drawer for menu steps. Checked at 390 px (iPhone size) and 1400 px.

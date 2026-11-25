@@ -22,11 +22,11 @@ function upload(id, file, onProgress) {
 
 /** Stacked bars: per module, questions covered / partly / not covered. */
 function coverageChart(rows) {
-  const W = 760, rowH = 30, lab = 230, bw = W - lab - 60, H = rows.length * rowH + 28, max = Math.max(...rows.map((r) => r.questions), 1);
+  const sm = window.matchMedia?.('(max-width: 700px)').matches; const W = sm ? 360 : 760, rowH = 30, lab = sm ? 120 : 230, bw = W - lab - 40, H = rows.length * rowH + 28, max = Math.max(...rows.map((r) => r.questions), 1);
   let g = '';
   rows.forEach((r, i) => {
     const y = i * rowH + 4; let x = lab;
-    g += `<text x="${lab - 10}" y="${y + 16}" font-size="12.5" font-weight="600" fill="#231F20" text-anchor="end">${esc(r.title.length > 32 ? `${r.title.slice(0, 31)}…` : r.title)}</text>`;
+    g += `<text x="${lab - 10}" y="${y + 16}" font-size="12.5" font-weight="600" fill="#231F20" text-anchor="end">${esc(r.title.length > (sm ? 16 : 32) ? `${r.title.slice(0, sm ? 15 : 31)}…` : r.title)}</text>`;
     for (const [k, col] of [['gap', '#DB6539'], ['partly', '#F8C63F'], ['covered', '#2F7A45']]) {
       const w = (r[k] / max) * bw; if (!w) continue;
       g += `<rect x="${x}" y="${y + 3}" width="${w}" height="18" fill="${col}" rx="3"><title>${esc(r.title)}: ${r[k]} ${k === 'gap' ? 'not covered' : k === 'partly' ? 'partly covered' : 'covered'}</title></rect>`; x += w;

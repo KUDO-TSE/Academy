@@ -98,7 +98,11 @@ function shell() {
   document.addEventListener('click', () => { menu.hidden = true; });
   const testBar = me.actingAs ? h('div', { class: 'test-bar' }, h('span', null, h('b', null, 'Test mode. '), `You are ${me.name}. Nothing you do here counts in the team results.`),
     h('button', { class: 'btn sm', on: { click: async () => { await api('POST', '/api/auth/act-as/stop'); location.hash = 'try'; location.reload(); } } }, `Back to admin (${me.actingAs.adminName})`)) : null;
-  return h('div', { class: `shell ${me.actingAs ? 'testing' : ''}` }, testBar, h('aside', { class: 'sidebar' }, h('div', { class: 'brand' }, h('img', { src: '/kudo-logo-navy.png', alt: 'KUDO' }), h('span', { class: 'tag' }, 'Academy')), list, acct), h('main', { class: 'main', id: 'main', tabindex: -1 }));
+  // Phones: the menu folds into a drawer behind a button; trainees also get a tab bar at the bottom.
+  const toggle = h('button', { class: 'nav-toggle', type: 'button', 'aria-label': 'Menu', 'aria-expanded': 'false', on: { click: (e) => { e.stopPropagation(); const open = !document.body.classList.contains('nav-open'); document.body.classList.toggle('nav-open', open); toggle.setAttribute('aria-expanded', String(open)); } } },
+    h('span'), h('span'), h('span'));
+  const traineeTabs = me.role !== 'admin' ? h('nav', { class: 'tabbar', 'aria-label': 'Main' }, NAV_TRAINEE.map(([k, l, ic]) => h('a', { href: `#${k}`, 'data-r': k }, icon(ic), h('span', null, l.replace(/^My (.)/, (_m, c) => c.toUpperCase()))))) : null;
+  return h('div', { class: `shell ${me.actingAs ? 'testing' : ''} ${traineeTabs ? 'has-tabbar' : ''}` }, testBar, h('aside', { class: 'sidebar' }, h('div', { class: 'brand' }, h('img', { src: '/kudo-logo-navy.png', alt: 'KUDO' }), h('span', { class: 'tag' }, 'Academy')), list, acct, toggle), h('main', { class: 'main', id: 'main', tabindex: -1 }), traineeTabs);
 }
 
 // ------------------------------------------------------------ Router
@@ -121,7 +125,8 @@ async function route() {
   if (meMode && !okTrainee(r)) r = 'programme';
   if (isAdmin && !meMode && !(r in ADMIN_ROUTES) && !isAdminDyn(r)) r = 'overview';
   const navKey = meMode ? `me-${r}` : r;
-  document.querySelectorAll('.nav a').forEach((a) => a.classList.toggle('active', a.dataset.r === navKey || (r.startsWith('person-') && a.dataset.r === 'team') || (r.startsWith('curriculum-') && a.dataset.r === 'curriculum') || (r.startsWith('session-') && a.dataset.r === 'sessions') || (isTraineeDyn(r) && a.dataset.r === (meMode ? 'me-programme' : 'programme'))));
+  document.body.classList.remove('nav-open'); document.querySelector('.nav-toggle')?.setAttribute('aria-expanded', 'false');
+  document.querySelectorAll('.nav a, .tabbar a').forEach((a) => a.classList.toggle('active', a.dataset.r === navKey || (r.startsWith('person-') && a.dataset.r === 'team') || (r.startsWith('curriculum-') && a.dataset.r === 'curriculum') || (r.startsWith('session-') && a.dataset.r === 'sessions') || (isTraineeDyn(r) && a.dataset.r === (meMode ? 'me-programme' : 'programme'))));
   main.replaceChildren(h('div', { class: 'page muted' }, 'Loading…'));
   try {
     let view;
@@ -156,4 +161,6 @@ async function route() {
   }
 }
 window.addEventListener('hashchange', route);
+// Charts are drawn for the screen size: redraw when crossing the phone breakpoint (rotation, window resize).
+window.matchMedia?.('(max-width: 700px)').addEventListener?.('change', () => { if (me && !document.querySelector('.tour-layer')) route(); });
 boot();

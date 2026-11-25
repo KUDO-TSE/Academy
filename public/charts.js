@@ -1,11 +1,13 @@
 import { svg } from './ui.js';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// Phones get narrower drawings with the same font sizes, so text stays readable once scaled to the screen.
+export const small = () => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 700px)').matches;
 export const COLORS = { self: '#48A1D8', live: '#11374F', target: '#DB6539', grid: '#EEF1F2', ink: '#5E6A72' };
 
 /** Horizontal paired bars: rows = [{label, self, live}] (values 0-100 or null). */
 export function pairedBars(rows, { showSelf = true, showLive = true } = {}) {
-  const rowH = 38, labelW = 170, w = 640, barW = w - labelW - 54, top = 6;
+  const sm = small(); const rowH = sm ? 36 : 38, labelW = sm ? 104 : 170, w = sm ? 360 : 640, barW = w - labelW - 44, top = 6;
   const H = top + rows.length * rowH + 18;
   let g = '';
   [0, 25, 50, 75, 100].forEach((t) => {
@@ -14,7 +16,7 @@ export function pairedBars(rows, { showSelf = true, showLive = true } = {}) {
   });
   rows.forEach((r, i) => {
     const y = top + i * rowH;
-    g += `<text x="${labelW - 12}" y="${y + rowH / 2 + 4}" font-size="12.5" font-weight="600" fill="#231F20" text-anchor="end">${esc(r.label)}</text>`;
+    g += `<text x="${labelW - 8}" y="${y + rowH / 2 + 4}" font-size="${sm ? 11.5 : 12.5}" font-weight="600" fill="#231F20" text-anchor="end">${esc(r.label)}</text>`;
     const bars = [];
     if (showSelf) bars.push(['self', r.self, COLORS.self]);
     if (showLive) bars.push(['live', r.live, COLORS.live]);
@@ -31,7 +33,7 @@ export function pairedBars(rows, { showSelf = true, showLive = true } = {}) {
 
 /** Line chart over rounds. series = [{name,color,points:[{x:label,y:number|null}]}], optional targets [{y,label}] */
 export function lineChart(labels, series, { targetY = null } = {}) {
-  const w = 640, h = 260, l = 40, r = 20, t = 14, b = 48;
+  const sm = small(); const w = sm ? 360 : 640, h = sm ? 240 : 260, l = 36, r = 16, t = 14, b = 48;
   const iw = w - l - r, ih = h - t - b;
   const x = (i) => l + (labels.length === 1 ? iw / 2 : (i / (labels.length - 1)) * iw);
   const y = (v) => t + ih - (v / 100) * ih;
@@ -56,6 +58,7 @@ const P = { primary: '#1B5C84', deep: '#11374F', soft: '#E3F0F9', teal: '#48A1D8
  * milestones as flags, and a "you are here" marker. items = plan items with week, done, owner, kind, title.
  */
 export function roadmap({ items, week, weeks = 12, phases, hrefFor = () => null }) {
+  if (small()) return roadmapVertical({ items, week, weeks, phases, hrefFor });
   const W = 1040, L = 6, R = 6, colW = (W - L - R) / weeks, sq = 15, gap = 5, perRow = Math.max(1, Math.floor((colW - 8) / (sq + gap)));
   const mine = (w) => items.filter((i) => i.week === w && (i.owner || 'you') === 'you');
   const rows = Math.max(1, ...Array.from({ length: weeks }, (_, k) => Math.ceil(mine(k + 1).length / perRow)));
@@ -104,7 +107,7 @@ export function roadmap({ items, week, weeks = 12, phases, hrefFor = () => null 
 
 /** Readiness over the 12 weeks: where you started, the path so far, and the projected path to where you will be. */
 export function trajectoryChart({ trajectory, start, now, end, target, week, weeks = 12 }) {
-  const W = 520, H = 280, l = 40, r = 74, t = 24, b = 30, iw = W - l - r, ih = H - t - b;
+  const W = small() ? 400 : 520, H = 280, l = 40, r = 74, t = 24, b = 30, iw = W - l - r, ih = H - t - b;
   const lo = Math.max(0, Math.floor(Math.min(start, now, ...trajectory.map((p) => p.v)) / 10) * 10 - 10), hi = 100;
   const x = (w) => l + (w / weeks) * iw, y = (v) => t + ih - ((v - lo) / (hi - lo)) * ih;
   let g = '';
@@ -129,4 +132,37 @@ export function trajectoryChart({ trajectory, start, now, end, target, week, wee
 export function donut(pct, { size = 64, label = null } = {}) {
   const r = 26, c = 2 * Math.PI * r, d = (Math.max(0, Math.min(100, pct)) / 100) * c;
   return svg(`<svg viewBox="0 0 64 64" width="${size}" height="${size}" role="img" aria-label="${pct}% done"><circle cx="32" cy="32" r="${r}" fill="none" stroke="${P.grid}" stroke-width="8"/><circle cx="32" cy="32" r="${r}" fill="none" stroke="${P.primary}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${d} ${c}" transform="rotate(-90 32 32)"/><text x="32" y="36" font-size="${label ? 12 : 14}" font-weight="800" fill="${P.deep}" text-anchor="middle">${label ?? `${pct}%`}</text></svg>`);
+}
+
+/** Phones: the same roadmap, one row per week, read top to bottom. */
+function roadmapVertical({ items, week, weeks, phases, hrefFor }) {
+  const W = 360, rowH = 34, lab = 44, top = 4, H = top + weeks * rowH + 8;
+  const phaseOf = (w) => phases.find((p) => w >= p.weeks[0] && w <= p.weeks[1]);
+  let g = '';
+  for (let w = 1; w <= weeks; w++) {
+    const y = top + (w - 1) * rowH, p = phaseOf(w), now = w === week;
+    const state = week > p.weeks[1] ? 'past' : week >= p.weeks[0] ? 'now' : 'next';
+    if (w === p.weeks[0]) g += `<rect x="0" y="${y + 2}" width="5" height="${(p.weeks[1] - p.weeks[0] + 1) * rowH - 4}" rx="2.5" fill="${state === 'now' ? P.primary : state === 'past' ? P.green : P.soft}"/><text x="${W - 4}" y="${y + 13}" font-size="10" font-weight="800" fill="${state === 'now' ? P.primary : P.muted}" text-anchor="end">${esc(p.name.toUpperCase())}</text>`;
+    if (now) g += `<rect x="9" y="${y + 1}" width="${W - 9}" height="${rowH - 2}" rx="8" fill="${P.soft}"/>`;
+    g += `<text x="14" y="${y + rowH / 2 + 4}" font-size="12" font-weight="${now ? 800 : 600}" fill="${now ? P.coral : P.muted}">W${w}</text>`;
+    let x = lab;
+    for (const it of items.filter((i) => i.week === w && i.owner === 'jack')) {
+      const col = it.done ? P.green : it.kind === 'milestone' ? P.coral : P.primary;
+      const label = it.kind === 'milestone' ? 'Retest' : /mock/i.test(it.title) ? 'Mock call' : /mid/i.test(it.key) ? 'Mid-point' : /kick/i.test(it.key) ? 'Kick-off' : 'Jack';
+      const fw = label.length * 6.2 + 14;
+      g += `<g><title>${esc(it.title)}</title><rect x="${x}" y="${y + 8}" width="${fw}" height="18" rx="5" fill="${col}"/><text x="${x + 7}" y="${y + 21}" font-size="10.5" font-weight="700" fill="#fff">${it.done ? '✓ ' : ''}${esc(label)}</text></g>`;
+      x += fw + 6;
+    }
+    for (const it of items.filter((i) => i.week === w && (i.owner || 'you') === 'you')) {
+      if (x > W - 84) { g += `<text x="${x}" y="${y + 21}" font-size="11" fill="${P.muted}">…</text>`; break; }
+      const due = !it.done && w < week, cur = !it.done && w === week;
+      const fill = it.done ? P.deep : due ? P.coral : '#fff', stroke = it.done ? P.deep : due ? P.coral : cur ? P.primary : P.faint;
+      const shape = `<rect x="${x}" y="${y + 9}" width="16" height="16" rx="3.5" fill="${fill}" stroke="${stroke}" stroke-width="${cur ? 2 : 1.4}"><title>Week ${w}: ${esc(it.title)}</title></rect>`;
+      const href = hrefFor(it);
+      g += href ? `<a href="${esc(href)}">${shape}</a>` : shape;
+      x += 21;
+    }
+    if (now) g += `<text x="${W - 4}" y="${y + rowH - 6}" font-size="10" font-weight="800" fill="${P.coral}" text-anchor="end">YOU ARE HERE</text>`;
+  }
+  return svg(`<svg class="chart roadmap" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Your 12-week roadmap, week ${week} of ${weeks}">${g}</svg>`);
 }
