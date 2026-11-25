@@ -1,0 +1,4 @@
+email,scenario,correct,total
+jane.doe@example.com,teams,4,6
+jane.doe@example.com,onsite,5,5
+jane.doe@example.com,overall,41,50

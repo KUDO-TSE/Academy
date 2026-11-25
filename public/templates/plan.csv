@@ -1,0 +1,3 @@
+email,month,title,description,scenario,kind,delivery,due_date,link
+jane.doe@example.com,1,MS Teams Integration team session,Covers where attendees pick their language and the 1000 attendee cap,teams,session,both,2026-11-25,
+jane.doe@example.com,1,Read the Teams section of the CM Onboarding Guide,,teams,resource,both,2026-12-04,https://example.com/guide
