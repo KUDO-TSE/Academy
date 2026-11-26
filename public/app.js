@@ -1,4 +1,4 @@
-import { h, api, toast, modal, icon, initials, svg } from './ui.js';
+import { h, api, toast, modal, icon, initials, svg, quiet } from './ui.js';
 import { resultsView, progressView } from './views-trainee.js';
 import * as A from './views-admin.js';
 import * as P from './views-admin-programme.js';
@@ -174,6 +174,7 @@ async function route() {
       view = TRAINEE_ROUTES[r](data, { onChange: () => {} });
     }
     main.replaceChildren(view);
+    if (!main.dataset.quiet) { main.dataset.quiet = '1'; quiet(main); }
     main.scrollTop = 0;
     if ((!isAdmin || meMode) && r !== 'collection' && !r.startsWith('sandbox-')) revealNew();
   } catch (e) {

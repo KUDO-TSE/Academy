@@ -116,7 +116,7 @@ export async function buildBoard() {
     const u = users.get(s.user_id); if (!u) continue;
     const age = Math.floor((Date.now() - new Date(s.created_at).getTime()) / DAY);
     const why = s.human_requested ? 'The trainee asked for your view' : s.status === 'submitted' ? 'The automatic review could not run' : s.auto?.flags?.length ? `Flagged: ${s.auto.flags.join('; ')}` : s.auto?.rating === 'gap' ? 'Scored as a gap: confirm before it counts' : 'Random spot-check';
-    add({ key: `review:${s.id}`, type: 'review', person: u.name, userId: u.id, demo: u.is_demo, title: `${s.status === 'auto' ? 'Spot-check' : 'Review'} the ${s.kind === 'practice' ? 'practice' : 'recording'}: ${MODULE_BY_KEY[s.module_key]?.title || s.module_key}`, detail: `${why}. Sent ${age === 0 ? 'today' : `${age} day${age > 1 ? 's' : ''} ago`}`, minutes: MIN.review, due: iso(today), urgency: age >= 3 ? 'now' : 'this_week', link: '#reviews' });
+    add({ key: `review:${s.id}`, type: 'review', sub: s.kind === 'practice' ? 'practice' : 'recording', person: u.name, userId: u.id, demo: u.is_demo, title: `${s.status === 'auto' ? 'Spot-check' : 'Review'} the ${s.kind === 'practice' ? 'practice' : 'recording'}: ${MODULE_BY_KEY[s.module_key]?.title || s.module_key}`, detail: `${why}. Sent ${age === 0 ? 'today' : `${age} day${age > 1 ? 's' : ''} ago`}`, minutes: MIN.review, due: iso(today), urgency: age >= 3 ? 'now' : 'this_week', link: '#reviews' });
   }
 
   // 6. Content to fix: low module ratings, or questions that most people miss
@@ -151,6 +151,7 @@ export async function buildBoard() {
   const need = work.reduce((s, t) => s + t.minutes, 0);
   return {
     settings, today: iso(today), weekOf: iso(thisMon),
+    reviewSplit: { recording: tasks.filter((t) => t.type === 'review' && !t.demo && t.sub !== 'practice').length, practice: tasks.filter((t) => t.type === 'review' && !t.demo && t.sub === 'practice').length },
     counts: Object.fromEntries(['approval', 'session', 'review', 'signoff', 'nudge', 'content', 'milestone'].map((k) => [k, tasks.filter((t) => t.type === k && !t.demo).length])),
     tasks: tasks.sort((a, b) => (rank[a.urgency] - rank[b.urgency]) || (typeRank[a.type] - typeRank[b.type])),
     week: { days, overflow, needMinutes: need, capacityMinutes: settings.hours * 60 },

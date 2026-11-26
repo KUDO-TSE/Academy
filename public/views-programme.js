@@ -1,4 +1,4 @@
-import { h, api, toast, fmtDate, svg } from './ui.js';
+import { h, api, toast, fmtDate, svg, tipI } from './ui.js';
 import { trajectoryChart } from './charts.js';
 import { journeyMap } from './journey.js';
 import { SCENARIOS as SANDBOXES } from './sandbox.js';
@@ -31,9 +31,9 @@ function itemRow(it, { readOnly, compact } = {}) {
     h('div', { class: 'pi-main' },
       h('div', { class: 'pi-t' }, href && !readOnly ? h('a', { href }, it.title) : it.title),
       h('div', { class: 'pi-meta' }, h('span', { class: `chip ${KIND_CHIP[it.kind] || 'grey'}` }, KIND_LABEL[it.kind] || it.kind), h('span', { class: 'muted small' }, `${it.minutes} min`),
-        it.owner === 'jack' ? h('span', { class: 'muted small' }, 'Your KUDO Trainer books this') : null, it.mandatory ? h('span', { class: 'muted small' }, 'Core') : null,
+        it.owner === 'jack' ? h('span', { class: 'muted small' }, 'Your KUDO Trainer books this') : null, it.mandatory ? h('span', { class: 'muted small' }, 'Core') : null, !compact && it.why ? tipI(it.why) : null,
         it.recorded != null ? h('span', { class: `chip ${it.below ? 'amber' : 'green'}` }, `Recorded ${it.recorded}%`) : null, it.signoff && it.done ? h('span', { class: `chip ${it.signed_off ? 'green' : 'grey'}` }, it.signed_off ? 'Signed off' : 'Waiting for sign-off') : null, it.how ? h('span', { class: 'muted small' }, it.how) : null),
-      !compact && it.why ? h('div', { class: 'pi-why' }, it.why) : null),
+      null),
     href && !readOnly && !it.done && !compact ? h('a', { class: 'btn sm', href }, ACTION[it.kind] || 'Open') : null);
 }
 
@@ -45,8 +45,7 @@ function levelBars(levels) {
       h('div', { class: 'lv-track', title: `${l.note}. Likely between ${Math.max(0, l.now - 10)}% and ${Math.min(100, l.now + 10)}%: a short check is one question away from 15 points.` },
         h('i', { class: 'lv-base', style: `width:${l.baseline}%` }), h('i', { class: 'lv-now', style: `width:${l.now}%` }),
         h('i', { class: 'lv-range', style: `left:${Math.max(0, l.now - 10)}%;width:${Math.min(100, l.now + 10) - Math.max(0, l.now - 10)}%` }), h('i', { class: 'lv-tgt', style: `left:${l.target}%` })),
-      h('div', { class: 'lv-val' }, h('b', null, `${l.now}%`), l.baseline != null && l.now - l.baseline >= 5 ? h('span', { class: 'chip green', title: 'Since the start of your plan' }, `+${l.now - l.baseline}`) : h('span', { class: 'muted small' }, '±10'), h('span', { class: `chip ${BAND_CHIP[l.band.key]}` }, l.band.label)))),
-    h('p', { class: 'muted small', style: 'margin-top:6px' }, 'Each level is an estimate. The thin line under each bar shows where it most likely sits; small moves inside it do not change your plan.'));
+      h('div', { class: 'lv-val' }, h('b', null, `${l.now}%`), l.baseline != null && l.now - l.baseline >= 5 ? h('span', { class: 'chip green', title: 'Since the start of your plan' }, `+${l.now - l.baseline}`) : h('span', { class: 'muted small' }, '±10'), h('span', { class: `chip ${BAND_CHIP[l.band.key]}` }, l.band.label)))));
 }
 
 
@@ -123,6 +122,8 @@ export function programmeView(data, { readOnly = false, banner = null } = {}) {
   // This week = what is due by now and not done yet, on the trainee's side, oldest first.
   const thisWeek = st.items.filter((i) => !i.done && (i.owner || 'you') === 'you' && i.week <= st.week).sort((a, b) => a.week - b.week).slice(0, 6);
   const fmtMin = (m) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? `${m % 60} min` : ''}`.trim() : `${m} min`);
+  // Your steps only (the KUDO Trainer's sessions are theirs to book): the same count as the 12-week map.
+  const mySteps = st.items.filter((i) => (i.owner || 'you') === 'you'), myDone = mySteps.filter((i) => i.done).length, myPct = mySteps.length ? Math.round((myDone / mySteps.length) * 100) : 0;
   const reached = st.levels.filter((l) => l.now >= l.target && (l.baseline ?? 0) < l.target);
 
   return h('div', { class: 'page prog' }, banner,
@@ -130,40 +131,40 @@ export function programmeView(data, { readOnly = false, banner = null } = {}) {
       h('div', { class: 'hero-main' },
         h('div', { class: 'eyebrow' }, `${first(data.user.name)}'s KUDO Academy programme`),
         h('h1', null, settings.goal),
-        h('div', { class: 'hero-meta' }, h('span', null, `Week ${st.week} of ${st.weeks}`), h('span', null, 'Self-paced: work through it any time in the week'), st.started_on ? h('span', null, `Started ${fmtDate(st.started_on)}`) : null),
+        h('div', { class: 'hero-meta' }, h('span', null, `Week ${st.week} of ${st.weeks} `, tipI('Self-paced: work through each week any time in the week.')), st.started_on ? h('span', null, `Started ${fmtDate(st.started_on)}`) : null),
         data.message ? h('div', { class: 'hero-msg' }, h('b', null, 'From your KUDO Trainer: '), data.message) : null),
-      h('div', { class: 'hero-ring' }, h('div', { class: 'ring big', style: `--p:${st.progress.pct}`, role: 'img', 'aria-label': `${st.progress.pct}% of your plan done` }, h('b', null, `${st.progress.pct}%`)),
-        h('div', null, `${st.progress.done} of ${st.progress.total} steps done`), h('span', { class: `chip ${paceChip[0]}` }, paceChip[1]))),
+      h('div', { class: 'hero-ring' }, h('div', { class: 'ring big', style: `--p:${myPct}`, role: 'img', 'aria-label': `${myPct}% of your steps done` }, h('b', null, `${myPct}%`)),
+        h('div', null, `${myDone} of ${mySteps.length} steps`), h('span', { class: `chip ${paceChip[0]}` }, paceChip[1]))),
+
+    h('div', { class: 'grid g-8-4', style: 'margin-top:16px;margin-bottom:16px' },
+      h('div', { class: 'card this-week' }, h('div', { class: 'row spread' }, h('h2', null, thisWeek.length ? 'This week' : 'Up next'),
+          h('span', { class: 'muted small' }, thisWeek.length ? `${thisWeek.length} step${thisWeek.length > 1 ? 's' : ''} · about ${fmtMin(thisWeek.reduce((t, i) => t + (i.minutes || 0), 0))}` : 'You are ahead of your plan')),
+        thisWeek.length ? thisWeek.map((it) => itemRow(it, { readOnly })) : st.next.length ? st.next.map((it) => itemRow(it, { readOnly })) : h('div', { class: 'ok', style: 'margin-top:10px' }, 'Everything on your side is done. Well done.'),
+        st.jackNext.length ? h('div', { class: 'jack-next' }, h('b', null, 'Coming up with your KUDO Trainer: '), st.jackNext.map((i) => i.title.replace(/\s*with your KUDO Trainer:?\s*/i, ': ').replace(/^: /, '').replace(/:\s*$/, '')).join(' · ')) : null,
+        readOnly ? null : challengeCard()),
+      h('div', { class: 'card focus-card' }, h('h2', null, 'Why these three focus areas'), h('p', { class: 'sub' }, plan.focusPinned ? 'Chosen with your KUDO Trainer' : 'Picked from your results, your clients and the team priorities'),
+        plan.focus.length ? plan.focus.map((s) => { const l = st.levels.find((x) => x.scenario === s); return h('div', { class: 'focus-why' }, h('div', { class: 'row spread' }, h('b', null, l.label, ' ', tipI(`Because ${plan.focusReasons[s]}.`)), h('span', { class: `chip ${BAND_CHIP[l.band.key]}` }, `${l.now}% → ${l.target}%`)), ); }) : h('div', { class: 'muted' }, 'You are already at target on every scenario: your plan keeps it sharp and proves it.'),
+        plan.tip ? h('div', { class: 'tip' }, h('b', null, 'How you like to learn: '), plan.tip) : null,
+        readOnly ? null : focusChoice())),
 
     h('section', { class: 'card roadmap-card' },
       h('div', null, h('h2', null, 'Your 12 weeks at a glance'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, 'Four phases, one stop per week. Each stop shows what the week covers, how much of it is done and when you meet your KUDO Trainer')),
       journeyMap({ items: st.items, week: st.week, weeks: st.weeks, phases: data.phases, levels: st.levels, modules: data.modules, hrefFor: readOnly ? () => null : itemHref })),
     h('section', { class: 'journey' },
-      h('div', { class: 'card jr' }, h('div', { class: 'jr-k' }, '1 · Where you are now'), h('div', { class: 'jr-big' }, `${st.readiness.now}%`), h('div', { class: 'muted' }, `Average readiness across the 12 scenarios. Ready on ${st.readiness.ready} of ${st.readiness.of}.`),
+      h('div', { class: 'card jr' }, h('div', { class: 'jr-k' }, '1 · Where you are now'), h('div', { class: 'jr-big' }, `${st.readiness.now}%`), h('div', { class: 'muted' }, `Ready on ${st.readiness.ready} of ${st.readiness.of} `, tipI('Average readiness across the 12 scenarios, from your October results and your Academy tests.')),
         st.readiness.now !== st.readiness.start ? h('div', { class: 'small', style: 'margin-top:6px' }, `You started at ${st.readiness.start}%.`) : null,
         h('div', { class: 'jr-chips' }, focusRows.map((l) => h('span', { class: 'chip coral' }, `${l.short} ${l.now}%`))),
         reached.length ? h('div', { class: 'milestone' }, h('b', null, 'Target reached: '), reached.map((l) => l.short).join(', ')) : null),
       h('div', { class: 'card jr wide' }, h('div', { class: 'jr-k' }, '2 · Your readiness, week by week'),
         trajectoryChart({ trajectory: st.trajectory || [], start: st.readiness.start, now: st.readiness.now, end: st.readiness.end, target: Math.round(st.levels.reduce((t, l) => t + l.target, 0) / st.levels.length), week: st.week, weeks: st.weeks }),
         h('div', { class: 'chart-key' }, h('span', null, h('i', { class: 'k-line' }), 'So far'), h('span', null, h('i', { class: 'k-dash' }), 'Where the plan takes you'), h('span', null, h('i', { class: 'k-tgt-line' }), 'Your target'))),
-      h('div', { class: 'card jr' }, h('div', { class: 'jr-k' }, '3 · Where you will be'), h('div', { class: 'jr-big' }, `${st.readiness.end}%`), h('div', { class: 'muted' }, `Ready on all ${st.readiness.of} scenarios at your role's depth:`),
-        h('ul', { class: 'jr-out' }, st.outcomes.map((o) => h('li', null, h('b', null, `${o.label}: `), o.can.toLowerCase(), ' — ', h('span', { class: 'muted' }, o.scenarios.join(', '))))))),
-
-    h('div', { class: 'grid g-8-4', style: 'margin-top:16px' },
-      h('div', { class: 'card this-week' }, h('div', { class: 'row spread' }, h('h2', null, thisWeek.length ? 'This week' : 'Up next'),
-          h('span', { class: 'muted small' }, thisWeek.length ? `${thisWeek.length} step${thisWeek.length > 1 ? 's' : ''} · about ${fmtMin(thisWeek.reduce((t, i) => t + (i.minutes || 0), 0))}` : 'You are ahead of your plan')),
-        thisWeek.length ? thisWeek.map((it) => itemRow(it, { readOnly })) : st.next.length ? st.next.map((it) => itemRow(it, { readOnly })) : h('div', { class: 'ok', style: 'margin-top:10px' }, 'Everything on your side is done. Well done.'),
-        st.jackNext.length ? h('div', { class: 'jack-next' }, h('b', null, 'Coming up with your KUDO Trainer: '), st.jackNext.map((i) => i.title).join(' · ')) : null),
-      h('div', { class: 'card focus-card' }, h('h2', null, 'Why these three focus areas'), h('p', { class: 'sub' }, plan.focusPinned ? 'Chosen with your KUDO Trainer' : 'Picked from your results, your clients and the team priorities'),
-        plan.focus.length ? plan.focus.map((s) => { const l = st.levels.find((x) => x.scenario === s); return h('div', { class: 'focus-why' }, h('div', { class: 'row spread' }, h('b', null, l.label), h('span', { class: `chip ${BAND_CHIP[l.band.key]}` }, `${l.now}% → ${l.target}%`)), h('div', { class: 'muted small' }, `Because ${plan.focusReasons[s]}.`)); }) : h('div', { class: 'muted' }, 'You are already at target on every scenario: your plan keeps it sharp and proves it.'),
-        plan.tip ? h('div', { class: 'tip' }, h('b', null, 'How you like to learn: '), plan.tip) : null,
-        readOnly ? null : focusChoice())),
+      h('div', { class: 'card jr' }, h('div', { class: 'jr-k' }, '3 · Where you will be'), h('div', { class: 'jr-big' }, `${st.readiness.end}%`), h('div', { class: 'muted' }, `Ready on all ${st.readiness.of} at your role's depth`),
+        h('ul', { class: 'jr-out' }, st.outcomes.map((o) => h('li', null, h('b', null, o.label, ' ', tipI(o.can)), h('div', { class: 'muted small' }, o.scenarios.join(', '))))))),
 
     readOnly ? null : whatsNewCard(st),
+    h('div', { class: 'card levels-card', style: 'margin-top:16px' }, h('h2', null, 'Your level, scenario by scenario', ' ', tipI('The light bar is where you started in October, the dark bar is where you are now, the line is your target. Targets depend on what your role needs: Set up 80%, Hand over 70%. Each level is an estimate: the thin line under each bar shows where it most likely sits, and small moves inside it do not change your plan.')), levelBars(st.levels)),
     readOnly ? null : h('div', { style: 'margin-top:16px' }, collectionStrip()),
     readOnly ? null : h('div', { style: 'margin-top:16px' }, spacedCard()),
-    readOnly ? null : h('div', { style: 'margin-top:16px' }, challengeCard()),
-    h('div', { class: 'card levels-card', style: 'margin-top:16px' }, h('h2', null, 'Your level, scenario by scenario'), h('p', { class: 'sub' }, 'The light bar is where you started in October, the dark bar is where you are now, the line is your target. Targets depend on what your role needs: Set up 80%, Hand over 70%.'), levelBars(st.levels)),
 
     h('h2', { class: 'sec-h plan-weeks' }, 'Your plan, week by week'), h('p', { class: 'sub' }, 'The phase you are in is open. Open the others to look back or ahead.'),
     h('div', { class: 'phases' }, byPhase.map((p) => {
@@ -176,7 +177,6 @@ export function programmeView(data, { readOnly = false, banner = null } = {}) {
     })),
 
     data.shared?.length ? h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Notes from your KUDO Trainer sessions'), data.shared.map((n) => h('div', { class: 'note-box' }, h('b', null, n.title), h('div', null, n.text), h('div', { class: 'when' }, fmtDate(n.on))))) : null,
-    h('p', { class: 'muted small', style: 'margin-top:18px' }, 'Your plan updates as you go. Your levels move only with your test results (see My results). When the plan itself needs to change, your KUDO Trainer reviews it first.'),
   );
 }
 
@@ -331,7 +331,8 @@ function sandboxOne(key, replaced) {
     last.replaceChildren(h('b', null, `Result of record: ${rec.score}%`), rec.score >= 80 ? h('span', { class: 'chip green', style: 'margin-left:8px' }, 'Passed') : h('span', { class: 'chip amber', style: 'margin-left:8px' }, 'Below 80%'), runs.length > 1 ? ` · ${runs.length - 1} practice run${runs.length > 2 ? 's' : ''}, best ${Math.max(...runs.map((r) => r.score))}%` : '');
   }).catch(() => {});
   return h('div', { class: 'sbx-entry' },
-    h('div', null, h('span', { class: 'chip blue' }, 'Sandbox'), h('h3', null, `Scenario ${sc.num}: ${sc.title}`), h('p', null, sc.request),
-      h('p', { class: 'muted small' }, 'You do it on a replica of the KUDO screens, with test data. Everything you click is recorded: you get a score (outcome, path, time), your path next to the expert\'s, and what you missed. Your first run is your result of record' + (sc.replaces ? '; passing it (80%) signs this practice off.' : replaced ? '.' : '. The written task below is still part of this step.')), last),
+    h('div', null, h('span', { class: 'chip blue' }, 'Sandbox'), h('h3', null, `Scenario ${sc.num}: ${sc.title}`), h('p', { class: 'sbx-req', title: sc.request }, sc.request),
+      h('div', { class: 'row', style: 'gap:6px;margin-top:6px' }, h('span', { class: 'chip grey' }, 'Replica of the KUDO screens'), h('span', { class: 'chip grey' }, 'Scored'), h('span', { class: 'chip grey' }, 'First run counts'),
+        tipI('Everything you click is recorded: you get a score (outcome, path, time), your path next to the expert\'s, and what you missed. Your first run is your result of record' + (sc.replaces ? '; passing it (80%) signs this practice off.' : replaced ? '.' : '. The written task below is still part of this step.'))), last),
     h('a', { class: 'btn primary', href: `#sandbox-${key}` }, 'Open the sandbox'));
 }

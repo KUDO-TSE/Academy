@@ -38,7 +38,7 @@ export async function boardView() {
     h('div', { class: 'grid g4' },
       h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Sessions to hold'), h('div', { class: 'value' }, c.session), h('div', { class: 'note' }, 'This week, next week and overdue')),
       h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Approvals'), h('div', { class: 'value' }, c.approval), h('div', { class: 'note' }, 'Plans and plan changes')),
-      h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Reviews and sign-offs'), h('div', { class: 'value' }, c.review + c.signoff), h('div', { class: 'note' }, `${c.review} recordings · ${c.signoff} practice tasks`)),
+      h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Reviews and sign-offs'), h('div', { class: 'value' }, c.review + c.signoff), h('div', { class: 'note' }, [b.reviewSplit ? `${b.reviewSplit.recording} recording${b.reviewSplit.recording === 1 ? '' : 's'}` : `${c.review} reviews`, b.reviewSplit?.practice ? `${b.reviewSplit.practice} practice` : null, c.signoff ? `${c.signoff} sign-off${c.signoff === 1 ? '' : 's'}` : null].filter(Boolean).join(' · '))),
       h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Trainees to nudge'), h('div', { class: 'value' }, c.nudge), h('div', { class: 'note' }, 'Behind pace or inactive'))),
 
     h('div', { class: 'card', style: 'margin-top:16px' },

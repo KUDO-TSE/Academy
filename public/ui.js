@@ -89,3 +89,16 @@ export function importsHead(active, desc, action = null) {
   return [h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Imports'), h('p', null, desc)), action),
     h('nav', { class: 'tabs', 'aria-label': 'What to import' }, T.map(([k, l]) => h('a', { href: `#${k}`, class: k === active ? 'on' : null, 'aria-current': k === active ? 'page' : null }, l)))];
 }
+
+/** An (i) that holds an explanation: shown on hover, focus or tap. Keeps sentences off the screen. */
+export function tipI(text) { return h('span', { class: 'tip-i', tabindex: 0, role: 'note', 'aria-label': text, 'data-tip': text }, 'i'); }
+/** Wordless pass: a card's descriptive sentence under its title moves into the (i) next to the title.
+ *  Lines that carry numbers or status stay on screen; add class "keep" to keep any other line. */
+export function quiet(root) {
+  const run = () => root.querySelectorAll(':is(h2, h3) + p.sub:not([data-q])').forEach((p) => {
+    p.dataset.q = '1'; const t = p.textContent.trim();
+    if (!t || /\d/.test(t) || p.classList.contains('keep')) return;
+    p.previousElementSibling.append(' ', tipI(t)); p.remove();
+  });
+  run(); new MutationObserver(run).observe(root, { childList: true, subtree: true });
+}
