@@ -30,8 +30,11 @@ function slideView(s, { onNext, toPractice }) {
     h('div', { class: 'st-text' }, h('div', { class: 'st-tag' }, `Step ${s.step}`), h('h3', { class: 'st-title' }, s.title), h('p', { class: 'st-say' }, s.say)), mockView(s.mock));
   if (s.kind === 'decide') {
     const out = h('div', { class: 'st-then', 'aria-live': 'polite' });
-    const opts = h('div', { class: 'st-opts' }, s.options.map((o) => h('button', { class: 'st-opt', type: 'button', on: { click: (e) => {
-      opts.querySelectorAll('.st-opt').forEach((b, i) => { b.classList.toggle('ok', !!s.options[i].ok); b.disabled = true; });
+    // A fixed order per decision, mixed so the right answer has no predictable place (same every visit).
+    const hash = (t) => [...t].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+    const options = [...s.options].sort((a, b) => hash(s.question + a.t) - hash(s.question + b.t));
+    const opts = h('div', { class: 'st-opts' }, options.map((o) => h('button', { class: 'st-opt', type: 'button', on: { click: (e) => {
+      opts.querySelectorAll('.st-opt').forEach((b, i) => { b.classList.toggle('ok', !!options[i].ok); b.disabled = true; });
       e.currentTarget.classList.add(o.ok ? 'picked-ok' : 'picked-no');
       const best = s.options.find((x) => x.ok);
       out.replaceChildren(h('div', { class: `st-cons ${o.ok ? 'ok' : 'no'}` }, h('b', null, o.ok ? 'That is what the expert does. ' : 'What happens: '), o.then),
