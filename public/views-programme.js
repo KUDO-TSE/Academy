@@ -1,6 +1,7 @@
 import { h, api, toast, fmtDate, svg } from './ui.js';
 import { trajectoryChart } from './charts.js';
 import { journeyMap } from './journey.js';
+import { SCENARIOS as SANDBOXES } from './sandbox.js';
 import { collectionStrip } from './collectibles.js';
 import { checkForm, resultView, walkthroughCard, explainCard, feedbackCard, challengeCard, spacedCard } from './assess-ui.js';
 
@@ -252,6 +253,7 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
         (m.practiceTask || m.practiceFull) ? h('div', { class: 'card practice-card' }, h('div', { class: 'eyebrow dark' }, 'Step 2 · Practise'), h('h2', null, 'Do it for real'),
           practiceItem?.done ? h('div', { class: 'ok', style: 'margin-bottom:8px' }, practiceItem.signed_off ? 'Practice passed and signed off' : 'Practice done') : !practiceItem && !admin ? h('p', { class: 'muted small' }, 'Optional for you: not in your plan') : null,
           admin ? h('div', null, h('div', { class: 'explain-prompt' }, m.practiceFull.prompt), h('div', { class: 'muted small' }, `Format: ${{ write: 'written', speak: 'spoken', steps: 'step-by-step account' }[m.practiceFull.type]}. Reviewed automatically.`), h('b', null, 'Key points'), h('ul', null, m.practiceFull.points.map((p) => h('li', null, p))))
+            : SANDBOX_FOR[m.key] ? h('div', null, sandboxBlock(m.key), h('details', { class: 'sbx-old' }, h('summary', null, 'Or describe what you did in a test account'), explainCard(m.key, m.practiceTask, m.practiceSubmissions || [], m.rubric || [], { onDone, kind: 'practice', type: m.practiceTask.type })))
             : explainCard(m.key, m.practiceTask, m.practiceSubmissions || [], m.rubric || [], { onDone, kind: 'practice', type: m.practiceTask.type }),
           m.practice?.length ? h('details', { style: 'margin-top:12px' }, h('summary', null, 'More ways to practise (optional)'), h('ol', { class: 'obj' }, m.practice.map((p) => h('li', null, p)))) : null) : null),
       h('div', { class: 'stack' },
@@ -311,4 +313,20 @@ function whatsNewCard(st) {
     box.hidden = false;
   }).catch(() => {});
   return box;
+}
+
+// ------------------------------------------------------------------ sandbox practice
+const SANDBOX_FOR = Object.fromEntries(Object.entries(SANDBOXES).map(([k, v]) => [v.module, k]));
+function sandboxBlock(moduleKey) {
+  const key = SANDBOX_FOR[moduleKey], sc = SANDBOXES[key];
+  const last = h('div', { class: 'muted small' });
+  api('GET', `/api/me/sandbox/${key}`).then(({ runs }) => {
+    if (!runs.length) { last.textContent = 'Not tried yet'; return; }
+    const rec = runs.find((r) => r.record) || runs[0];
+    last.replaceChildren(h('b', null, `Result of record: ${rec.score}%`), rec.score >= 80 ? h('span', { class: 'chip green', style: 'margin-left:8px' }, 'Passed') : h('span', { class: 'chip amber', style: 'margin-left:8px' }, 'Below 80%'), runs.length > 1 ? ` · ${runs.length - 1} practice run${runs.length > 2 ? 's' : ''}, best ${Math.max(...runs.map((r) => r.score))}%` : '');
+  }).catch(() => {});
+  return h('div', { class: 'sbx-entry' },
+    h('div', null, h('span', { class: 'chip blue' }, 'Sandbox'), h('h3', null, sc.title), h('p', null, sc.request),
+      h('p', { class: 'muted small' }, 'You do it on a replica of the KUDO screens, with test data. Everything you click is recorded: you get a score (outcome, path, time), your path next to the expert\'s, and what you missed. Your first run is your result of record; passing it (80%) signs this practice off.'), last),
+    h('a', { class: 'btn primary', href: `#sandbox-${key}` }, 'Open the sandbox'));
 }

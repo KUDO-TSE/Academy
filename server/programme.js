@@ -89,6 +89,37 @@ meProgramme.get('/progress-live', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// ------------------------------------------------------------------ sandbox practice
+// Runs on the replica of the KUDO screens. The first run is the result of record; passing it (80%) signs the
+// module's practice off. For now a sandbox run, like any practice, does not move the level.
+const SANDBOX = { 'platform-1': 'platform' };
+meProgramme.post('/sandbox/:key', async (req, res, next) => {
+  try {
+    const key = req.params.key, mk = SANDBOX[key]; if (!mk) return res.status(404).json({ error: 'Not found.' });
+    const r = req.body?.result || {}; const ev = Array.isArray(req.body?.events) ? req.body.events.slice(0, 2000) : [];
+    const num = (v) => (Number.isFinite(Number(v)) ? Math.max(0, Math.min(100, Math.round(Number(v)))) : null);
+    const score = num(r.total); if (score == null) return bad(res, 'Missing result.');
+    const result = { total: score, outcome: num(r.outcome), path: num(r.path), time: num(r.time), secs: Math.max(0, Math.round(Number(r.secs) || 0)),
+      checks: (Array.isArray(r.checks) ? r.checks : []).slice(0, 40).map((c) => ({ label: String(c.label || '').slice(0, 200), ok: !!c.ok, w: num(c.w) })),
+      traps: (Array.isArray(r.traps) ? r.traps : []).slice(0, 20).map((t) => String(t).slice(0, 200)), detours: num(r.detours), hints: num(r.hints), actions: Math.round(Number(r.actions) || 0) };
+    const uid = req.user.id;
+    const first = (await q('SELECT 1 FROM sandbox_runs WHERE user_id=$1 AND scenario=$2 LIMIT 1', [uid, key])).rowCount === 0;
+    const row = (await q('INSERT INTO sandbox_runs (user_id,scenario,score,result,events,record,seconds) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', [uid, key, score, result, JSON.stringify(ev), first, result.secs])).rows[0];
+    if (first && score >= 80) {
+      await q(`INSERT INTO plan_progress (user_id,item_key,status,note,completed_at,signed_off_at) VALUES ($1,$2,'done',$3,now(),now())
+        ON CONFLICT (user_id,item_key) DO UPDATE SET status='done', signed_off_at=COALESCE(plan_progress.signed_off_at, now())`, [uid, `${mk}.practice`, `Sandbox: ${score}%`]);
+      await refreshPlan(uid).catch(() => {});
+    }
+    res.json({ id: row.id, record: first, passed: score >= 80 });
+  } catch (e) { next(e); }
+});
+meProgramme.get('/sandbox/:key', async (req, res, next) => {
+  try {
+    if (!SANDBOX[req.params.key]) return res.status(404).json({ error: 'Not found.' });
+    res.json({ runs: (await q('SELECT id,score,record,seconds,result,created_at FROM sandbox_runs WHERE user_id=$1 AND scenario=$2 ORDER BY created_at DESC', [req.user.id, req.params.key])).rows });
+  } catch (e) { next(e); }
+});
+
 meProgramme.get('/modules/:key', async (req, res, next) => {
   try {
     const key = req.params.key, uid = req.user.id;

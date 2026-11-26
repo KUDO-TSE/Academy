@@ -82,7 +82,7 @@ export const MODULES = [
       { title: 'Create the meeting', points: [
         'Sign in at live.kudoway.com with the Client account, select New Meeting and choose AI Translation or Human Interpretation.',
         'Give it a clear name: attendees see it on the QR landing page.',
-        'Set speaker and translation languages, add the Host (Users, Participants, Add Participant) and switch on Automatic Recording in Advanced Settings.',
+        'Set speaker and translation languages and, under Recording and transcript, tick "Automatically record this meeting when it starts". Save, then add the Host: Users, Participants, Add participant, then Make host on their row (or + Add host on the form, two hosts at most).',
         'Advanced Settings also hold the logo and Preparation Time, which opens the room early for rehearsals.',
       ] },
       { title: 'Who gets which link', points: [
@@ -94,20 +94,20 @@ export const MODULES = [
       { title: 'Running it live', points: [
         'The Host joins from the email link in Chrome, Firefox or Edge (not Safari) and checks the source audio reaches KUDO.',
         'Host controls: start and stop recording, end the meeting, manage participants. Ten minutes of practice in a test session makes a big difference.',
-        'Adding a language live: Translation Settings, add the language, restart the translation service. Attendees may need to refresh.',
+        'Adding a language live: Edit meeting, add it to the translation languages, Update, then Restart translation service (the circular arrow on the Overview). It takes a few seconds; attendees may need to refresh.',
         'First troubleshooting step for quality issues: restart the translation service.',
         'The Speedometer shows speaking pace. Red means the AI is struggling: coach speakers to a natural pace.',
       ] },
       { title: 'Time, billing and recordings', points: [
         'Usage is billed from when someone joins an active session until it is stopped. There is a one-hour grace period after the end time, or Force Close stops it on time.',
         'Create all sessions of a multi-session day in advance so links are ready.',
-        'Recordings appear in the Content tab 15 to 20 minutes after the end: one MP4 per language and a VTT transcript per language, including the Floor. Deleted after 30 days.',
+        'Recordings are under Content, Recordings & transcripts, 15 to 20 minutes after the end. Download lists one file per language plus the original audio, each with its transcript, or everything as one zip. Deleted after 30 days.',
       ] },
     ],
     learn: [guide('Product 01 KUDO Platform (setup, live, post-meeting)'), hc('40522205896087', 'Schedule and Configure a KUDO AI Meeting'), hc('28327799023127', 'Advanced Settings for KUDO Meetings'), hc('40843242019095', 'Download KUDO Recordings and Transcripts'), hc('360049665174', 'Is KUDO compatible with all browsers?')],
     practice: [
       'Create a meeting with two speaker languages, three translation languages, a Host and Automatic Recording on.',
-      'Run it with a colleague as Host: add a translation language live, then find the recording in the Content tab afterwards.',
+      'Run it with a colleague as Host: add a translation language live, then find the recording under Content, Recordings & transcripts afterwards. Or practise it in the sandbox.',
     ],
     escalate: [
       'Recording missing after 20 minutes and a refresh: Technical Support, with the meeting ID and end time.',
@@ -144,7 +144,7 @@ export const MODULES = [
         'Attendees can keep the original audio and read translated captions at the same time.',
       ] },
       { title: 'Live changes', points: [
-        'Translation languages can be added live (Edit Meeting or Translation Settings, then update).',
+        'Translation languages can be added live: Edit meeting, Update, then Restart translation service.',
         'Speaker languages and AI customisation are locked during the live session.',
         'A stopped AI meeting can never be restarted.',
         'Choose the voice variant where relevant, such as European or Latin American Spanish.',

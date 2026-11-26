@@ -329,3 +329,17 @@ UPDATE inputs SET title = replace(title, ' with Jack', ' with your KUDO Trainer'
 UPDATE plan_items SET title = replace(title, ' with Jack', ' with your KUDO Trainer') WHERE title LIKE '% with Jack%';
 UPDATE plans SET data = replace(data::text, 'Your KUDO Trainer reviews it and it counts towards your level.', 'It is reviewed automatically and your KUDO Trainer spot-checks it.')::jsonb
   WHERE data::text LIKE '%it counts towards your level%';
+
+-- ---- Sandbox practice (v9): runs on a replica of the KUDO screens. The first run is the result of record.
+CREATE TABLE IF NOT EXISTS sandbox_runs (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  scenario TEXT NOT NULL,
+  score INT NOT NULL,
+  result JSONB NOT NULL,
+  events JSONB NOT NULL DEFAULT '[]',
+  record BOOLEAN NOT NULL DEFAULT false,
+  seconds INT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS sandbox_runs_user ON sandbox_runs (user_id, scenario, created_at);

@@ -9,6 +9,7 @@ import { sessionsView, sessionView } from './views-sessions.js';
 import { releasesView, releaseView } from './views-releases.js';
 import { collectionView, revealNew, cardArt } from './collectibles.js';
 import { startTour, tourFor } from './tour.js';
+import { sandboxView, SCENARIOS as SANDBOXES } from './sandbox.js';
 
 const root = document.getElementById('app');
 let me = null;
@@ -127,7 +128,7 @@ function shell() {
 // ------------------------------------------------------------ Router
 const TRAINEE_ROUTES = { programme: null, collection: null, results: resultsView, progress: progressView };
 const ADMIN_ROUTES = { try: () => P.tryView(me), board: boardView, overview: A.overviewView, team: A.teamView, priorities: A.prioritiesView, programme: P.programmeOverview, reviews: P.reviewsView, sessions: sessionsView, releases: releasesView, feedback: P.feedbackView, curriculum: () => P.curriculumView(), imports: A.importView, users: A.usersView, audit: A.auditView, logic: A.logicView };
-const isTraineeDyn = (r) => r.startsWith('module-') || r === 'missed' || r === 'survey';
+const isTraineeDyn = (r) => r.startsWith('module-') || r.startsWith('sandbox-') || r === 'missed' || r === 'survey';
 const isAdminDyn = (r) => r.startsWith('session-') || r.startsWith('release-') || r.startsWith('person-') || r.startsWith('preview') || r.startsWith('pview-') || r.startsWith('curriculum-');
 
 async function route() {
@@ -137,7 +138,7 @@ async function route() {
   const isAdmin = me.role === 'admin';
   let meMode = isAdmin && me.isTrainee && r.startsWith('me-');
   if (meMode) r = r.slice(3);
-  if (isAdmin && !meMode && isTraineeDyn(r)) { if (me.isTrainee) meMode = true; else r = r.startsWith('module-') ? `curriculum-${r.slice(7).split('~')[0]}` : 'overview'; }
+  if (isAdmin && !meMode && isTraineeDyn(r)) { if (me.isTrainee || r.startsWith('sandbox-')) meMode = true; else r = r.startsWith('module-') ? `curriculum-${r.slice(7).split('~')[0]}` : 'overview'; }
   const okTrainee = (x) => x in TRAINEE_ROUTES || isTraineeDyn(x);
   if (isAdmin && !meMode && r in TRAINEE_ROUTES && !(r in ADMIN_ROUTES)) r = 'overview';
   if (!isAdmin && !okTrainee(r)) r = 'programme';
@@ -166,6 +167,7 @@ async function route() {
       if (r === 'programme') view = programmeView(prog);
       else if (r === 'missed') view = await missedView({ rerender, planItems: items });
       else if (r === 'survey') view = await surveyView();
+      else if (r.startsWith('sandbox-')) { const key = r.slice(8); view = sandboxView(key, { onExit: (again) => { if (again) route(); else location.hash = `${meMode ? 'me-' : ''}module-${SANDBOXES[key]?.module || 'platform'}`; } }); }
       else view = await moduleRoute(r.slice(7), { planItems: items, rerender });
     } else {
       const data = await api('GET', '/api/me');

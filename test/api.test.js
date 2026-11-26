@@ -603,3 +603,19 @@ test('explain-it of record counts like a test, and the KUDO Trainer\'s review re
   await q("INSERT INTO submissions (user_id,module_key,kind,counts,status,rubric,text_answer) VALUES ($1,'widget','explain',false,'auto',$2,'y')", [id, { accurate: 1, complete: 1, clear: 1, handover: 1 }]);
   assert.equal((await lvl()).scenarios.find((s) => s.key === 'widget').now, w2);
 });
+
+test('sandbox: the first run is the result of record and a pass signs the practice off', async () => {
+  const d = client(); await d('POST', '/api/auth/login', { email: 'dana@test.local', password: 'Quiet-valley-pass-73' });
+  const id = (await q("SELECT id FROM users WHERE email='dana@test.local'")).rows[0].id;
+  await q("DELETE FROM plan_progress WHERE user_id=$1 AND item_key='platform.practice'", [id]);
+  assert.equal((await d('POST', '/api/me/sandbox/nope', { result: { total: 90 } })).status, 404);
+  assert.equal((await d('POST', '/api/me/sandbox/platform-1', { result: {} })).status, 400);
+  const r1 = await d('POST', '/api/me/sandbox/platform-1', { result: { total: 92, outcome: 100, path: 70, time: 100, secs: 250, checks: [{ label: 'x', ok: true, w: 10 }], traps: [] }, events: [{ t: 1, type: 'click', what: 'Log in' }] });
+  assert.equal(r1.status, 200); assert.equal(r1.json.record, true); assert.equal(r1.json.passed, true);
+  assert.ok((await q("SELECT signed_off_at FROM plan_progress WHERE user_id=$1 AND item_key='platform.practice'", [id])).rows[0]?.signed_off_at, 'a pass signs the practice off');
+  const r2 = await d('POST', '/api/me/sandbox/platform-1', { result: { total: 400 } });
+  assert.equal(r2.json.record, false, 'later runs are practice');
+  const runs = (await d('GET', '/api/me/sandbox/platform-1')).json.runs;
+  assert.equal(runs.length, 2); assert.equal(runs[0].score, 100, 'scores are clamped to 0-100');
+  assert.equal((await client()('GET', '/api/me/sandbox/platform-1')).status, 401);
+});

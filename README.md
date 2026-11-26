@@ -180,6 +180,10 @@ The admin edits and applies. Trainees then see a "New in KUDO" card on their pro
 
 The coaching role is called "your KUDO Trainer" everywhere trainees read it (plan items, lessons, reviews, tour), so the role can change hands without editing the content. Stored plans are rewritten once at start-up.
 
+## Sandbox practice (pilot)
+
+`public/sandbox.js`: a replica of the KUDO screens a scenario needs, rebuilt from an expert's screen recording, with test data. Scenario 1 (Platform: create the meeting, add the Host, record, start, add Spanish live, restart the translation service, end, find the recordings) is reached from the Platform lesson (Step 2) or `#sandbox-platform-1`. Every click, field, screen, detour, mistake and hint is recorded. Score = outcome 70% (11 checks on the final state), path 20% (detours, mistakes, hints), time 10% (full marks up to 5 minutes). The report shows the checks, the mistakes, the expert's 15 steps and the trainee's own path. Runs are saved in `sandbox_runs`; the first is the result of record and a pass (80%) signs the module's practice off. Sandbox runs do not move the level yet (decision pending).
+
 ## Phones and laptops
 
 The app adapts below 860 px wide: the menu becomes a top bar with a menu button (drawer), trainees get a tab bar at the bottom (Programme, Collection, Results, Progress), grids stack, tables scroll sideways, and charts are redrawn for the screen (the 12-week route turns vertical, one stop per week, and the selected week opens in place; other charts get a narrower drawing so text stays readable). Charts redraw when the screen crosses the phone breakpoint. The guided tour docks its card at the top or bottom on phones and opens the menu drawer for menu steps. Checked at 390 px (iPhone size) and 1400 px.
