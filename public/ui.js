@@ -82,3 +82,10 @@ export const ICON = {
   user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>',
 };
 export const icon = (name) => svg(ICON[name]);
+
+// The Imports section: results and rosters, sessions and release notes share one menu entry and these tabs.
+export function importsHead(active, desc, action = null) {
+  const T = [['imports', 'Results & rosters'], ['sessions', 'Sessions'], ['releases', 'Release notes']];
+  return [h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Imports'), h('p', null, desc)), action),
+    h('nav', { class: 'tabs', 'aria-label': 'What to import' }, T.map(([k, l]) => h('a', { href: `#${k}`, class: k === active ? 'on' : null, 'aria-current': k === active ? 'page' : null }, l)))];
+}

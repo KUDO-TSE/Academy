@@ -15,6 +15,7 @@ import { boardRouter } from './board.js';
 import { warmUp, resumePending } from './autoreview.js';
 import { sessionsRouter, loadFieldItems, failInterrupted } from './sessions.js';
 import { collectiblesRouter } from './collectibles.js';
+import { releasesRouter, whatsNewRouter, loadContentEdits } from './releases.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const prod = process.env.NODE_ENV === 'production';
@@ -24,7 +25,7 @@ export async function createApp() {
   await migrate();
   await ensureAdmins();
   await ensureDemo();
-  await loadFieldItems(); await failInterrupted();
+  await loadFieldItems(); await failInterrupted(); await loadContentEdits();
   if (process.env.AUTO_REVIEW !== 'off') { warmUp(); resumePending().catch((e) => console.error(e)); }
 
   const app = express();
@@ -147,10 +148,12 @@ export async function createApp() {
   app.use('/api/me', requireAuth, meRouter);
   app.use('/api/me', requireAuth, meProgramme);
   app.use('/api/me', requireAuth, collectiblesRouter);
+  app.use('/api/me', requireAuth, whatsNewRouter);
   app.use('/api/admin', requireAdmin, adminRouter);
   app.use('/api/admin', requireAdmin, adminProgramme);
   app.use('/api/admin', requireAdmin, boardRouter);
   app.use('/api/admin', requireAdmin, sessionsRouter);
+  app.use('/api/admin', requireAdmin, releasesRouter);
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found.' }));
 
   // Browsers revalidate the app files on every visit (cheap 304s via ETag), so a new version shows up straight away.

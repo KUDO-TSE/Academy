@@ -60,7 +60,7 @@ export async function sessionsView() {
 
   const kpi = (label, value, note) => h('div', { class: 'card kpi' }, h('div', { class: 'label' }, label), h('div', { class: 'value' }, value), h('div', { class: 'note' }, note));
   return h('div', { class: 'page' },
-    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Sessions'), h('p', null, 'Upload your 1:1 and group sessions. The Academy finds the questions people asked, checks whether the lessons and checks already cover them, and helps you turn the answers into new content. Nothing reaches trainees until you publish it.'))),
+    ...importsHead('sessions', 'Upload your 1:1 and group sessions. The Academy finds the questions people asked, checks whether the lessons and checks already cover them, and helps you turn the answers into new content. Nothing reaches trainees until you publish it.'),
     h('div', { class: 'grid g4' },
       kpi('Sessions analysed', ins.sessions, `${ins.questions} questions found`),
       kpi('To review', ins.open, 'Not or partly covered yet'),
@@ -155,7 +155,7 @@ export async function sessionView(id) {
     } } }, `Add to ${s.people[0].name.split(' ')[0]}'s inputs`)) : null;
 
   box.append(...[
-    h('div', { class: 'page-head' }, h('div', null, h('a', { href: '#sessions', class: 'muted small' }, '← Sessions'), h('h1', null, s.title),
+    h('div', { class: 'page-head' }, h('div', null, h('a', { href: '#sessions', class: 'muted small' }, '← Imports · Sessions'), h('h1', null, s.title),
       h('p', null, `${KIND[s.kind]} · ${fmtDate(s.happened_on)}${s.people.length ? ` · ${s.people.map((p) => p.name).join(', ')}` : ''}${s.duration_s ? ` · ${Math.round(s.duration_s / 60)} min` : ''}`)),
     h('button', { class: 'btn', on: { click: async () => { if (!confirmDelete.hidden) { try { await api('DELETE', `/api/admin/sessions/${s.id}`); toast('Deleted'); location.hash = 'sessions'; } catch (e) { toast(e.message, true); } } else confirmDelete.hidden = false; } } }, 'Delete session')),
     confirmDelete,

@@ -1,4 +1,4 @@
-import { h, api, toast, modal, icon, initials } from './ui.js';
+import { h, api, toast, modal, icon, initials, svg } from './ui.js';
 import { resultsView, progressView } from './views-trainee.js';
 import * as A from './views-admin.js';
 import * as P from './views-admin-programme.js';
@@ -6,7 +6,8 @@ import { programmeView, moduleRoute, missedView } from './views-programme.js';
 import { surveyView } from './assess-ui.js';
 import { boardView } from './views-board.js';
 import { sessionsView, sessionView } from './views-sessions.js';
-import { collectionView, revealNew } from './collectibles.js';
+import { releasesView, releaseView } from './views-releases.js';
+import { collectionView, revealNew, cardArt } from './collectibles.js';
 import { startTour, tourFor } from './tour.js';
 
 const root = document.getElementById('app');
@@ -14,7 +15,7 @@ let me = null;
 
 const NAV_TRAINEE = [['programme', 'My programme', 'plan'], ['collection', 'My collection', 'star'], ['results', 'My results', 'chart'], ['progress', 'My progress', 'trend']];
 const NAV_ME = [['me-programme', 'My programme', 'plan'], ['me-collection', 'My collection', 'star'], ['me-results', 'My results', 'chart'], ['me-progress', 'My progress', 'trend']];
-const NAV_ADMIN = [['board', 'My board', 'flag'], ['overview', 'Overview', 'home'], ['team', 'Team', 'team'], ['priorities', 'Priorities', 'flag'], ['programme', 'Programme', 'plan'], ['reviews', 'Reviews', 'flag'], ['sessions', 'Sessions', 'upload'], ['feedback', 'Feedback', 'chart'], ['curriculum', 'Curriculum', 'info'], ['try', 'Try as a trainee', 'user'], ['SEP', 'Admin'], ['imports', 'Imports', 'upload'], ['users', 'Users & access', 'key'], ['audit', 'Activity log', 'log'], ['logic', 'Logic notes', 'info']];
+const NAV_ADMIN = [['board', 'My board', 'flag'], ['overview', 'Overview', 'home'], ['team', 'Team', 'team'], ['priorities', 'Priorities', 'flag'], ['programme', 'Programme', 'plan'], ['reviews', 'Reviews', 'flag'], ['feedback', 'Feedback', 'chart'], ['curriculum', 'Curriculum', 'info'], ['try', 'Try as a trainee', 'user'], ['SEP', 'Admin'], ['imports', 'Imports', 'upload'], ['users', 'Users & access', 'key'], ['audit', 'Activity log', 'log'], ['logic', 'Logic notes', 'info']];
 
 async function boot() {
   try { me = (await api('GET', '/api/auth/me')).user; } catch { me = null; }
@@ -42,11 +43,27 @@ function runTour() {
 }
 
 // ------------------------------------------------------------ Login
-function brandHero(text) {
+// The left half of the sign-in screens: what the Academy is, and a glimpse of it (illustrative data).
+function brandHero(title, text, { preview = true } = {}) {
+  const tick = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  const tags = { 1: 'Kick-off', 5: '1:1 Teams', 6: 'Mid-point', 11: 'Mock call', 12: 'Retest' };
+  const route = h('div', { class: 'lp-route' }, Array.from({ length: 12 }, (_, k) => { const w = k + 1;
+    return h('div', { class: `lp-stop ${w < 4 ? 'done' : w === 4 ? 'now' : ''}` }, h('span', { class: `lp-tag ${tags[w] ? '' : 'none'} ${w === 12 ? 'key' : ''} ${w === 1 ? 'met' : ''}` }, tags[w] || '·'),
+      w < 4 ? h('span', { class: 'lp-node' }, svg(tick)) : h('span', { class: 'lp-node' }, String(w))); }));
+  const card = { key: 'start', set: 'Journey', tier: 'bronze', title: 'Starting line', glyph: 'flag', earned: true };
+  const win = preview ? h('div', { class: 'lp-preview', 'aria-hidden': 'true' },
+    h('div', { class: 'lp-win' },
+      h('div', { class: 'lp-win-h' }, h('b', null, 'Your 12 weeks'), h('span', null, 'Week 4 of 12 · Build')),
+      route,
+      h('div', { class: 'lp-phases' }, h('span', { style: 'grid-column:span 2' }, 'Warm-up'), h('span', { style: 'grid-column:span 5' }, 'Build'), h('span', { style: 'grid-column:span 3' }, 'Broaden'), h('span', { style: 'grid-column:span 2' }, 'Prove it')),
+      h('div', { class: 'lp-stats' },
+        h('div', null, h('span', null, 'Readiness'), h('b', null, '58%', h('em', null, ' → 80% target')), h('i', { class: 'lp-bar' }, h('i', { style: 'width:58%' }), h('u', { style: 'left:80%' }))),
+        h('div', null, h('span', null, 'This week'), h('b', null, '3 steps', h('em', null, ' · about 55 min')), h('span', { class: 'lp-next' }, 'Next: Practise a Teams setup')))),
+    h('div', { class: 'lp-card' }, cardArt(card, { size: 132 }))) : null;
   return h('div', { class: 'login-hero' },
-    h('img', { src: '/kudo-logo.png', alt: 'KUDO' }),
-    h('div', { class: 'copy' }, h('h1', null, 'KUDO Academy'), h('p', null, text)),
-    h('span', { class: 'blob b1' }), h('span', { class: 'blob b2' }), h('span', { class: 'blob b3' }));
+    h('img', { class: 'login-logo', src: '/kudo-logo.png', alt: 'KUDO' }),
+    h('div', { class: 'login-mid' }, h('div', { class: 'copy' }, h('div', { class: 'login-eyebrow' }, 'KUDO Academy'), h('h1', null, title), h('p', null, text)), win),
+    preview ? h('ul', { class: 'login-facts' }, h('li', null, h('b', null, '12'), ' client scenarios'), h('li', null, h('b', null, 'Your plan'), ' built from your results'), h('li', null, h('b', null, '1:1'), ' coaching with Jack')) : null);
 }
 function loginScreen() {
   const email = h('input', { type: 'email', autocomplete: 'username', required: true, placeholder: 'you@kudo.ai' });
@@ -59,8 +76,10 @@ function loginScreen() {
     catch (ex) { err.replaceChildren(h('div', { class: 'err', role: 'alert' }, ex.message)); btn.disabled = false; pw.value = ''; pw.focus(); }
   } } },
   h('label', { class: 'f' }, h('span', { class: 'l' }, 'Email'), email), h('label', { class: 'f' }, h('span', { class: 'l' }, 'Password'), pw), err, btn);
-  return h('div', { class: 'login' }, brandHero('Product knowledge, client scenarios and how KUDO fits each client. Your results, your progress, your plan.'),
-    h('div', { class: 'login-panel' }, h('div', { class: 'login-card' }, h('h2', null, 'Sign in'), h('p', { class: 'lead' }, 'Use your KUDO email. First time here? Use the password you were given, then choose your own.'), form)));
+  return h('div', { class: 'login' }, brandHero('Become the person clients trust with KUDO', 'Your own 12-week plan: learn each scenario, practise it on real client situations and prove it with Jack.'),
+    h('div', { class: 'login-panel' }, h('div', { class: 'login-card' }, h('h2', null, 'Sign in'), h('p', { class: 'lead' }, 'Use your KUDO email to open your programme'), form,
+      h('p', { class: 'login-help' }, h('b', null, 'First time here? '), 'Use the password you were given. You will choose your own right after.')),
+      h('div', { class: 'login-foot' }, 'KUDO Academy · internal training for KUDO teams')));
 }
 
 function passwordFields() {
@@ -77,7 +96,7 @@ function changePasswordScreen(forced) {
   const form = h('form', { novalidate: true, on: { submit: (e) => { e.preventDefault(); submitPassword(f, err, async () => { me = (await api('GET', '/api/auth/me')).user; toast('Password updated'); render(); }); } } },
     h('label', { class: 'f' }, h('span', { class: 'l' }, 'Current (generic) password'), f.cur), h('label', { class: 'f' }, h('span', { class: 'l' }, 'New password'), f.n1), h('div', { class: 'hint' }, 'At least 10 characters, with a letter and a number.'),
     h('label', { class: 'f' }, h('span', { class: 'l' }, 'Repeat new password'), f.n2), err, h('button', { class: 'btn primary block', type: 'submit' }, 'Save and continue'));
-  return h('div', { class: 'login' }, brandHero(`Welcome, ${me.name.split(' ')[0]}. One quick step before you start.`),
+  return h('div', { class: 'login' }, brandHero(`Welcome, ${me.name.split(' ')[0]}`, 'One quick step before you start: choose your own password.', { preview: false }),
     h('div', { class: 'login-panel' }, h('div', { class: 'login-card' }, h('h2', null, 'Choose your password'), h('p', { class: 'lead' }, 'You signed in with the generic password. Set your own so only you can open your account.'), form,
       h('p', { class: 'muted small', style: 'margin-top:14px' }, h('a', { href: '#', on: { click: (e) => { e.preventDefault(); logout(); } } }, 'Sign out')))));
 }
@@ -107,9 +126,9 @@ function shell() {
 
 // ------------------------------------------------------------ Router
 const TRAINEE_ROUTES = { programme: null, collection: null, results: resultsView, progress: progressView };
-const ADMIN_ROUTES = { try: () => P.tryView(me), board: boardView, overview: A.overviewView, team: A.teamView, priorities: A.prioritiesView, programme: P.programmeOverview, reviews: P.reviewsView, sessions: sessionsView, feedback: P.feedbackView, curriculum: () => P.curriculumView(), imports: A.importView, users: A.usersView, audit: A.auditView, logic: A.logicView };
+const ADMIN_ROUTES = { try: () => P.tryView(me), board: boardView, overview: A.overviewView, team: A.teamView, priorities: A.prioritiesView, programme: P.programmeOverview, reviews: P.reviewsView, sessions: sessionsView, releases: releasesView, feedback: P.feedbackView, curriculum: () => P.curriculumView(), imports: A.importView, users: A.usersView, audit: A.auditView, logic: A.logicView };
 const isTraineeDyn = (r) => r.startsWith('module-') || r === 'missed' || r === 'survey';
-const isAdminDyn = (r) => r.startsWith('session-') || r.startsWith('person-') || r.startsWith('preview') || r.startsWith('pview-') || r.startsWith('curriculum-');
+const isAdminDyn = (r) => r.startsWith('session-') || r.startsWith('release-') || r.startsWith('person-') || r.startsWith('preview') || r.startsWith('pview-') || r.startsWith('curriculum-');
 
 async function route() {
   if (!me || me.mustChange) return;
@@ -126,12 +145,13 @@ async function route() {
   if (isAdmin && !meMode && !(r in ADMIN_ROUTES) && !isAdminDyn(r)) r = 'overview';
   const navKey = meMode ? `me-${r}` : r;
   document.body.classList.remove('nav-open'); document.querySelector('.nav-toggle')?.setAttribute('aria-expanded', 'false');
-  document.querySelectorAll('.nav a, .tabbar a').forEach((a) => a.classList.toggle('active', a.dataset.r === navKey || (r.startsWith('person-') && a.dataset.r === 'team') || (r.startsWith('curriculum-') && a.dataset.r === 'curriculum') || (r.startsWith('session-') && a.dataset.r === 'sessions') || (isTraineeDyn(r) && a.dataset.r === (meMode ? 'me-programme' : 'programme'))));
+  document.querySelectorAll('.nav a, .tabbar a').forEach((a) => a.classList.toggle('active', a.dataset.r === navKey || (r.startsWith('person-') && a.dataset.r === 'team') || (r.startsWith('curriculum-') && a.dataset.r === 'curriculum') || ((r === 'sessions' || r === 'releases' || r.startsWith('session-') || r.startsWith('release-')) && a.dataset.r === 'imports') || (isTraineeDyn(r) && a.dataset.r === (meMode ? 'me-programme' : 'programme'))));
   main.replaceChildren(h('div', { class: 'page muted' }, 'Loading…'));
   try {
     let view;
     if (isAdmin && !meMode) {
       if (r.startsWith('session-')) view = await sessionView(Number(r.slice(8)));
+      else if (r.startsWith('release-')) view = await releaseView(Number(r.slice(8)));
       else if (r.startsWith('person-')) view = await A.personView(Number(r.slice(7)));
       else if (r.startsWith('pview-')) { const [, id, d] = r.split('-'); view = await P.previewProgramme(Number(id), d === 'draft'); }
       else if (r.startsWith('preview')) view = A.previewView(r.split('-')[1]);

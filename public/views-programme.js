@@ -158,6 +158,7 @@ export function programmeView(data, { readOnly = false, banner = null } = {}) {
         plan.tip ? h('div', { class: 'tip' }, h('b', null, 'How you like to learn: '), plan.tip) : null,
         readOnly ? null : focusChoice())),
 
+    readOnly ? null : whatsNewCard(st),
     readOnly ? null : h('div', { style: 'margin-top:16px' }, collectionStrip()),
     readOnly ? null : h('div', { style: 'margin-top:16px' }, spacedCard()),
     readOnly ? null : h('div', { style: 'margin-top:16px' }, challengeCard()),
@@ -242,7 +243,8 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
         h('div', { class: 'card' }, h('h2', null, 'By the end you can'), h('ol', { class: 'obj' }, m.objectives.map((o) => h('li', null, o)))),
         h('div', { class: 'card lesson-card' }, h('div', { class: 'eyebrow dark' }, 'Step 1 · Learn'), h('h2', null, 'The lesson'),
           videoBlock(m, admin),
-          m.sections.map((s) => h('div', { class: 'les' }, h('h3', null, s.title), h('ul', null, s.points.map((p) => h('li', null, p))))),
+          updatesBlock(m.updates, Object.keys(m.updatedLines || {}).length),
+          m.sections.map((s, si) => h('div', { class: 'les' }, h('h3', null, s.title), h('ul', null, s.points.map((p, pi) => { const u = m.updatedLines?.[`${si}.${pi}`]; return h('li', { class: u ? 'upd' : null }, p, u ? h('span', { class: 'upd-tag', title: `Changed with ${u.release || 'a release'}` }, 'Updated') : null); })))),
           m.faq?.length ? h('div', { class: 'faq' }, h('h3', null, 'Asked in sessions'), m.faq.map((f) => h('details', null, h('summary', null, f.question), h('p', null, f.answer)))) : null,
           m.caseStudy ? h('div', { class: 'case' }, h('h3', null, 'Worked example'), h('p', null, m.caseStudy.example), h('div', { class: 'muted small' }, 'An illustrative case built from the lesson')) : null,
           m.caseStudy?.mistakes?.length ? h('div', { class: 'mistakes' }, h('h3', null, 'Common mistakes'), h('ul', null, m.caseStudy.mistakes.map((x) => h('li', null, x)))) : null,
@@ -276,4 +278,37 @@ export async function missedView({ readOnly = false, rerender, planItems = [] })
     h('div', { class: 'page-head', style: 'margin-top:8px' }, h('div', null, h('h1', null, 'The questions you missed in October'), h('p', null, 'Say your answer out loud first, then reveal. Retrieval is what makes it stick.'))),
     h('div', { class: 'card' }, list.length ? list.map((x) => { const a = h('div', { class: 'a', hidden: true }, 'Answer: ', x.answer || '–'); return h('div', { class: 'q-item' }, h('b', null, `Q${x.qnum}. ${x.question}`), h('div', null, h('button', { class: 'btn sm', style: 'margin-top:6px', on: { click: (e) => { a.hidden = false; e.target.remove(); } } }, 'Reveal answer')), a); }) : h('div', { class: 'ok' }, 'No missed questions on record.'),
       it && !readOnly ? h('div', { style: 'margin-top:14px' }, it.done ? h('span', { class: 'chip green' }, 'Done') : h('button', { class: 'btn primary', on: { click: async () => { await api('POST', '/api/me/items/missed/done', {}); toast('Ticked off'); rerender(); } } }, 'I have gone through them all')) : null));
+}
+
+// ------------------------------------------------------------------ product changes
+const RKIND = { feature: 'New', fix: 'Fixed', known: 'Known issue', removed: 'Removed' };
+/** The lesson's recent product updates, above the lesson text. */
+function updatesBlock(list, edited = 0) {
+  if (!list?.length) return null;
+  return h('div', { class: 'upd-box' }, h('h3', null, 'Recent product changes'),
+    list.map((u) => h('div', { class: 'upd-item' }, h('div', { class: 'upd-h' }, h('span', { class: `chip ${u.kind === 'feature' ? 'blue' : 'grey'}` }, RKIND[u.kind] || 'Changed'), h('b', null, u.title), h('span', { class: 'muted small' }, fmtDate(u.released_on))), h('p', null, u.body))),
+    edited ? h('p', { class: 'muted small', style: 'margin:6px 0 0' }, 'Lines marked Updated below already reflect these changes') : null);
+}
+/** "New in KUDO": the latest release, changes that touch your focus scenarios first. Loads on its own. */
+function whatsNewCard(st) {
+  const box = h('section', { class: 'card wn-card', hidden: true });
+  const focus = new Set(st.levels.filter((l) => l.focus).map((l) => l.scenario));
+  const shortOf = (s) => st.levels.find((l) => l.scenario === s)?.short;
+  api('GET', '/api/me/whats-new').then(({ updates }) => {
+    if (!updates.length) return;
+    const latest = updates[0].release_id, rel = updates.filter((u) => u.release_id === latest);
+    const mine = (u) => u.modules.some((m) => focus.has(m.scenario));
+    rel.sort((a, b) => Number(mine(b)) - Number(mine(a)));
+    const row = (u) => h('li', { class: mine(u) ? 'mine' : null },
+      h('span', { class: `wn-k ${u.kind}` }, RKIND[u.kind] || 'Changed'),
+      h('div', null, h('div', { class: 'wn-t' }, u.modules[0] ? h('a', { href: `#module-${u.modules[0].key}` }, u.title) : u.title,
+        mine(u) ? h('span', { class: 'chip coral' }, `Your focus: ${u.modules.filter((m) => focus.has(m.scenario)).map((m) => shortOf(m.scenario)).join(', ')}`) : null),
+        h('p', null, u.body)));
+    const list = h('ul', { class: 'wn-list' }, rel.slice(0, 4).map(row));
+    const more = rel.length > 4 ? h('button', { class: 'btn sm', type: 'button', on: { click: () => { list.replaceChildren(...rel.map(row)); more.remove(); } } }, `Show all ${rel.length} changes`) : null;
+    const n = rel.filter(mine).length;
+    box.replaceChildren(h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'New in KUDO'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, `Released ${fmtDate(rel[0].released_on)} · ${rel.length} change${rel.length > 1 ? 's' : ''}${n ? `, ${n} in your focus areas` : ''}. Open one to see it in its lesson`))), list, more);
+    box.hidden = false;
+  }).catch(() => {});
+  return box;
 }

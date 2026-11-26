@@ -80,10 +80,10 @@ export function parseTranscript(name, buf) {
 const QWORDS = /^(what|how|why|when|where|which|who|can|could|does|do|did|is|are|should|would|will|if)\b/i;
 const SMALL_TALK = /\b(hear me|see my screen|can you see|how are you|good morning|make sense|any questions|is that ok|is that okay|are we good|ready to start|shall we|you there|on mute|share my screen|next slide)\b/i;
 const STOP = new Set('the a an and or of to in on for with is are be it this that what how why when where which who can could does do did should would will if i you we they my your our at as by from about into there their then than so not no yes just like get got have has had was were me us them its also any all some one more most very really okay ok well right'.split(' '));
-const words = (t) => String(t).toLowerCase().match(/[a-z0-9][a-z0-9.+-]*/g)?.filter((w) => !STOP.has(w) && w.length > 1) || [];
+export const words = (t) => String(t).toLowerCase().match(/[a-z0-9][a-z0-9.+-]*/g)?.filter((w) => !STOP.has(w) && w.length > 1) || [];
 const splitSentences = (t) => String(t).split(/(?<=[.?!])\s+/).map((x) => x.trim()).filter(Boolean);
-const cos = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
-const jac = (a, b) => { const A = new Set(a), B = new Set(b); if (!A.size || !B.size) return 0; let i = 0; for (const x of A) if (B.has(x)) i++; return i / Math.min(A.size, B.size); };
+export const cos = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
+export const jac = (a, b) => { const A = new Set(a), B = new Set(b); if (!A.size || !B.size) return 0; let i = 0; for (const x of A) if (B.has(x)) i++; return i / Math.min(A.size, B.size); };
 
 /** Find questions with their asker and the answer that followed. hostName = the session lead (Jack). */
 export function extractQuestions(utts, hostName = '') {
@@ -120,6 +120,7 @@ async function corpus(faq) {
   return lines;
 }
 let corpusCache = null;
+export function resetCorpus() { corpusCache = null; }
 async function corpusVectors(vec, faq) {
   const key = `${Object.values(POOLS).reduce((t, p) => t + p.length, 0)}:${faq.length}`;
   if (corpusCache?.key === key) return corpusCache.lines;
@@ -131,11 +132,11 @@ async function corpusVectors(vec, faq) {
 
 // Names that point straight at a module when a question mentions them.
 const NAMES = { teams: ['teams', 'microsoft teams'], zoom: ['zoom'], external: ['webex', 'on24', 'google meet', 'external meeting'], meetnow: ['meet now', 'kudo live'], widget: ['widget', 'iframe'], hybrid: ['hybrid', 'audio manager', 'dante', 'venue audio'], rtmp: ['rtmp', 'youtube', 'facebook', 'stream key'], hls: ['hls'], glossary: ['glossary', 'glossaries'], marketplace: ['marketplace', 'book interpreters'], ringcentral: ['ringcentral', 'ring central'], network: ['firewall', 'udp', 'proxy', 'port 443', 'vpn'], onsite: ['onsite', 'on-site', 'venue wi-fi', 'qr code'], hi: ['interpreter', 'interpretation'], ai: ['language detection', 'speech & captions', 'captions only'], platform: ['host link', 'content tab', 'grace period'] };
-const nameBoost = (text) => { const t = ` ${String(text).toLowerCase()} `; const b = {}; for (const [k, ns] of Object.entries(NAMES)) if (ns.some((n) => t.includes(n))) b[k] = 0.12; return b; };
+export const nameBoost = (text) => { const t = ` ${String(text).toLowerCase()} `; const b = {}; for (const [k, ns] of Object.entries(NAMES)) if (ns.some((n) => t.includes(n))) b[k] = 0.12; return b; };
 
 /** Map each question to a module and say whether the Academy already covers it. */
 export async function analyse(questions, { vec = null } = {}) {
-  const faq = (await q("SELECT module_key,question,answer FROM field_notes WHERE status='published'")).rows;
+  const faq = (await q("SELECT module_key,question,answer FROM field_notes WHERE status='published' AND kind IN ('faq','item')")).rows;
   const out = [];
   if (vec) {
     const lines = await corpusVectors(vec, faq);
@@ -348,7 +349,7 @@ sessionsRouter.post('/field-notes', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 sessionsRouter.get('/field-notes', async (_req, res, next) => {
-  try { res.json({ notes: (await q("SELECT id,module_key,kind,question,answer,item,session_id,status,published_at FROM field_notes WHERE status='published' ORDER BY published_at DESC")).rows }); } catch (e) { next(e); }
+  try { res.json({ notes: (await q("SELECT id,module_key,kind,question,answer,item,session_id,status,published_at FROM field_notes WHERE status='published' AND kind IN ('faq','item') ORDER BY published_at DESC")).rows }); } catch (e) { next(e); }
 });
 sessionsRouter.delete('/field-notes/:id', async (req, res, next) => {
   try {
@@ -380,7 +381,7 @@ sessionsRouter.get('/sessions-insights', async (_req, res, next) => {
     res.json({
       sessions: rows.length, questions: all.length,
       open: all.filter((f) => f.status === 'open' && f.coverage !== 'covered').length,
-      published: Number((await q("SELECT count(*) FROM field_notes WHERE status='published'")).rows[0].count),
+      published: Number((await q("SELECT count(*) FROM field_notes WHERE status='published' AND kind IN ('faq','item')")).rows[0].count),
       byModule,
       recurring: groups.filter((g) => g.sessions.size > 1).sort((a, b) => b.count - a.count).slice(0, 20).map((g) => ({ q: g.q, module: g.module, count: g.count, sessions: g.sessions.size, gap: g.gap, open: g.open, example: g.example })),
     });

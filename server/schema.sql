@@ -293,3 +293,31 @@ CREATE TABLE IF NOT EXISTS collectibles (
   seen_at TIMESTAMPTZ,
   PRIMARY KEY (user_id, key)
 );
+
+-- ---- Release notes (v7): imported KUDO release notes, what they change in the Academy, and the edits applied.
+CREATE TABLE IF NOT EXISTS releases (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  released_on DATE NOT NULL DEFAULT CURRENT_DATE,
+  raw TEXT NOT NULL,
+  items JSONB NOT NULL DEFAULT '[]',
+  status TEXT NOT NULL DEFAULT 'review' CHECK (status IN ('review','applied')),
+  created_by INT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  applied_at TIMESTAMPTZ
+);
+ALTER TABLE field_notes ADD COLUMN IF NOT EXISTS release_id INT REFERENCES releases(id) ON DELETE SET NULL;
+ALTER TABLE field_notes DROP CONSTRAINT IF EXISTS field_notes_kind_check;
+ALTER TABLE field_notes ADD CONSTRAINT field_notes_kind_check CHECK (kind IN ('faq','item','update'));
+CREATE TABLE IF NOT EXISTS content_edits (
+  id SERIAL PRIMARY KEY,
+  ref TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('line','retire')),
+  text TEXT,
+  original TEXT,
+  release_id INT REFERENCES releases(id) ON DELETE SET NULL,
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_by INT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS content_edits_active ON content_edits (active, ref);

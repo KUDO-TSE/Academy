@@ -51,7 +51,7 @@ const shuffle = (a) => { const b = [...a]; for (let i = b.length - 1; i > 0; i--
 
 /** A fresh draw for each attempt: at least one of each format the module has, the rest at random. */
 // Reserve items (parallel forms) are kept back until the second assessment cycle opens.
-const usable = (x, reserve) => reserve || !x.reserve;
+const usable = (x, reserve) => !x.retired && (reserve || !x.reserve);
 export function draw(moduleKey, n = DRAW, { reserve = false } = {}) {
   const pool = (POOLS[moduleKey] || []).filter((x) => usable(x, reserve));
   if (pool.length <= n) return shuffle(pool);

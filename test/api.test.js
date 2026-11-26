@@ -480,3 +480,55 @@ test('collectibles: earned at milestones, never taken back, revealed once', asyn
   assert.ok(has(await d('GET', '/api/me/collectibles'), 'best-calls'));
   const anon = client(); assert.equal((await anon('GET', '/api/me/collectibles')).status, 401);
 });
+
+test('release notes: parsed, mapped to modules, stale content flagged, applied to the lessons and undone', async () => {
+  const adm = client(); await adm('POST', '/api/auth/login', { email: 'boss@test.local', password: 'Quiet-harbor-pass-55' });
+  const note = `New features
+
+* Segmenter extended to four more languages: Our in-house segmenter now also supports Japanese, Chinese, Korean, and Russian.
+
+Fixes and improvements
+
+* Bot join time in AI meetings: The bot now joins a couple of minutes before the scheduled start time instead of 15 minutes before, unless preparation time is assigned.
+
+* Glossary v2 - UI improvements: Terms can now be clicked and edited directly, without using the three-dot menu.`;
+  assert.equal((await adm('POST', '/api/admin/releases', { title: 'Empty', text: 'hello' })).status, 400, 'a note without items is refused');
+  const cr = await adm('POST', '/api/admin/releases', { title: 'Release test', released_on: '2026-11-20', text: note });
+  assert.equal(cr.status, 200); assert.equal(cr.json.items, 3);
+  const r = (await adm('GET', `/api/admin/releases/${cr.json.id}`)).json;
+  const [seg, bot, glo] = r.items;
+  assert.deepEqual([seg.kind, bot.kind, glo.kind], ['feature', 'fix', 'fix']);
+  assert.equal(seg.title, 'Segmenter extended to four more languages');
+  assert.ok(seg.modules.includes('ai') && glo.modules[0] === 'glossary' && bot.modules.includes('ai'), JSON.stringify(r.items.map((i) => i.modules)));
+  // The lesson still says "15 minutes before": flagged, with a rewrite drafted from "now X instead of Y"
+  const line = bot.flags.find((f) => f.kind === 'line' && f.strength === 'strong');
+  assert.ok(line, JSON.stringify(bot.flags));
+  assert.ok(line.suggestion && !line.suggestion.includes('15 minutes before') && line.suggestion.includes('a couple of minutes before'), line.suggestion);
+  const q0 = bot.flags.find((f) => f.kind === 'question');
+  assert.ok(q0, 'a check question that says 15 minutes is flagged');
+  // Nothing is changed by default: the admin ticks the rewrite and the retirement
+  assert.ok(bot.actions.edits.every((e) => !e.on) && bot.actions.retire.every((e) => !e.on));
+  const actions = { ...bot.actions, edits: bot.actions.edits.map((e) => (e.ref === line.ref ? { ...e, on: true } : e)), retire: bot.actions.retire.map((e) => (e.ref === q0.ref ? { ...e, on: true } : e)) };
+  assert.equal((await adm('PUT', `/api/admin/releases/${cr.json.id}/items/${bot.id}`, { actions })).status, 200);
+  assert.equal((await adm('PUT', `/api/admin/releases/${cr.json.id}/items/${glo.id}`, { status: 'skipped' })).status, 200);
+  const tr = client(); await tr('POST', '/api/auth/login', { email: 'dana@test.local', password: 'Quiet-valley-pass-73' });
+  assert.equal((await tr('POST', `/api/admin/releases/${cr.json.id}/apply`)).status, 403, 'trainees cannot apply');
+  const ap = await adm('POST', `/api/admin/releases/${cr.json.id}/apply`);
+  assert.equal(ap.status, 200); assert.equal(ap.json.done.edits, 1); assert.equal(ap.json.done.retired, 1); assert.equal(ap.json.done.whatsnew, 2, 'skipped items publish nothing');
+  const [, mod, si, pi] = line.ref.split(':');
+  const lesson = (await tr('GET', `/api/me/modules/${mod}`)).json;
+  assert.equal(lesson.sections[si].points[pi], line.suggestion, 'trainees read the rewritten line');
+  assert.ok(lesson.updatedLines[`${si}.${pi}`], 'and it is marked as updated');
+  assert.ok((await tr('GET', '/api/me/modules/ai')).json.updates.some((u) => /Bot join time/.test(u.title)), 'the AI lesson lists the change');
+  const { itemById } = await import('../server/assess.js');
+  assert.equal(itemById(q0.ref.slice(2)).retired, true);
+  const wn = (await tr('GET', '/api/me/whats-new')).json.updates;
+  assert.equal(wn.length, 2); assert.ok(!wn.some((u) => /Glossary/.test(u.title)));
+  assert.equal((await adm('DELETE', `/api/admin/releases/${cr.json.id}`)).status, 400, 'applied changes must be undone before deleting');
+  // Undo
+  assert.equal((await adm('POST', `/api/admin/releases/${cr.json.id}/revert`)).status, 200);
+  assert.equal((await tr('GET', `/api/me/modules/${mod}`)).json.sections[si].points[pi], line.text, 'the original line is back');
+  assert.ok(!itemById(q0.ref.slice(2)).retired, 'the question is back in the pool');
+  assert.equal((await tr('GET', '/api/me/whats-new')).json.updates.length, 0);
+  assert.equal((await adm('DELETE', `/api/admin/releases/${cr.json.id}`)).status, 200);
+});

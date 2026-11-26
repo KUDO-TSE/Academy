@@ -1,5 +1,5 @@
 import * as P from './views-admin-programme.js';
-import { h, api, toast, modal, pct, fmtDate, dateOnly, KIND, DELIVERY, reading, initials } from './ui.js';
+import { h, api, toast, modal, pct, fmtDate, dateOnly, KIND, DELIVERY, reading, initials, importsHead } from './ui.js';
 import { pairedBars, COLORS } from './charts.js';
 import { homeView, resultsView, progressView, planView, latest, scoresFor } from './views-trainee.js';
 
@@ -252,8 +252,8 @@ export async function importView() {
   const upd = () => { const i = IMPORTS[type.value]; noteBox.textContent = i.note + (type.value === 'profile' ? META.scenarios.map((s) => s.key).join(', ') : ''); tplLink.href = `/templates/${i.tpl}`; tplLink.textContent = `Download template (${i.tpl})`; tplLink.setAttribute('download', i.tpl); roundBox.replaceChildren(i.round ? h('div', { class: 'card flat', style: 'margin-bottom:14px;background:var(--bg-app)' }, h('div', { class: 'grid g2' }, field('Round key', key, 'Lowercase, numbers, hyphens'), field('Round label', lab, 'End with “Self Assessment” or “Knowledge Test”')), h('div', { class: 'grid g2' }, field('Date taken', when), field('Order', sort, 'Older rounds first: 1, 2, 3…'))) : null); };
   type.addEventListener('change', upd); upd();
   const run = h('button', { class: 'btn primary', on: { click: async () => { out.replaceChildren(); run.disabled = true; try { const r = await api('POST', '/api/admin/import', { kind: type.value, csv: txt.value, round_key: key.value, round_label: lab.value, taken_on: when.value || null, sort: Number(sort.value) }); out.append(h('div', { class: r.errors?.length ? 'err' : 'ok' }, `${r.rows} rows read. ` + Object.entries(r).filter(([k]) => ['created', 'updated', 'saved'].includes(k)).map(([k, v]) => `${v} ${k}`).join(', ') + (r.errors?.length ? `. ${r.errors.length} problem${r.errors.length > 1 ? 's' : ''}:` : '.')), r.errors?.length ? h('ul', null, r.errors.slice(0, 30).map((e) => h('li', null, e))) : null); } catch (e) { out.append(h('div', { class: 'err' }, e.message)); } run.disabled = false; } } }, 'Import');
-  return h('div', { class: 'page', style: 'max-width:860px' }, h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Imports'), h('p', null, 'Load rosters, results and training plans from CSV. People are matched by email.'))),
-    h('div', { class: 'card' }, field('What are you importing?', type), noteBox, h('p', { class: 'small' }, tplLink), roundBox, field('CSV file', file), field('Or paste CSV', txt), h('div', { class: 'row' }, run), h('div', { style: 'margin-top:14px' }, out)));
+  return h('div', { class: 'page' }, ...importsHead('imports', 'Load rosters, results and training plans from CSV, the recordings of your sessions, and KUDO release notes. People are matched by email.'),
+    h('div', { class: 'card', style: 'max-width:860px' }, field('What are you importing?', type), noteBox, h('p', { class: 'small' }, tplLink), roundBox, field('CSV file', file), field('Or paste CSV', txt), h('div', { class: 'row' }, run), h('div', { style: 'margin-top:14px' }, out)));
 }
 
 // ---------------------------------------------------------------- Users & access

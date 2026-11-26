@@ -161,6 +161,17 @@ Admin menu, **Sessions** (`server/sessions.js`, `public/views-sessions.js`).
 - **Improve the content**: on each question, Jack can publish a lesson FAQ entry ("Asked in sessions", no names) or a new check question (four options, his wording). New questions join the module checks immediately (`registerItem`) and are marked "From a session" on the Curriculum page. Both can be withdrawn. The board shows a task per session with questions to review.
 - No language model writes content: the Academy finds and sorts; Jack decides and words it.
 
+## Release notes: the Academy keeps up with the product
+
+Imports has three tabs: Results & rosters (CSV), Sessions and Release notes. An admin pastes a KUDO release note (or uploads .txt, .md or .docx). The Academy:
+
+1. splits it into items (new feature, fix, known issue) under the note's own headings;
+2. maps each item to the modules it concerns: product names in the title first (Teams, Glossary, segmenter...), then closeness in meaning to what each module teaches;
+3. flags lesson lines, objectives and check questions the change may have made wrong. "Likely out of date" when the note says "now X instead of Y" and the line still says Y (a rewrite is drafted), or uses the same figure; "Worth a check" when the line is close to the change or names the changed feature;
+4. drafts the changes: a What's new entry (on by default), a lesson FAQ entry for new features, rewritten lines and questions to retire (both off by default: the admin ticks what is right).
+
+The admin edits and applies. Trainees then see a "New in KUDO" card on their programme (changes in their focus areas first), a "Recent product changes" box at the top of each lesson concerned, and rewritten lines marked Updated. Retired questions leave the check pool. "Undo all changes" restores everything a release changed. There is no AI text generation (no API key): rewrites are drafted only where the note states what replaced what; everything else is the admin's wording.
+
 ## Collectibles
 
 `server/collectibles.js`, `public/collectibles.js`. 29 cards in four sets: Journey (plan approved, each phase cleared, mock call, retest), Scenarios (one per scenario, earned at target level), Craft (first step, perfect walkthrough, Solid explanation, well-judged certainty, spaced-review comeback, teach-back, a session question added to the Academy) and Habit (3, 6, 10 active weeks, not necessarily in a row). Worked out from existing data each time the trainee opens the app, stored with the date earned, never taken back, never shown to anyone else, and they never change a score. New cards are revealed once with a card flip (no animation when the device asks for reduced motion). "My collection" in the trainee menu; a strip on the programme page. Card art is original, drawn in code: generic symbols, no product logos.

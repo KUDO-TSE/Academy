@@ -6,6 +6,7 @@ import { POOLS, draw, drawMixed, publicItem, grade, walk, walkthroughIntro, item
 import { EXPLAIN, RUBRIC, SURVEY, WALKTHROUGHS, PRACTICE } from './curriculum-extra.js';
 import { CASES } from './curriculum-bank.js';
 import { faqFor } from './sessions.js';
+import { updatesFor, editedIn } from './releases.js';
 async function videoLinks() { return (await q("SELECT value FROM app_settings WHERE key='videos'")).rows[0]?.value || {}; }
 import { enqueue } from './autoreview.js';
 import { DEMO_FILTER, resetDemo, createDemo } from './demo.js';
@@ -62,7 +63,7 @@ meProgramme.get('/modules/:key', async (req, res, next) => {
       progress: prog.rows, feedbackGiven: fb.rowCount > 0,
       walkthrough: walkthroughIntro(key), explain: EXPLAIN[key] ? { prompt: EXPLAIN[key].prompt } : null, submissions: subs.rows.filter((x) => x.kind !== 'practice'), rubric: RUBRIC,
       practiceTask: PRACTICE[key] ? { prompt: PRACTICE[key].prompt, type: PRACTICE[key].type } : null, practiceSubmissions: subs.rows.filter((x) => x.kind === 'practice'),
-      caseStudy: CASES[key] || null, video: (await videoLinks())[key] || null, faq: (await faqFor(key)).map(({ question, answer }) => ({ question, answer })),
+      caseStudy: CASES[key] || null, video: (await videoLinks())[key] || null, faq: (await faqFor(key)).map(({ question, answer }) => ({ question, answer })), updates: await updatesFor(key), updatedLines: editedIn(key),
       scenarioLabel: SCENARIOS.find((s) => s.key === m.scenario)?.label || null, related: (m.related || []).map((s) => SCENARIOS.find((x) => x.key === s)?.short || s),
     });
   } catch (e) { next(e); }
