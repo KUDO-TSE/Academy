@@ -53,6 +53,34 @@ export const SCENARIOS = {
     expertSeconds: 150,
     screens: ['login', 'home', 'meetings', 'new-ai', 'meeting', 'broadcast'],
   },
+  'platform-2': {
+    module: 'platform', num: 2, title: 'Send the right link to each person', links: true,
+    request: 'The client runs "Partner Summit" tomorrow (already scheduled in the account). Give each person the right access: (1) the two speakers, who speak on camera; (2) the 300 attendees, who only watch and listen in their browser; (3) the client\'s event producer, who runs the polls and the recording; (4) the client\'s web team, who will put KUDO on their own event page; (5) the 80 people in the room, who listen on their phones. Copy what each one needs in the KUDO portal, then use "Reply to the client" to give it to them.',
+    expert: ['Log in with the Client account', 'Open "Partner Summit"', 'Copy the Participant/Speaker link', 'Copy the Viewer-Only link', 'Copy the Operator link', 'Copy the iframe widget', 'Copy the Mobile Link (or download the QR code)', 'Reply to the client: one item per person'],
+    expertSeconds: 120,
+    screens: ['login', 'home', 'meetings', 'meeting', 'preview'],
+    reply: [{ id: 'speakers', label: 'The two speakers' }, { id: 'attendees', label: 'The 300 browser attendees' }, { id: 'producer', label: 'The event producer' }, { id: 'web', label: 'The web team' }, { id: 'room', label: 'The 80 people in the room' }],
+    setup: ({ base }) => { const m = base({ name: 'Partner Summit', date: 'Fri, Nov 27, 2026', time: '10:00 - 12:00', dur: '2 hours', speakers: ['English'], translations: ['English (US)', 'French (France)', 'German'], status: 'scheduled' }); return { list: [m], mine: m }; },
+  },
+  'widget-1': {
+    module: 'widget', num: 10, title: 'Give the web team the KUDO widget for the right session', links: true,
+    request: 'The client streams its two-day "Global Summit" on its own event platform and wants KUDO next to the video. Each day is a separate KUDO session, both already in the account. Give the web team the KUDO widget for Day 2, using "Reply to the client".',
+    expert: ['Log in with the Client account', 'My meetings: open "Global Summit - Day 2"', 'KUDO language access: copy the iframe widget', 'Reply to the client: the iframe widget of Day 2'],
+    expertSeconds: 60,
+    screens: ['login', 'home', 'meetings', 'meeting', 'preview'],
+    reply: [{ id: 'web', label: 'The web team' }],
+    setup: ({ base }) => { const d1 = base({ name: 'Global Summit - Day 1', date: 'Thu, Nov 26, 2026', time: '09:00 - 17:00', dur: '8 hours', speakers: ['English'], translations: ['English (US)', 'Spanish (Spain)', 'Japanese'], status: 'scheduled' });
+      const d2 = base({ name: 'Global Summit - Day 2', date: 'Fri, Nov 27, 2026', time: '09:00 - 17:00', dur: '8 hours', speakers: ['English'], translations: ['English (US)', 'Spanish (Spain)', 'Japanese'], status: 'scheduled' }); return { list: [d1, d2], mine: d2 }; },
+  },
+  'ringcentral-1': {
+    module: 'ringcentral', num: 15, title: 'Give the RingCentral producer the Widget ID', links: true,
+    request: 'The client runs "Sales Town Hall" on RingCentral Events with KUDO AI translation; the KUDO session is already in the account. Their event producer asks for the KUDO Widget ID to add the KUDO app to the event. Find it and give it to them with "Reply to the client".',
+    expert: ['Log in with the Client account', 'Open "Sales Town Hall"', 'Copy the Mobile Link', 'Take the 12-digit meeting ID at the end of the Mobile Link', 'Reply to the client: the ID only'],
+    expertSeconds: 75,
+    screens: ['login', 'home', 'meetings', 'meeting', 'preview'],
+    reply: [{ id: 'wid', label: 'Widget ID for the producer', type: 'text', placeholder: 'The ID only, not the whole link' }],
+    setup: ({ base }) => { const m = base({ name: 'Sales Town Hall', date: 'Mon, Nov 30, 2026', time: '16:00 - 17:30', dur: '1 hour 30 minutes', speakers: ['English'], translations: ['English (US)', 'Portuguese (Brazil)', 'Spanish (Mexico)'], status: 'scheduled' }); return { list: [m], mine: m }; },
+  },
 };
 
 // ------------------------------------------------------------------ the run
@@ -72,15 +100,17 @@ export function sandboxView(key, { onExit } = {}) {
   const app = h('div', { class: 'sbx-app' });
   const timer = h('span', { class: 'sbx-timer' }, '0:00');
   const tick = setInterval(() => { if (!document.body.contains(root)) return clearInterval(tick); const s = Math.round((Date.now() - S.t0) / 1000); timer.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }, 1000);
+  const replyPanel = h('div', { class: 'sbx-reply', hidden: true });
   const taskBox = h('div', { class: 'sbx-task' }, h('b', null, 'Your task'), h('p', null, sc.request));
   const bar = h('div', { class: 'sbx-bar' },
     h('div', { class: 'sbx-bar-l' }, h('span', { class: 'sbx-pill' }, 'Sandbox'), h('b', null, `Scenario ${sc.num} · ${sc.title}`), timer),
     h('div', { class: 'sbx-bar-r' },
       h('button', { class: 'btn sm', type: 'button', on: { click: () => { taskBox.hidden = !taskBox.hidden; } } }, 'Task'),
       h('button', { class: 'btn sm', type: 'button', on: { click: hint } }, 'Hint'),
+      sc.reply ? h('button', { class: 'btn sm', type: 'button', on: { click: () => { replyPanel.hidden = !replyPanel.hidden; drawReply(); } } }, 'Reply to the client') : null,
       h('button', { class: 'btn sm primary', type: 'button', on: { click: () => finish() } }, 'I am done'),
       h('button', { class: 'btn sm', type: 'button', on: { click: () => { if (confirm('Leave the sandbox? This run is not saved.')) { clearInterval(tick); onExit?.(); } } } }, 'Leave')));
-  root.append(bar, taskBox, h('div', { class: 'sbx-browser' }, h('div', { class: 'sbx-url' }, ic('lock', 13), h('span', { class: 'sbx-url-t' }), h('span', { class: 'sbx-note' }, 'Replica for training · test data only')), app));
+  root.append(bar, taskBox, replyPanel, h('div', { class: 'sbx-browser' }, h('div', { class: 'sbx-url' }, ic('lock', 13), h('span', { class: 'sbx-url-t' }), h('span', { class: 'sbx-note' }, 'Replica for training · test data only')), app));
 
   // Navigation. Entering a screen the scenario does not need is a detour (silent).
   const go = (screen, what, extra = {}) => {
@@ -142,15 +172,15 @@ export function sandboxView(key, { onExit } = {}) {
   ].map(([name, date, time, dur, speakers, translations, k, status]) => baseMeeting({ name, date, time, dur, speakers, translations, kind: k === 'hi' ? 'hi' : 'ai', type: k === 'hi' ? 'hi' : k === 'captions' ? 'captions' : 'speech', status, sample: true })));
   const powered = (m) => (m.kind === 'hi' ? 'Human interpretation' : m.type === 'captions' ? 'AI captions only' : 'AI speech & captions');
   const langsOf = (m) => { const all = [...new Set([...m.speakers, ...m.translations.map((l) => l.replace(/ \(.*\)$/, ''))])]; return all.length > 3 ? `${all.slice(0, 3).join(', ')} +${all.length - 3}` : all.join(', '); };
-  const mineRow = () => (S.mine ? [S.mine] : []);
+  const mineRow = () => (S.own ? S.own : S.mine ? [S.mine] : []);
   const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const dt = (iso) => new Date(`${iso}T12:00:00`);
   const fmtLong = (iso) => { const d = dt(iso); return `${DOW[d.getDay()]}, ${MON[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}, ${d.getFullYear()}`; };
   const fmtForm = (iso) => { const d = dt(iso); return `${DOW[d.getDay()]}, ${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`; };
   const TODAY = '2026-11-26';
-  const dOf = (m) => (m === S.mine ? { date: fmtLong(m.day || TODAY), time: '14:00 - 15:00', dur: '1 hour' } : m);
+  const dOf = (m) => (m.date ? m : { date: fmtLong(m.day || TODAY), time: '14:00 - 15:00', dur: '1 hour' });
   const notYetBox = () => h('div', { class: 'k-note' }, 'This page is not available in the sandbox yet');
-  const openMeeting = (m) => { S.meeting = m; S.ovAdv = false; if (m === S.mine) go('meeting', 'Open the meeting'); else { go('meeting', `Open ${m.name}`); detour(`Opened another meeting: ${m.name}`); } };
+  const openMeeting = (m) => { S.meeting = m; S.ovAdv = false; if (!m.sample) go('meeting', `Open ${m.name}`); else { go('meeting', `Open ${m.name}`); detour(`Opened another meeting: ${m.name}`); } };
   function homeScreen() {
     const card = (m) => { const d = dOf(m); return h('button', { class: 'k-mcard', type: 'button', on: { click: () => openMeeting(m) } },
       h('b', null, m.name, ' ›'), h('div', null, ic('cal', 14), d.date), h('div', null, ic('clock', 14), d.time, ' CET'), h('div', null, ic('lang', 14), langsOf(m)), h('span', { class: `k-chip ${m.status}` }, m.status.toUpperCase())); };
@@ -323,13 +353,94 @@ export function sandboxView(key, { onExit } = {}) {
         h('button', { class: `k-tab ${cur === 'glossaries' ? 'on' : ''}`, type: 'button', on: { click: () => go('mglossaries', 'My glossaries (meeting)') } }, 'My glossaries'),
         m.status === 'finished' ? h('button', { class: `k-tab ${cur === 'stats' ? 'on' : ''}`, type: 'button', on: { click: () => go('stats', 'Meeting statistics') } }, 'Meeting statistics') : null));
   };
+  // Links: each meeting has its own IDs. Copying puts the item on the sandbox clipboard; "Reply to the client" sends it.
+  let idSeq = 0;
+  const idsOf = (m) => (m.ids = m.ids || (() => { const n = String(219330417 + 111 * (idSeq++)).padStart(9, '0'); return { p: `240${n}`, o: `480${n}`, v: `770${n}`, i: `330${n}` }; })());
+  const LINK = {
+    participant: (m) => `https://live.kudoway.eu/k8/${idsOf(m).p}`, operator: (m) => `https://live.kudoway.eu/k8/${idsOf(m).o}`, viewer: (m) => `https://live.kudoway.eu/k8/${idsOf(m).v}`,
+    interpreter: (m) => `https://live.kudoway.eu/ad/${idsOf(m).i}`, mobile: (m) => `https://audio-widget.kudoway.com/${idsOf(m).v}`,
+    iframe: (m) => `<iframe name="KUDO Widget" src="https://audio-widget.kudoway.com/${idsOf(m).v}" width="375px" height="500px" style="border:0px #fff none;" allowfullscreen></iframe>`,
+    'wcode-real time': (m) => `<div id="kudo_wrapper" class="kudo-widget"></div><script src="https://kudo-widget.example/live/main.js"></script><script>window.mid = "${idsOf(m).v}"</script>`,
+    'wcode-broadcasting': (m) => `<div id="kudo_wrapper" class="kudo-widget"></div><script src="https://kudo-widget.example/hls/main.js"></script><script>window.mid = "${idsOf(m).v}"</script>`,
+    qr: (m) => `QR code (PNG) for ${m.name}`,
+  };
+  const LABEL = { participant: 'Participant/Speaker link', operator: 'Operator link', viewer: 'Viewer-Only link', interpreter: 'Interpreter link', mobile: 'Mobile Link', iframe: 'iframe widget code', 'wcode-real time': 'Widget code (Real time stream)', 'wcode-broadcasting': 'Widget code (Broadcasting)', qr: 'QR code image' };
+  S.clip = [];
+  const copy = (kind, m = S.meeting) => {
+    const item = { kind, meeting: m, text: LINK[kind](m), label: `${LABEL[kind]} · ${m.name}` };
+    S.clip = [item, ...S.clip.filter((c) => !(c.kind === kind && c.meeting === m))].slice(0, 12);
+    try { if (kind !== 'qr') navigator.clipboard?.writeText(item.text).catch(() => {}); } catch { /* the sandbox list below still has it */ }
+    log('copy', `Copied ${LABEL[kind]} of ${m.name}`);
+    if (!sc.links && !kind.startsWith('wcode') && m === S.meeting) detour(`Copied the ${LABEL[kind]}`);
+    if (kind === 'qr') toastK('QR code downloaded'); else toastK('Copy Successful! Copied!');
+  };
+  const openLink = (role) => { log('click', `Opened the ${LABEL[role]}`); go('preview', `Preview: ${LABEL[role]}`, { pv: { role, m: S.meeting, step: role === 'participant' ? 'lobby' : role === 'operator' ? 'audio' : role === 'mobile' ? 'welcome' : 'room', panel: null, lang: 'Original audio' } }); };
+  const linkBox = (label, role, extra) => h('div', { class: 'k-lbox' }, h('div', { class: 'k-rowsp' }, h('b', null, label), extra || null),
+    h('div', { class: 'k-linkrow' }, h('button', { class: 'k-copy', type: 'button', title: 'Copy', on: { click: () => copy(role) } }, LINK[role](S.meeting).replace(/^https:\/\//, 'https://').slice(0, 34) + '…'),
+      h('button', { class: 'k-open', type: 'button', title: 'Open link', 'aria-label': `Open the ${label} link`, on: { click: () => openLink(role) } }, '↗')),
+    role === 'mobile' ? null : h('div', { class: 'k-rowsp' }, h('span', { class: 'k-mini' }, 'Add to calendar:'), h('span', null, ...['Google', 'Outlook'].map((c) => h('button', { class: 'k-cal-ic', type: 'button', title: c, on: { click: () => { detour(`Add to calendar (${c}): ${label}`); toastK(`${c} calendar invite downloaded`); } } }, ic('cal', 12))))));
   const links = () => (['finished', 'canceled'].includes(S.meeting.status) ? h('aside', { class: 'k-links' }, h('p', { class: 'k-mini' }, 'The meeting is finished. The invite links are not available.'))
-    : h('aside', { class: 'k-links' }, h('h4', null, ic('link'), ' KUDO meeting links ', h('small', { class: 'k-click', on: { click: () => { detour('Copy all links'); toastK('Links copied'); } } }, 'Copy all links')),
-      ...['Participant/Speaker', ...(S.meeting.kind === 'hi' ? ['Interpreter'] : []), 'Operator', 'Viewer-Only'].map((l) => h('div', { class: 'k-lbox' }, h('div', { class: 'k-rowsp' }, h('b', null, l), l === 'Viewer-Only' ? h('span', { class: 'k-rel' }, h('button', { class: 'k-link small', type: 'button', on: { click: () => { S.menu = S.menu === 'wcode' ? null : 'wcode'; log('click', 'Copy widget code'); draw(); } } }, 'Copy widget code ▾'),
-          S.menu === 'wcode' ? h('div', { class: 'k-menu right' }, ...[['Real time stream *', 'real time'], ['Broadcasting **', 'broadcasting']].map(([t, k]) => h('button', { type: 'button', on: { click: () => { S.menu = null; S.wcode = k; if (S.meeting === S.mine) S.flags.wcodes = [...(S.flags.wcodes || []), k]; log('copy', `Widget code copied: ${k}`); toastK('Copy Successful! Copied!'); draw(); } } }, t))) : null) : null),
-        h('button', { class: 'k-copy', type: 'button', on: { click: () => { detour(`Copied the ${l} link`); toastK('Copy Successful! Copied!'); } } }, `https://live.kudoway.eu/${l === 'Interpreter' ? 'ad/3302' : 'k8/2402'}…`), h('div', { class: 'k-rowsp' }, h('span', { class: 'k-mini' }, 'Add to calendar:'), h('span', null, ...['Google', 'Outlook'].map((c) => h('button', { class: 'k-cal-ic', type: 'button', title: c, on: { click: () => { detour(`Add to calendar (${c}): ${l}`); toastK(`${c} calendar invite downloaded`); } } }, ic('cal', 12))))))),
-      h('h4', null, 'KUDO language access'), h('div', { class: 'k-lbox' }, h('b', null, 'iframe widget'), h('button', { class: 'k-copy', type: 'button', on: { click: () => { detour('Copied the iframe widget'); toastK('Code copied'); } } }, '<iframe name="KUDO Widget"…')),
-      h('div', { class: 'k-lbox' }, h('b', null, 'Mobile Link'), h('button', { class: 'k-copy', type: 'button', on: { click: () => { detour('Copied the Mobile Link'); toastK('Link copied'); } } }, 'https://audio-widget.kudoway.com/7702…')), h('div', { class: 'k-lbox k-qr' }, h('span', null, 'Download QR code'), h('span', { class: 'k-qrbox' }))));
+    : h('aside', { class: 'k-links' }, h('h4', null, ic('link'), ' KUDO meeting links ', h('small', { class: 'k-click', on: { click: () => { ['participant', 'operator', 'viewer'].forEach((k) => copy(k)); log('click', 'Copy all links'); } } }, 'Copy all links')),
+      linkBox('Participant/Speaker', 'participant'), S.meeting.kind === 'hi' ? linkBox('Interpreter', 'interpreter') : null, linkBox('Operator', 'operator'),
+      linkBox('Viewer-Only', 'viewer', h('span', { class: 'k-rel' }, h('button', { class: 'k-link small', type: 'button', on: { click: () => { S.menu = S.menu === 'wcode' ? null : 'wcode'; log('click', 'Copy widget code'); draw(); } } }, 'Copy widget code ▾'),
+        S.menu === 'wcode' ? h('div', { class: 'k-menu right' }, ...[['Real time stream *', 'real time'], ['Broadcasting **', 'broadcasting']].map(([t, k]) => h('button', { type: 'button', on: { click: () => { S.menu = null; S.wcode = k; if (S.meeting === S.mine) S.flags.wcodes = [...(S.flags.wcodes || []), k]; copy(`wcode-${k}`); draw(); } } }, t))) : null)),
+      h('h4', null, 'KUDO language access'),
+      h('div', { class: 'k-lbox' }, h('b', null, 'iframe widget'), h('button', { class: 'k-copy', type: 'button', on: { click: () => copy('iframe') } }, '<iframe name="KUDO Widget"…')),
+      linkBox('Mobile Link', 'mobile'),
+      h('div', { class: 'k-lbox k-qr' }, h('span', null, 'Download QR code'), h('button', { class: 'k-qrbox', type: 'button', title: 'Download QR code', on: { click: () => copy('qr') } }))));
+
+  // What each link opens (from the recordings): lobby and room for Participant/Speaker, the Operator console,
+  // the Viewer-Only room and the Mobile Link page.
+  function previewScreen() {
+    const p = S.pv, m = p.m, langs = ['Original audio', ...(m.kind === 'hi' ? m.speakers : m.translations)];
+    const back = h('button', { class: 'pv-back', type: 'button', on: { click: () => { log('click', 'Back to the portal'); S.meeting = m; go('meeting', 'Back to the portal'); } } }, '← Back to the portal');
+    const set = (o) => { Object.assign(p, o); draw(); };
+    const top = h('div', { class: 'pv-top' }, h('img', { src: '/kudo-logo.png', alt: 'KUDO', class: 'pv-logo' }), h('b', null, m.name), h('span', { class: 'pv-gap' }), h('span', null, 'Demo NDK'), h('span', null, 'Log out'));
+    if (p.role === 'mobile') {
+      return h('div', { class: 'pv' }, back, h('div', { class: 'pv-mobile' }, p.step === 'welcome'
+        ? h('div', { class: 'pv-wcard' }, h('h3', null, 'Welcome!'), h('p', null, m.name), select(['Please select your language', ...langs.slice(1)], p.lang, (v) => { p.lang = v; }), h('button', { class: 'k-btn', type: 'button', on: { click: () => { log('click', 'Mobile Link: Join'); set({ step: 'room' }); } } }, 'Join'), h('small', { class: 'k-mini' }, 'By continuing, you agree to our Terms of use and Privacy policy'))
+        : h('div', { class: 'pv-wcard' }, h('div', { class: 'pv-cap' }, 'Captions appear here'), h('div', { class: 'pv-wbar' }, ...['Voice', 'Captions', 'Audio', 'Leave'].map((x) => h('button', { type: 'button', on: { click: () => { log('click', `Mobile Link: ${x}`); if (x === 'Leave') set({ step: 'welcome' }); } } }, x))))));
+    }
+    if (p.step === 'lobby') {
+      return h('div', { class: 'pv light' }, back, h('div', { class: 'pv-lobby' }, h('div', null, h('b', null, 'Meeting & Attendance Details'), h('div', { class: 'k-note' }, h('b', null, m.name), h('div', null, dOf(m).date), h('div', null, dOf(m).time), h('div', null, m.translations.join(', ') || m.speakers.join(', '))),
+        row('Display Name *', h('input', { class: 'k-in', value: 'Demo NDK' })), row('Email *', h('input', { class: 'k-in', value: 'demo@client-demo.com' })),
+        row('My language', select(m.speakers, m.speakers[0], () => {})), row('What voice should others hear when you speak?', radio('voice', [['m', 'Male'], ['f', 'Female'], ['n', 'No preference']], 'n', () => {}))),
+        h('div', null, h('div', { class: 'pv-cam' }, ic('user', 48)), h('span', { class: 'k-link small' }, 'Test connection'), h('button', { class: 'k-btn', type: 'button', on: { click: () => { log('click', 'Participant lobby: Join'); set({ step: 'room' }); } } }, 'Join'), h('small', { class: 'k-mini' }, 'Wear a headset for the best experience'))));
+    }
+    if (p.step === 'audio') return h('div', { class: 'pv' }, back, top, h('div', { class: 'pv-dialog' }, h('p', null, "To connect to the meeting audio, please click 'Ok'"), h('button', { class: 'k-btn', type: 'button', on: { click: () => set({ step: 'room' }) } }, 'OK')));
+    const role = p.role;
+    const sideItems = role === 'viewer' ? [] : role === 'operator' ? ['Share screen', 'Messages', 'Polls', 'Document', 'Request list', 'User list'] : ['Share screen', 'Messages', 'Polls', 'Document', 'User list'];
+    const PANEL = { Messages: () => h('div', null, h('div', { class: 'pv-tabs' }, 'Participants · Technical Support · Private'), h('div', { class: 'pv-empty' }, 'Type a message')),
+      Polls: () => role === 'operator' ? h('div', null, h('div', { class: 'pv-tabs' }, 'Settings · Results'), ...(m.polls.length ? m.polls : [{ q: 'Is Blue the best Color?', answers: ['Yes', 'No', 'Abstain'] }]).map((x) => h('div', { class: 'pv-poll' }, h('b', null, x.q), h('ol', null, x.answers.map((a) => h('li', null, a))), h('button', { class: 'k-btn', type: 'button', on: { click: () => log('click', 'Operator: Start poll') } }, 'Start poll'), h('button', { class: 'k-btn soft', type: 'button' }, 'Poll Status'))))
+        : h('div', null, h('div', { class: 'pv-tabs' }, 'Polls · Results')),
+      Document: () => h('div', null, ...m.files.map((f) => h('div', { class: 'pv-file' }, f.name)), role === 'operator' ? h('button', { class: 'k-btn', type: 'button' }, 'Upload') : null),
+      'Request list': () => h('div', null, h('small', { class: 'k-mini' }, 'REQUESTING TO SPEAK (0)')),
+      'User list': () => h('div', null, h('div', { class: 'pv-tabs' }, role === 'operator' ? 'Users · Operators' : 'Participants (1) · Viewers (0)'), h('div', { class: 'pv-file' }, 'Demo NDK')),
+      'Share screen': () => h('div', { class: 'pv-empty' }, 'Choose a screen or window to share') };
+    const bottom = role === 'operator' ? ['Recording OFF', 'Audio ON', 'Broadcast'] : role === 'viewer' ? ['Audio ON', 'Camera OFF'] : ['Audio ON', 'Mic OFF', 'Camera ON', 'Raise hand'];
+    return h('div', { class: 'pv' }, back, top, h('div', { class: 'pv-body' }, h('div', { class: 'pv-stage' }, role === 'viewer' ? h('span', { class: 'k-mini' }, 'Viewer-Only: you watch and listen') : ic('user', 72)),
+      p.panel ? h('div', { class: 'pv-panel' }, h('div', { class: 'k-rowsp' }, h('b', null, p.panel), h('button', { type: 'button', on: { click: () => set({ panel: null }) } }, '×')), PANEL[p.panel]()) : null,
+      sideItems.length ? h('div', { class: 'pv-side' }, ...sideItems.map((x) => h('button', { class: p.panel === x ? 'on' : '', type: 'button', on: { click: () => { log('click', `${LABEL[role]} room: ${x}`); set({ panel: p.panel === x ? null : x }); } } }, x))) : null),
+      h('div', { class: 'pv-bottom' }, h('div', { class: 'pv-sel' }, select(langs, p.lang, (v) => { p.lang = v; log('change', `Interpretation language: ${v}`); toastK(`You have selected ${v.toUpperCase()}`); }), h('small', null, role === 'operator' ? 'Select language' : 'Interpretation language')),
+        h('div', { class: 'pv-sel' }, select(['Captions OFF', ...langs.slice(1)], 'Captions OFF', () => {}), h('small', null, 'Closed caption language')),
+        role === 'participant' ? h('div', { class: 'pv-sel' }, select(m.speakers, m.speakers[0], () => {}), h('small', null, 'You are speaking')) : null,
+        h('span', { class: 'pv-gap' }), ...bottom.map((x) => h('button', { class: 'pv-btn', type: 'button', on: { click: () => log('click', `${LABEL[role]} room: ${x}`) } }, x)),
+        h('button', { class: 'pv-btn leave', type: 'button', on: { click: () => { log('click', 'Leave'); S.meeting = m; go('meeting', 'Left the meeting'); } } }, 'Leave')));
+  }
+
+  // "Reply to the client": the trainee gives each person what they copied (or types an answer).
+  S.reply = {};
+  function drawReply() {
+    if (!sc.reply) return;
+    replyPanel.replaceChildren(h('div', { class: 'row spread' }, h('b', null, 'Reply to the client'), h('button', { class: 'btn sm', type: 'button', on: { click: () => { replyPanel.hidden = true; } } }, 'Close')),
+      h('p', { class: 'muted small' }, S.clip.length ? 'For each person, choose what you copied in the KUDO portal.' : 'Nothing copied yet: copy links or codes in the KUDO portal first, then come back.'),
+      ...sc.reply.map((r) => h('div', { class: 'sbx-rrow' }, h('label', null, r.label),
+        r.type === 'text' ? h('input', { class: 'input', placeholder: r.placeholder || 'Type your answer', value: S.reply[r.id]?.text || '', on: { change: (e) => { S.reply[r.id] = { text: e.target.value.trim() }; log('reply', `${r.label}: ${e.target.value.trim()}`); } } })
+          : h('select', { class: 'input', on: { change: (e) => { const c = S.clip[Number(e.target.value)]; S.reply[r.id] = c || null; log('reply', `${r.label}: ${c ? c.label : 'nothing'}`); drawReply(); } } },
+            h('option', { value: '' }, S.reply[r.id] ? S.reply[r.id].label : '— Choose what you copied —'), ...S.clip.map((c, i) => h('option', { value: i }, c.label))),
+        r.type !== 'text' && S.reply[r.id] ? h('code', { class: 'sbx-rtext' }, S.reply[r.id].text) : null)),
+      S.clip.length ? h('details', { class: 'sbx-clip' }, h('summary', null, `What you copied (${S.clip.length})`), ...S.clip.map((c) => h('div', null, h('b', null, c.label), h('code', { class: 'sbx-rtext' }, c.text)))) : null);
+  }
   const page = (...body) => shell(tabs(), h('div', { class: 'k-split' }, h('section', { class: 'k-card' }, ...body), links()));
   const iconBtn = (icon, tip, fn, cls = '') => h('button', { class: `k-ic ${cls}`, type: 'button', title: tip, 'aria-label': tip, on: { click: fn } }, icon);
   function meetingScreen() {
@@ -720,6 +831,62 @@ export function sandboxView(key, { onExit } = {}) {
       },
     },
   };
+  const R = (id) => S.reply[id];
+  const isK = (id, kinds, m = S.mine) => !!R(id) && kinds.includes(R(id).kind) && R(id).meeting === m;
+  const WRONG = { participant: 'a Participant/Speaker link: it gives them a microphone and camera', operator: 'the Operator link: it gives full control of the meeting', viewer: 'the Viewer-Only link', mobile: 'the Mobile Link', qr: 'the QR code', iframe: 'the iframe widget code', interpreter: 'the Interpreter link', 'wcode-real time': 'the Real time stream code', 'wcode-broadcasting': 'the Broadcasting code (for HLS)' };
+  Object.assign(RULES, {
+    'platform-2': {
+      next() {
+        const need = [['speakers', 'participant', 'Participant/Speaker link'], ['attendees', 'viewer', 'Viewer-Only link'], ['producer', 'operator', 'Operator link'], ['web', 'iframe', 'iframe widget'], ['room', 'mobile', 'Mobile Link (or the QR code)']];
+        for (const [id, k, l] of need) if (!S.clip.some((c) => c.kind === k)) return `Open "Partner Summit" and copy the ${l} from the links panel.`;
+        const miss = sc.reply.find((r) => !R(r.id)); if (miss) return `Open "Reply to the client" and choose what ${miss.label.toLowerCase()} need.`;
+        return null;
+      },
+      checks() { return [
+        ['Speakers: the Participant/Speaker link', isK('speakers', ['participant']), 20],
+        ['Browser attendees: the Viewer-Only link', isK('attendees', ['viewer']), 20],
+        ['Event producer: the Operator link', isK('producer', ['operator']), 20],
+        ['Web team: the iframe widget code', isK('web', ['iframe']), 20],
+        ['People in the room: the Mobile Link or its QR code', isK('room', ['mobile', 'qr']), 20],
+      ]; },
+      traps() { const t = [];
+        sc.reply.forEach((r) => { const c = R(r.id); if (!c) return; if (c.kind === 'participant' && r.id !== 'speakers') t.push([`Gave ${r.label.toLowerCase()} ${WRONG.participant}`, 6]); if (c.kind === 'operator' && r.id !== 'producer') t.push([`Gave ${r.label.toLowerCase()} ${WRONG.operator}`, 8]); if (c.meeting !== S.mine) t.push([`Gave ${r.label.toLowerCase()} a link from another meeting`, 6]); });
+        return t; },
+    },
+    'widget-1': {
+      next() {
+        if (!S.clip.some((c) => c.kind === 'iframe' && c.meeting === S.mine)) return 'Open "Global Summit - Day 2" (Day 2, not Day 1) and copy the iframe widget under KUDO language access.';
+        if (!isK('web', ['iframe'])) return 'Open "Reply to the client" and give the web team the iframe widget of Day 2.';
+        return null;
+      },
+      checks() { return [
+        ['Opened the Day 2 session', S.events.some((e) => /Open Global Summit - Day 2/.test(e.what)), 20],
+        ['Web team: an iframe widget code', !!R('web') && R('web').kind === 'iframe', 40],
+        ['The widget of Day 2, not Day 1', !!R('web') && R('web').meeting === S.mine, 40],
+      ]; },
+      traps() { const t = [], c = R('web');
+        if (c && c.meeting !== S.mine) t.push(['Gave the Day 1 widget: each session has its own, and it stops working when that session ends', 8]);
+        if (c && c.kind !== 'iframe') t.push([`Gave the web team ${WRONG[c.kind]} instead of the iframe widget`, 6]);
+        return t; },
+    },
+    'ringcentral-1': {
+      next() {
+        if (!S.clip.some((c) => c.kind === 'mobile' && c.meeting === S.mine)) return 'Open "Sales Town Hall" and copy its Mobile Link: the Widget ID is the meeting ID at the end of it.';
+        if (!R('wid')) return 'Open "Reply to the client" and type the 12-digit ID from the end of the Mobile Link (the ID only).';
+        return null;
+      },
+      checks() { const v = (R('wid')?.text || '').replace(/\s/g, ''), id = idsOf(S.mine).v; return [
+        ['Looked in the right session ("Sales Town Hall")', S.events.some((e) => /Open Sales Town Hall/.test(e.what)), 15],
+        ['Copied the Mobile Link', S.clip.some((c) => c.kind === 'mobile' && c.meeting === S.mine), 15],
+        ['Gave the right Widget ID', v === id, 50],
+        ['Gave the ID only, not the whole link', !!v && !/[/:.]/.test(v), 20],
+      ]; },
+      traps() { const t = [], v = (R('wid')?.text || '').replace(/\s/g, ''), ids = idsOf(S.mine);
+        if (/[/:]/.test(v)) t.push(['Gave the whole link: the producer needs the meeting ID only', 5]);
+        if (v.includes(ids.p) || v.includes(ids.o)) t.push(['Gave the Participant or Operator meeting ID: the Widget ID is the one in the Mobile Link', 8]);
+        return t; },
+    },
+  });
   const RULE = RULES[key];
   function nextStep() {
     if (S.screen === 'login') return 'Log in: the account is filled in for you.';
@@ -749,16 +916,17 @@ export function sandboxView(key, { onExit } = {}) {
     root.replaceChildren(report(sc, r, S.events, saved, onExit));
   }
 
-  const SCREENS = { rtmp: rtmpScreen, interpreters: interpretersScreen, broadcast: broadcastScreen, login: loginScreen, home: homeScreen, meetings: meetingsScreen, glossaries: glossariesScreen, usage: usageScreen, 'new-ai': () => formScreen('new'), 'new-hi': () => formScreen('new'), edit: () => formScreen('edit'), meeting: meetingScreen,
+  const SCREENS = { preview: previewScreen, rtmp: rtmpScreen, interpreters: interpretersScreen, broadcast: broadcastScreen, login: loginScreen, home: homeScreen, meetings: meetingsScreen, glossaries: glossariesScreen, usage: usageScreen, 'new-ai': () => formScreen('new'), 'new-hi': () => formScreen('new'), edit: () => formScreen('edit'), meeting: meetingScreen,
     users: () => usersScreen('all'), participants: () => usersScreen('participants'), operators: () => usersScreen('operators'), viewers: () => usersScreen('viewers'), polls: pollsScreen, 'poll-new': pollNewScreen, poll: pollScreen, files: filesScreen, messages: messagesScreen, recordings: recordingsScreen, av: avScreen, features: featuresScreen, mglossaries: mGlossariesScreen, stats: statsScreen };
   function draw() {
-    root.querySelector('.sbx-url-t').textContent = url();
+    root.querySelector('.sbx-url-t').textContent = S.screen === 'preview' ? (S.pv.role === 'mobile' ? LINK.mobile(S.pv.m).replace('https://', '') : `${LINK[S.pv.role](S.pv.m).replace('https://', '')}/join`) : url();
     app.replaceChildren(SCREENS[S.screen]());
   }
   app.addEventListener('click', (e) => {
     if (S.picker && !e.target.closest('.k-pick-wrap')) { S.picker = null; draw(); }
     if (S.menu && !e.target.closest('.k-tabw, .k-newwrap, .k-rel')) { S.menu = null; draw(); }
   });
+  if (sc.setup) { const own = sc.setup({ base: baseMeeting, TODAY }); S.own = own.list; S.mine = own.mine; S.screen = 'login'; }
   log('start', 'Sandbox opened');
   draw();
   return root;

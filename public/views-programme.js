@@ -253,7 +253,7 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
         (m.practiceTask || m.practiceFull) ? h('div', { class: 'card practice-card' }, h('div', { class: 'eyebrow dark' }, 'Step 2 · Practise'), h('h2', null, 'Do it for real'),
           practiceItem?.done ? h('div', { class: 'ok', style: 'margin-bottom:8px' }, practiceItem.signed_off ? 'Practice passed and signed off' : 'Practice done') : !practiceItem && !admin ? h('p', { class: 'muted small' }, 'Optional for you: not in your plan') : null,
           admin ? h('div', null, h('div', { class: 'explain-prompt' }, m.practiceFull.prompt), h('div', { class: 'muted small' }, `Format: ${{ write: 'written', speak: 'spoken', steps: 'step-by-step account' }[m.practiceFull.type]}. Reviewed automatically.`), h('b', null, 'Key points'), h('ul', null, m.practiceFull.points.map((p) => h('li', null, p))))
-            : SANDBOX_FOR[m.key] && !SANDBOXES[SANDBOX_FOR[m.key]].replaces ? h('div', null, sandboxBlock(m.key), h('h3', { class: 'sbx-then' }, 'Then the written task'), explainCard(m.key, m.practiceTask, m.practiceSubmissions || [], m.rubric || [], { onDone, kind: 'practice', type: m.practiceTask.type }))
+            : SANDBOX_FOR[m.key] && !sbxReplaces(m.key) ? h('div', null, sandboxBlock(m.key), h('h3', { class: 'sbx-then' }, 'Then the written task'), explainCard(m.key, m.practiceTask, m.practiceSubmissions || [], m.rubric || [], { onDone, kind: 'practice', type: m.practiceTask.type }))
             : SANDBOX_FOR[m.key] ? h('div', null, sandboxBlock(m.key), h('details', { class: 'sbx-old' }, h('summary', null, 'Or describe what you did in a test account'), explainCard(m.key, m.practiceTask, m.practiceSubmissions || [], m.rubric || [], { onDone, kind: 'practice', type: m.practiceTask.type })))
             : explainCard(m.key, m.practiceTask, m.practiceSubmissions || [], m.rubric || [], { onDone, kind: 'practice', type: m.practiceTask.type }),
           m.practice?.length ? h('details', { style: 'margin-top:12px' }, h('summary', null, 'More ways to practise (optional)'), h('ol', { class: 'obj' }, m.practice.map((p) => h('li', null, p)))) : null) : null),
@@ -317,9 +317,13 @@ function whatsNewCard(st) {
 }
 
 // ------------------------------------------------------------------ sandbox practice
-const SANDBOX_FOR = Object.fromEntries(Object.entries(SANDBOXES).map(([k, v]) => [v.module, k]));
-function sandboxBlock(moduleKey) {
-  const key = SANDBOX_FOR[moduleKey], sc = SANDBOXES[key];
+// Every sandbox exercise of a module, in scenario order. One that "replaces" stands in for the written practice task.
+const SANDBOX_FOR = {};
+Object.entries(SANDBOXES).sort((a, b) => a[1].num - b[1].num).forEach(([k, v]) => { (SANDBOX_FOR[v.module] = SANDBOX_FOR[v.module] || []).push(k); });
+const sbxReplaces = (mk) => (SANDBOX_FOR[mk] || []).some((k) => SANDBOXES[k].replaces);
+function sandboxBlock(moduleKey) { return h('div', { class: 'stack' }, ...SANDBOX_FOR[moduleKey].map((k) => sandboxOne(k, sbxReplaces(moduleKey)))); }
+function sandboxOne(key, replaced) {
+  const sc = SANDBOXES[key];
   const last = h('div', { class: 'muted small' });
   api('GET', `/api/me/sandbox/${key}`).then(({ runs }) => {
     if (!runs.length) { last.textContent = 'Not tried yet'; return; }
@@ -328,6 +332,6 @@ function sandboxBlock(moduleKey) {
   }).catch(() => {});
   return h('div', { class: 'sbx-entry' },
     h('div', null, h('span', { class: 'chip blue' }, 'Sandbox'), h('h3', null, `Scenario ${sc.num}: ${sc.title}`), h('p', null, sc.request),
-      h('p', { class: 'muted small' }, 'You do it on a replica of the KUDO screens, with test data. Everything you click is recorded: you get a score (outcome, path, time), your path next to the expert\'s, and what you missed. Your first run is your result of record' + (sc.replaces ? '; passing it (80%) signs this practice off.' : '. The written task below is still part of this step.')), last),
+      h('p', { class: 'muted small' }, 'You do it on a replica of the KUDO screens, with test data. Everything you click is recorded: you get a score (outcome, path, time), your path next to the expert\'s, and what you missed. Your first run is your result of record' + (sc.replaces ? '; passing it (80%) signs this practice off.' : replaced ? '.' : '. The written task below is still part of this step.')), last),
     h('a', { class: 'btn primary', href: `#sandbox-${key}` }, 'Open the sandbox'));
 }
