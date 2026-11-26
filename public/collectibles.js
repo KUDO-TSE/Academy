@@ -2,7 +2,7 @@
 // card is earned. Cards reward real milestones; locked cards show exactly how to earn them.
 import { h, api, svg } from './ui.js';
 
-const SET = { Journey: ['#11374F', '#1B5C84'], Scenarios: ['#1B5C84', '#48A1D8'], Craft: ['#B8492A', '#DB6539'], Habit: ['#B8860B', '#F8C63F'] };
+const SET = { Journey: ['#11374F', '#1B5C84'], Scenarios: ['#1B5C84', '#48A1D8'], Topics: ['#24566B', '#3E8FA8'], 'Hands-on': ['#1F6B4E', '#38A06F'], Craft: ['#B8492A', '#DB6539'], Habit: ['#B8860B', '#F8C63F'] };
 const TIER = { bronze: ['#C07A45', 'Bronze'], silver: ['#B9C4CB', 'Silver'], gold: ['#F2C94C', 'Gold'] };
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -25,6 +25,18 @@ const G = {
   cal3: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/><text x="12" y="18" font-size="7" font-weight="800" fill="#fff" stroke="none" text-anchor="middle">3</text>',
   cal6: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/><text x="12" y="18" font-size="7" font-weight="800" fill="#fff" stroke="none" text-anchor="middle">6</text>',
   cal10: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/><text x="12" y="18" font-size="6.5" font-weight="800" fill="#fff" stroke="none" text-anchor="middle">10</text>',
+  cursor: '<path d="M5 3l12 6-5 1.6L10 16z"/><path d="M12 11l5 5"/><rect x="13" y="15" width="7" height="6" rx="1"/>',
+  check: '<circle cx="12" cy="12" r="8.5"/><path d="M8 12.5l2.8 2.8L16.5 9"/>',
+  stopwatch: '<circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M10 3h4M12 3v3M18 7l1.5-1.5"/>',
+  diamond: '<path d="M6 4h12l3 5-9 11L3 9zM3 9h18M9 4l-2 5 5 11 5-11-2-5"/>',
+  grid: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><path d="M14 16.5l2 2 4-4"/>',
+  pencil: '<path d="M4 20l1-4L16 5l3 3L8 19zM14 7l3 3"/>',
+  trend: '<path d="M3 17l6-6 4 4 7-8M15 7h5v5"/>',
+  'tp-foundations': '<path d="M3 20h18M5 20V10M10 20V10M14 20V10M19 20V10M2.5 10L12 4l9.5 6z"/>',
+  'tp-glossary': '<path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3zM5 17a3 3 0 013-3h11M9 8h6"/>',
+  'tp-network': '<rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/>',
+  'tp-marketplace': '<path d="M4 9l1.5-5h13L20 9M4 9h16v11H4zM4 9c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 2 3s3-1.3 3-3c0 1.7 1.3 3 2.5 3S20 10.7 20 9M10 20v-5h4v5"/>',
+  'tp-ringcentral': '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><path d="M12 3.5V8M12 16v4.5"/>',
   'sc-teams': '<path d="M4 5h11v8H9l-3 3v-3H4zM15 9h5v7h-1.5v2.5L16 16h-4v-3"/>',
   'sc-onsite': '<rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"/>',
   'sc-zoom': '<rect x="3" y="7" width="12" height="10" rx="2"/><path d="M15 11l6-3.5v9L15 13"/>',
@@ -65,8 +77,8 @@ const fmt = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', mon
 /** The "My collection" page. */
 export async function collectionView() {
   const d = await api('GET', '/api/me/collectibles');
-  const sets = ['Journey', 'Scenarios', 'Craft', 'Habit'];
-  const intro = { Journey: 'Milestones of your 12 weeks', Scenarios: 'One card per client scenario, earned when you reach your target level on it.', Craft: 'Work done well: decisions, explanations, honest judgement', Habit: 'Weeks you showed up. They never need to be in a row.' };
+  const sets = ['Journey', 'Scenarios', 'Topics', 'Hands-on', 'Craft', 'Habit'];
+  const intro = { Journey: 'Milestones of your 12 weeks. "First step" is yours from your first connection; every other card is earned by working in the Academy.', Scenarios: 'One card per client scenario: reach your target level (October assessment and Academy tests combined) with at least one lesson, test or sandbox exercise on it in the Academy.', Topics: 'One card per cross-cutting module: reach your target on its module test, first attempt.', 'Hands-on': 'Sandbox exercises on the replica of the KUDO screens: finish them, pass them, then do them fast and flawless.', Craft: 'Work done well: tests, decisions, explanations, honest judgement, progress.', Habit: 'Steady practice over the 12 weeks.' };
   const pct = Math.round((d.earned / d.total) * 100);
   const page = h('div', { class: 'page' },
     h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My collection'), h('p', null, 'Cards you earn at real milestones of your programme. They are yours to keep: none can be lost, and nobody else sees your collection.'))),

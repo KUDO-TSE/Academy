@@ -904,7 +904,7 @@ export function sandboxView(key, { onExit } = {}) {
     const secs = Math.round((Date.now() - S.t0) / 1000);
     const time = secs <= 300 ? 100 : secs >= 720 ? 0 : Math.round(100 - ((secs - 300) / 420) * 100);
     const total = Math.round(outcome * 0.7 + path * 0.2 + time * 0.1);
-    return { total, outcome, path, time, secs, checks: checks.map(([label, ok, w]) => ({ label, ok, w })), traps: traps.map(([label]) => label), detours, hints: S.hints, actions: S.events.filter((e) => ['click', 'pick', 'input', 'toggle', 'choose', 'save', 'remove', 'change'].includes(e.type)).length };
+    return { total, outcome, path, time, secs, expert: sc.expertSeconds, checks: checks.map(([label, ok, w]) => ({ label, ok, w })), traps: traps.map(([label]) => label), detours, hints: S.hints, actions: S.events.filter((e) => ['click', 'pick', 'input', 'toggle', 'choose', 'save', 'remove', 'change'].includes(e.type)).length };
   }
   async function finish() {
     if (S.finished) return;

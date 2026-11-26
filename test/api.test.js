@@ -478,6 +478,17 @@ test('collectibles: earned at milestones, never taken back, revealed once', asyn
   await q("INSERT INTO collectibles (user_id,key) VALUES ($1,'best-calls') ON CONFLICT DO NOTHING", [id]);
   await q("DELETE FROM quiz_attempts WHERE user_id=$1 AND kind='scenario'", [id]);
   assert.ok(has(await d('GET', '/api/me/collectibles'), 'best-calls'));
+  // Revised rules: scenario cards need work on that topic in the Academy; the sandbox has its own cards.
+  for (const c of (await d('GET', '/api/me/collectibles')).json.cards.filter((x) => x.set === 'Scenarios' && x.earned)) {
+    const k = c.scenario;
+    const work = (await q("SELECT 1 FROM quiz_attempts WHERE user_id=$1 AND module_key=$2 UNION ALL SELECT 1 FROM plan_progress WHERE user_id=$1 AND item_key LIKE $3 UNION ALL SELECT 1 FROM submissions WHERE user_id=$1 AND module_key=$2", [id, k, `${k}.%`])).rowCount;
+    assert.ok(work > 0, `scenario card ${k} needs Academy work on it`);
+  }
+  assert.ok(!has(await d('GET', '/api/me/collectibles'), 'sbx-first'));
+  await q("INSERT INTO sandbox_runs (user_id,scenario,score,result,record,seconds) VALUES ($1,'hls-1',100,$2,true,60)", [id, { total: 100, hints: 0, traps: [], expert: 150 }]);
+  const c3 = await d('GET', '/api/me/collectibles');
+  for (const k of ['sbx-first', 'sbx-pass', 'sbx-pace', 'sbx-flawless']) assert.ok(has(c3, k), k);
+  assert.ok(!has(c3, 'sbx-all'), 'one exercise is not all of them');
   const anon = client(); assert.equal((await anon('GET', '/api/me/collectibles')).status, 401);
 });
 

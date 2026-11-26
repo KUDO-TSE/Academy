@@ -9,6 +9,7 @@ import { faqFor } from './sessions.js';
 import { updatesFor, editedIn } from './releases.js';
 async function videoLinks() { return (await q("SELECT value FROM app_settings WHERE key='videos'")).rows[0]?.value || {}; }
 import { enqueue } from './autoreview.js';
+import { SANDBOX, SANDBOX_SIGNS } from './sandboxes.js';
 import { DEMO_FILTER, resetDemo, createDemo } from './demo.js';
 const AUTO = () => process.env.AUTO_REVIEW !== 'off';
 import { loadContext, refreshPlan, refreshAll, approvePlan, diffPlans, liveState, buildPlan, getSettings, PASS, PHASES, computeLevels, personalPriority, explainScore } from './engine.js';
@@ -92,9 +93,6 @@ meProgramme.get('/progress-live', async (req, res, next) => {
 // ------------------------------------------------------------------ sandbox practice
 // Runs on the replica of the KUDO screens. The first run is the result of record; passing it (80%) signs the
 // module's practice off. For now a sandbox run, like any practice, does not move the level.
-const SANDBOX = { 'platform-1': 'platform', 'platform-2': 'platform', 'hi-1': 'hi', 'rtmp-1': 'rtmp', 'hls-1': 'hls', 'widget-1': 'widget', 'ringcentral-1': 'ringcentral' };
-// Sandboxes that replace the module's practice sign it off; the others sit next to a written practice task and only keep their result.
-const SANDBOX_SIGNS = new Set(['platform-1']);
 meProgramme.post('/sandbox/:key', async (req, res, next) => {
   try {
     const key = req.params.key, mk = SANDBOX[key]; if (!mk) return res.status(404).json({ error: 'Not found.' });
@@ -103,7 +101,7 @@ meProgramme.post('/sandbox/:key', async (req, res, next) => {
     const score = num(r.total); if (score == null) return bad(res, 'Missing result.');
     const result = { total: score, outcome: num(r.outcome), path: num(r.path), time: num(r.time), secs: Math.max(0, Math.round(Number(r.secs) || 0)),
       checks: (Array.isArray(r.checks) ? r.checks : []).slice(0, 40).map((c) => ({ label: String(c.label || '').slice(0, 200), ok: !!c.ok, w: num(c.w) })),
-      traps: (Array.isArray(r.traps) ? r.traps : []).slice(0, 20).map((t) => String(t).slice(0, 200)), detours: num(r.detours), hints: num(r.hints), actions: Math.round(Number(r.actions) || 0) };
+      traps: (Array.isArray(r.traps) ? r.traps : []).slice(0, 20).map((t) => String(t).slice(0, 200)), expert: Math.max(0, Math.round(Number(r.expert) || 0)), detours: num(r.detours), hints: num(r.hints), actions: Math.round(Number(r.actions) || 0) };
     const uid = req.user.id;
     const first = (await q('SELECT 1 FROM sandbox_runs WHERE user_id=$1 AND scenario=$2 LIMIT 1', [uid, key])).rowCount === 0;
     const row = (await q('INSERT INTO sandbox_runs (user_id,scenario,score,result,events,record,seconds) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', [uid, key, score, result, JSON.stringify(ev), first, result.secs])).rows[0];
