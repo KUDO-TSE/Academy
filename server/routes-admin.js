@@ -158,6 +158,31 @@ adminRouter.post('/users/:id/reset-password', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Delete a person for good (someone who left): their account, plan, results, recordings and cards go with them.
+// Guards: not yourself, not the last admin, not an email the server re-creates at start-up (ADMIN_EMAILS).
+adminRouter.delete('/users/:id', async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    const id = Number(req.params.id);
+    if (id === req.user.id) return bad(res, 'You cannot delete your own account.');
+    const u = (await client.query('SELECT id,email,name,role,active FROM users WHERE id=$1', [id])).rows[0];
+    if (!u) return res.status(404).json({ error: 'Not found.' });
+    if (String(req.body?.confirm || '').trim().toLowerCase() !== u.email.toLowerCase()) return bad(res, 'Type the person\'s email to confirm.');
+    const env = (k) => String(process.env[k] || '').split(',').map((e) => e.trim().toLowerCase());
+    for (const k of ['ADMIN_EMAILS', 'DEMO_TRAINEE_EMAILS', 'DEMO_TRAINEE_EMAIL']) if (env(k).includes(u.email.toLowerCase())) return bad(res, `${u.name} is listed in ${k} on the server and would come back at the next restart. Remove the email there first.`);
+    if (u.role === 'admin' && u.active) {
+      const n = (await client.query("SELECT count(*)::int AS n FROM users WHERE role='admin' AND active AND id<>$1", [id])).rows[0].n;
+      if (!n) return bad(res, 'This is the last active admin.');
+    }
+    await client.query('BEGIN');
+    await client.query('UPDATE sessions SET user_ids=array_remove(user_ids,$1) WHERE $1 = ANY(user_ids)', [id]);
+    await client.query('DELETE FROM users WHERE id=$1', [id]);
+    await client.query('COMMIT');
+    await audit(req, 'user.delete', u.email, `${u.name} (${u.role})`);
+    res.json({ ok: true });
+  } catch (e) { await client.query('ROLLBACK').catch(() => {}); next(e); } finally { client.release(); }
+});
+
 adminRouter.get('/users', async (_req, res, next) => {
   try {
     const r = await q('SELECT id,email,name,role,is_trainee,is_demo,region,team,active,must_change_password,last_login_at FROM users ORDER BY role, name');

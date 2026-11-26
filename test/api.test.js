@@ -532,3 +532,23 @@ Fixes and improvements
   assert.equal((await tr('GET', '/api/me/whats-new')).json.updates.length, 0);
   assert.equal((await adm('DELETE', `/api/admin/releases/${cr.json.id}`)).status, 200);
 });
+
+test('an admin can delete a person who left; guarded against mistakes', async () => {
+  const adm = client(); await adm('POST', '/api/auth/login', { email: 'boss@test.local', password: 'Quiet-harbor-pass-55' });
+  const cr = await adm('POST', '/api/admin/users', { email: 'leaver@test.local', name: 'Lee Leaver', role: 'trainee', team: 'Sales' });
+  const id = cr.json.id;
+  await q("INSERT INTO collectibles (user_id,key) VALUES ($1,'start')", [id]);
+  await q("INSERT INTO sessions (kind,title,user_ids,filename,status) VALUES ('group','Group with Lee',$1,'x.vtt','ready')", [[id]]);
+  const tr = client(); await tr('POST', '/api/auth/login', { email: 'dana@test.local', password: 'Quiet-valley-pass-73' });
+  assert.equal((await tr('DELETE', `/api/admin/users/${id}`, { confirm: 'leaver@test.local' })).status, 403, 'trainees cannot delete');
+  assert.equal((await adm('DELETE', `/api/admin/users/${id}`, { confirm: 'someone@else' })).status, 400, 'the email must be typed');
+  const me = (await adm('GET', '/api/auth/me')).json.user;
+  assert.equal((await adm('DELETE', `/api/admin/users/${me.id}`, { confirm: 'boss@test.local' })).status, 400, 'not yourself');
+  const ok = await adm('DELETE', `/api/admin/users/${id}`, { confirm: 'Leaver@test.local ' });
+  assert.equal(ok.status, 200);
+  assert.equal((await q('SELECT count(*)::int AS n FROM users WHERE id=$1', [id])).rows[0].n, 0);
+  assert.equal((await q('SELECT count(*)::int AS n FROM collectibles WHERE user_id=$1', [id])).rows[0].n, 0, 'their data goes with them');
+  assert.deepEqual((await q("SELECT user_ids FROM sessions WHERE title='Group with Lee'")).rows[0].user_ids, [], 'and they leave the session lists');
+  assert.ok((await q("SELECT 1 FROM audit_log WHERE action='user.delete' AND target='leaver@test.local'")).rowCount, 'the deletion is logged');
+  assert.equal((await adm('DELETE', `/api/admin/users/${id}`, { confirm: 'leaver@test.local' })).status, 404);
+});

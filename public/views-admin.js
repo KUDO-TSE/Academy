@@ -173,7 +173,8 @@ function tabProfile(d, reload) {
       h('div', { class: 'card' }, h('h2', null, 'Access'), h('p', { class: 'sub' }, `${u.email} · ${u.role === 'admin' ? 'Admin' : 'Trainee'} · ${u.active ? 'Active' : 'Deactivated'}${u.must_change_password ? ' · has not set their own password yet' : ''}`),
         h('div', { class: 'row' },
           h('button', { class: 'btn', on: { click: async () => { if (!confirm(`Reset ${u.name}'s password to the generic password? They will be asked to change it at next sign-in.`)) return; try { await api('POST', `/api/admin/users/${u.id}/reset-password`); toast('Password reset'); reload(); } catch (e) { toast(e.message, true); } } } }, 'Reset password'),
-          h('button', { class: `btn ${u.active ? 'danger' : ''}`, on: { click: async () => { if (u.active && !confirm(`Deactivate ${u.name}? They will no longer be able to sign in.`)) return; try { await api('PATCH', `/api/admin/trainees/${u.id}`, { active: !u.active }); toast(u.active ? 'Deactivated' : 'Reactivated'); reload(); } catch (e) { toast(e.message, true); } } } }, u.active ? 'Deactivate' : 'Reactivate')))));
+          h('button', { class: `btn ${u.active ? 'danger' : ''}`, on: { click: async () => { if (u.active && !confirm(`Deactivate ${u.name}? They will no longer be able to sign in.`)) return; try { await api('PATCH', `/api/admin/trainees/${u.id}`, { active: !u.active }); toast(u.active ? 'Deactivated' : 'Reactivated'); reload(); } catch (e) { toast(e.message, true); } } } }, u.active ? 'Deactivate' : 'Reactivate'),
+          h('button', { class: 'btn danger', on: { click: () => deletePerson(u, () => { location.hash = 'users'; }) } }, 'Delete for good')))));
 }
 
 // ---------------------------------------------------------------- Preview as trainee
@@ -259,13 +260,15 @@ export async function importView() {
 // ---------------------------------------------------------------- Users & access
 export async function usersView() {
   await meta();
-  const list = await api('GET', '/api/admin/users');
+  const [list, { user: me }] = await Promise.all([api('GET', '/api/admin/users'), api('GET', '/api/auth/me')]);
+  const myId = me?.id;
   const add = () => {
     const email = h('input', { type: 'email', placeholder: 'name@kudo.ai' }), name = h('input', { type: 'text' }), role = select([['trainee', 'Trainee'], ['admin', 'Admin']], 'trainee'), region = select([['', '–'], ...META.regions.map((r) => [r, r])], ''), team = select([['', '–'], ...META.teams.map((r) => [r, r])], '');
     modal('Add a person', h('div', null, field('Email', email), field('Name', name), field('Access', role), h('div', { class: 'grid g2' }, field('Region', region), field('Team', team)), h('p', { class: 'muted small' }, 'They sign in with the generic password and are asked to choose their own.')), { actions: (close) => [h('button', { class: 'btn', on: { click: close } }, 'Cancel'), h('button', { class: 'btn primary', on: { click: async () => { try { await api('POST', '/api/admin/users', { email: email.value, name: name.value, role: role.value, region: region.value, team: team.value }); close(); toast('Account created'); location.hash = 'users'; window.dispatchEvent(new HashChangeEvent('hashchange')); } catch (e) { toast(e.message, true); } } } }, 'Create')] });
   };
   const rows = list.map((u) => h('tr', null, h('td', null, h('b', null, u.name), h('div', { class: 'muted small' }, u.email)), h('td', null, h('span', { class: `chip ${u.role === 'admin' ? 'coral' : 'blue'}` }, u.role === 'admin' ? 'Admin' : 'Trainee')), h('td', null, u.region || '–'), h('td', null, u.active ? (u.must_change_password ? h('span', { class: 'chip amber' }, 'Generic password') : h('span', { class: 'chip green' }, 'Active')) : h('span', { class: 'chip red' }, 'Deactivated')), h('td', null, u.last_login_at ? fmtDate(u.last_login_at) : 'Never'),
-    h('td', null, u.role === 'trainee' ? h('a', { href: `#person-${u.id}` }, 'Open') : h('div', { class: 'row' }, h('button', { class: 'btn sm', on: { click: async () => { if (!confirm(`Reset ${u.name}'s password to the generic password?`)) return; try { await api('POST', `/api/admin/users/${u.id}/reset-password`); toast('Password reset'); } catch (e) { toast(e.message, true); } } } }, 'Reset password')))));
+    h('td', null, h('div', { class: 'row', style: 'justify-content:flex-end;flex-wrap:nowrap' }, u.role === 'trainee' ? h('a', { class: 'btn sm', href: `#person-${u.id}` }, 'Open') : h('button', { class: 'btn sm', on: { click: async () => { if (!confirm(`Reset ${u.name}'s password to the generic password?`)) return; try { await api('POST', `/api/admin/users/${u.id}/reset-password`); toast('Password reset'); } catch (e) { toast(e.message, true); } } } }, 'Reset password'),
+      u.id === myId ? null : h('button', { class: 'btn sm danger', 'aria-label': `Delete ${u.name}`, on: { click: () => deletePerson(u, () => location.reload()) } }, 'Delete')))));
   return h('div', { class: 'page' }, h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Users & access'), h('p', null, 'Everyone who can sign in. Admins see the whole team; trainees see only their own data.')), h('button', { class: 'btn primary', on: { click: add } }, 'Add person')),
     h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Person', 'Access', 'Region', 'Status', 'Last sign-in', ''].map((x) => h('th', null, x)))), h('tbody', null, rows))), P.testTraineesCard());
 }
@@ -292,3 +295,19 @@ export function logicView() {
       sec('Conventions', h('p', null, 'Never edit a file in place; save a new version. Superseded versions go to the archive.'))));
 }
 void scoresFor;
+
+/** Delete a person for good, after typing their email. Deactivating stays the gentler option. */
+export function deletePerson(u, done) {
+  const input = h('input', { type: 'email', placeholder: u.email, autocomplete: 'off', 'aria-label': 'Type the email to confirm' });
+  const err = h('div');
+  const body = h('div', null,
+    h('p', null, `This removes ${u.name} and everything that belongs to them: their account, plan, results, recordings, notes and cards. Team figures are recalculated without them. It cannot be undone.`),
+    u.active ? h('p', { class: 'muted small' }, 'If they might come back, or you want to keep their results in the history, deactivate them instead: they can no longer sign in and nothing is lost.') : null,
+    h('label', { class: 'f' }, h('span', { class: 'l' }, `Type ${u.email} to confirm`), input), err);
+  modal(`Delete ${u.name}?`, body, { actions: (close) => [h('button', { class: 'btn', on: { click: close } }, 'Cancel'),
+    h('button', { class: 'btn danger', on: { click: async () => {
+      err.replaceChildren();
+      try { await api('DELETE', `/api/admin/users/${u.id}`, { confirm: input.value }); close(); toast(`${u.name} deleted`); done?.(); }
+      catch (e) { err.append(h('div', { class: 'err', role: 'alert' }, e.message)); }
+    } } }, 'Delete for good')] });
+}
