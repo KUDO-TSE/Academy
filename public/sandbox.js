@@ -18,6 +18,7 @@ const ic = (n, size = 16) => svg(`<svg viewBox="0 0 24 24" width="${size}" heigh
 
 const SPEAKER = ['Arabic', 'Basque', 'Bulgarian', 'Cantonese', 'Catalan', 'Chinese', 'Dutch', 'English', 'Estonian', 'Filipino', 'Finnish', 'French', 'Galician', 'Georgian', 'German', 'Italian', 'Japanese', 'Korean', 'Portuguese', 'Russian', 'Spanish'];
 const TRANSLATION = ['Afrikaans', 'Arabic', 'Bulgarian', 'Dutch', 'English (UK)', 'English (US)', 'Estonian', 'Filipino', 'Finnish', 'French (Canada)', 'French (France)', 'Galician', 'Georgian', 'German', 'Italian', 'Japanese', 'Korean', 'Portuguese (Brazil)', 'Portuguese (Portugal)', 'Russian', 'Spanish (Mexico)', 'Spanish (Spain)'];
+const SIGN = ['American Sign Language', 'British Sign Language', 'French Sign Language', 'International Sign', 'German Sign Language'];
 const HOST = 'host@client-demo.com';
 const NAME = 'Quarterly Partner Update';
 const fr = (l) => /^French/.test(l), de = (l) => l === 'German', es = (l) => /^Spanish/.test(l);
@@ -28,13 +29,20 @@ export const SCENARIOS = {
     request: `A client runs "${NAME}" with AI Translation. Create the meeting with English as the speaker language and French and German as translation languages. Add the Host (${HOST}) and make sure the meeting is recorded. Start it. While it is live, the client asks for Spanish: add it. Then end the meeting and show where the client will find the recordings.`,
     expert: ['Log in with the Client account', 'New meeting, AI speech translation', 'Name, date and time', 'Speaker language English; translation languages French and German', 'Tick "Automatically record this meeting when it starts"', 'Save', 'Users, Participants', 'Add participant: the Host\'s email, Next', 'Make host', 'Start meeting', 'Edit meeting: add Spanish, Update', 'Restart translation service', 'End meeting', 'Content, Recordings & transcripts', 'Download: one file per language'],
     expertSeconds: 180,
+    // Screens the task needs. Anything else is fully built but logged as a detour.
+    screens: ['login', 'home', 'meetings', 'new-ai', 'meeting', 'participants', 'users', 'edit', 'recordings'],
   },
 };
 
 // ------------------------------------------------------------------ the run
+
 export function sandboxView(key, { onExit } = {}) {
   const sc = SCENARIOS[key]; if (!sc) return h('div', { class: 'page' }, h('div', { class: 'card empty' }, 'Unknown sandbox'));
-  const S = { screen: 'login', menu: null, modal: null, meeting: null, form: null, picker: null, t0: Date.now(), events: [], hints: 0, flags: {}, finished: false };
+  // Everything a trainee can see in the replica. Screens the scenario does not need are fully built too, so the
+  // replica never hints at the path; entering one is logged silently as a detour and shows only in the report.
+  const S = { screen: 'login', menu: null, modal: null, meeting: null, form: null, picker: null, t0: Date.now(), events: [], hints: 0, flags: {}, finished: false,
+    glossaries: [['Default Glossary', 120, 14, 0, 0, 106, 0], ['Acme Launch', 64, 20, 10, 2, 30, 2], ['Board Meetings', 41, 12, 0, 4, 25, 0], ['Product Names', 88, 30, 8, 0, 50, 0], ['Medical Terms', 37, 37, 0, 0, 0, 0]].map(([name, terms, rec, tr, block, dnt, rep], i) => ({ name, terms, rec, tr, block, dnt, rep, def: i === 0 })) };
+  const RELEVANT = new Set(sc.screens || []);
   const log = (type, what, extra = {}) => S.events.push({ t: Math.round((Date.now() - S.t0) / 1000), screen: S.screen, type, what, ...extra });
   const detour = (what) => { log('detour', what); S.flags.detours = (S.flags.detours || 0) + 1; };
   const root = h('div', { class: 'sbx' });
@@ -47,57 +55,98 @@ export function sandboxView(key, { onExit } = {}) {
     h('div', { class: 'sbx-bar-r' },
       h('button', { class: 'btn sm', type: 'button', on: { click: () => { taskBox.hidden = !taskBox.hidden; } } }, 'Task'),
       h('button', { class: 'btn sm', type: 'button', on: { click: hint } }, 'Hint'),
-      h('button', { class: 'btn sm primary', type: 'button', on: { click: () => finish(false) } }, 'I am done'),
+      h('button', { class: 'btn sm primary', type: 'button', on: { click: () => finish() } }, 'I am done'),
       h('button', { class: 'btn sm', type: 'button', on: { click: () => { if (confirm('Leave the sandbox? This run is not saved.')) { clearInterval(tick); onExit?.(); } } } }, 'Leave')));
   root.append(bar, taskBox, h('div', { class: 'sbx-browser' }, h('div', { class: 'sbx-url' }, ic('lock', 13), h('span', { class: 'sbx-url-t' }), h('span', { class: 'sbx-note' }, 'Replica for training · test data only')), app));
 
-  const go = (screen, what) => { S.screen = screen; S.menu = null; log('nav', what || screen); draw(); };
-  const url = () => ({ login: 'live.kudoway.eu/users/sign_in', home: 'live.kudoway.eu', new: 'live.kudoway.eu/sessions/new?ai_interpretation=true', meeting: `live.kudoway.eu/sessions/800212907037`, participants: 'live.kudoway.eu/sessions/800212907037/participants', edit: 'live.kudoway.eu/sessions/800212907037/edit', recordings: 'live.kudoway.eu/sessions/800212907037/recordings' }[S.screen]);
+  // Navigation. Entering a screen the scenario does not need is a detour (silent).
+  const go = (screen, what, extra = {}) => {
+    S.screen = screen; S.menu = null; S.modal = null; S.picker = null; Object.assign(S, extra);
+    log('nav', what || screen);
+    if (!RELEVANT.has(screen)) detour(what || screen);
+    draw(); app.scrollTop = 0; app.querySelector('.k-main')?.scrollTo?.(0, 0);
+  };
+  const URL = { login: 'users/sign_in', home: '', meetings: 'sessions', glossaries: 'glossaries', usage: 'usage', 'new-ai': 'sessions/new?ai_interpretation=true', 'new-hi': 'sessions/new', meeting: 'sessions/800212907037', users: 'sessions/800212907037/users', participants: 'sessions/800212907037/participants', operators: 'sessions/800212907037/operators', viewers: 'sessions/800212907037/viewers', edit: 'sessions/800212907037/edit', polls: 'sessions/800212907037/polls', 'poll-new': 'sessions/800212907037/polls/new', poll: 'sessions/800212907037/polls/2', files: 'sessions/800212907037/documents', messages: 'sessions/800212907037/messages', recordings: 'sessions/800212907037/recordings', av: 'sessions/800212907037/configurations', features: 'sessions/800212907037/security', mglossaries: 'sessions/800212907037/meeting_glossaries', stats: 'sessions/800212907037/statistics' };
+  const url = () => `live.kudoway.eu/${URL[S.screen] ?? ''}`;
 
   // ---------------------------------------------------------------- shared pieces
+  const toastK = (msg) => { const t = h('div', { class: 'k-toast' }, h('span', { class: 'k-dot' }), msg); app.append(t); setTimeout(() => t.remove(), 2600); };
+  const toggle = (on, label, fn, disabled) => h('label', { class: `k-toggle ${on ? 'on' : ''} ${disabled ? 'off' : ''}` }, h('input', { type: 'checkbox', checked: on, disabled, on: { change: (e) => fn(e.target.checked) } }), h('span', { class: 'k-sw' }), label ? h('span', null, label) : null);
+  const radio = (name, opts, val, fn, disabled) => h('div', { class: 'k-radios' }, opts.map(([v, l, note]) => h('label', { class: 'k-check' }, h('input', { type: 'radio', name, checked: val === v, disabled, on: { change: () => fn(v) } }), ' ', l, note ? h('small', { class: 'k-mini' }, ` ${note}`) : null)));
+  const check = (on, label, fn, disabled) => h('label', { class: 'k-check' }, h('input', { type: 'checkbox', checked: on, disabled, on: { change: (e) => fn(e.target.checked) } }), ' ', label);
+  const select = (opts, val, fn, cls = '') => h('select', { class: `k-in k-sel ${cls}`, on: { change: (e) => fn(e.target.value) } }, opts.map((o) => { const [v, l] = Array.isArray(o) ? o : [o, o]; return h('option', { value: v, selected: String(v) === String(val) }, l); }));
+  const warn = (t) => h('div', { class: 'k-warn' }, ic('warn', 13), t);
+  const row = (label, ...body) => h('div', { class: 'k-frow' }, h('div', { class: 'k-flabel' }, label), h('div', { class: 'k-fbody' }, ...body));
+  const set = (obj, k, label) => (v) => { obj[k] = v; log('change', `${label}: ${v}`); draw(); };
+  const pager = (n) => h('div', { class: 'k-pager' }, h('span', { class: 'k-mini' }, `Showing ${n ? 1 : 0} to ${n} of ${n} entries`), h('span', { class: 'k-mini' }, '‹  1  ›   10 per page ▾'));
+
   const sidebar = () => h('aside', { class: 'k-side' },
     h('div', { class: 'k-newwrap' }, h('button', { class: 'k-new', type: 'button', on: { click: () => { S.menu = S.menu === 'new' ? null : 'new'; log('click', 'New meeting'); draw(); } } }, ic('plus'), ' New meeting ▾'),
-      S.menu === 'new' ? h('div', { class: 'k-menu' }, h('button', { type: 'button', on: { click: () => { detour('New meeting: Human interpretation'); notYet(); S.menu = null; draw(); } } }, 'Human interpretation'), h('button', { type: 'button', on: { click: startForm } }, 'AI speech translation')) : null),
-    ...[['home', 'Home'], ['meetings', 'My meetings'], ['glossaries', 'My glossaries'], ['usage', 'Usage & analytics']].map(([k, l]) => h('button', { class: `k-nav ${(k === 'home' && S.screen === 'home') || (k === 'meetings' && ['meeting', 'participants', 'edit', 'recordings'].includes(S.screen)) ? 'on' : ''}`, type: 'button', on: { click: () => {
-      if (k === 'home') return go('home', 'Home');
-      if (k === 'meetings' && S.meeting) return go('meeting', 'My meetings');
-      detour(l); notYet();
-    } } }, l)),
-    h('div', { class: 'k-acct' }, h('span', { class: 'k-av' }, 'DN'), 'Demo NDK'));
+      S.menu === 'new' ? h('div', { class: 'k-menu' }, h('button', { type: 'button', on: { click: () => startForm('hi') } }, 'Human interpretation'), h('button', { type: 'button', on: { click: () => startForm('ai') } }, 'AI speech translation')) : null),
+    ...[['home', 'Home'], ['meetings', 'My meetings'], ['glossaries', 'My glossaries', 'New'], ['usage', 'Usage & analytics']].map(([k, l, badge]) => h('button', { class: `k-nav ${S.screen === k || (k === 'meetings' && S.meeting && !['home', 'glossaries', 'usage', 'login', 'new-ai', 'new-hi'].includes(S.screen)) ? 'on' : ''}`, type: 'button', on: { click: () => go(k, l) } }, l, badge ? h('span', { class: 'k-badge' }, badge) : null)),
+    h('div', { class: 'k-acct' }, h('span', { class: 'k-av' }, 'DN'), 'Demo NDK ▾'));
   const top = () => h('header', { class: 'k-top' }, h('img', { src: '/kudo-logo-navy.png', alt: 'KUDO', class: 'k-logo' }), h('span', { class: 'k-top-r' }, ic('help', 20), ic('bell', 20)));
   const shell = (...main) => h('div', { class: 'k-shell' }, top(), h('div', { class: 'k-body' }, sidebar(), h('main', { class: 'k-main' }, ...main)));
-  // Same neutral answer for everything not rebuilt yet, so it never hints at what the task needs.
-  const notYet = () => toastK('This page is not available in the sandbox yet');
-  const toastK = (msg) => { const t = h('div', { class: 'k-toast' }, h('span', { class: 'k-dot' }), msg); app.append(t); setTimeout(() => t.remove(), 2600); };
 
-  // ---------------------------------------------------------------- screens
+  // ---------------------------------------------------------------- account-level screens
   function loginScreen() {
-    const pw = h('input', { type: 'password', value: '••••••••••', readonly: true });
     return h('div', { class: 'k-login' }, h('div', { class: 'k-login-card' },
       h('img', { src: '/kudo-logo-navy.png', alt: 'KUDO', class: 'k-login-logo' }),
       h('div', { class: 'k-seg' }, h('span', { class: 'on' }, 'Log In'), h('span', null, 'Join a Meeting')),
       h('h3', null, 'Log into your KUDO account'),
-      h('input', { type: 'email', value: 'client-demo@kudoway.com', readonly: true }), pw,
+      h('input', { type: 'email', value: 'client-demo@kudoway.com', readonly: true }), h('input', { type: 'password', value: '••••••••••', readonly: true }),
       h('label', { class: 'k-check' }, h('input', { type: 'checkbox' }), ' Remember me'),
       h('button', { class: 'k-yellow', type: 'button', on: { click: () => { go('home', 'Log in'); toastK('Logged in successfully.'); } } }, 'Log In'),
       h('p', { class: 'k-mini' }, 'Sandbox account: the Client role, filled in for you')));
   }
+  const otherMeetings = [{ name: 'Weekly Partner Sync', date: 'Fri, Nov 27, 2026', time: '10:00 – 10:30', langs: 'English, Italian', status: 'scheduled' }, { name: 'Q3 Board Review', date: 'Thu, Nov 19, 2026', time: '15:00 – 16:00', langs: 'English, French', status: 'finished' }];
+  const myMeetingCard = () => (S.meeting ? [{ name: S.meeting.name, date: 'Thu, Nov 26, 2026', time: '14:00 – 15:00', langs: [...S.meeting.speakers, ...S.meeting.translations].join(', '), status: S.meeting.status, mine: true }] : []);
+  const openMeeting = (m) => { if (m.mine) go('meeting', 'Open the meeting'); else { detour(`Open ${m.name}`); toastK('You do not have edit rights on this meeting in the sandbox'); } };
   function homeScreen() {
-    const card = (m) => h('button', { class: 'k-mcard', type: 'button', on: { click: () => (m.mine ? go('meeting', 'Open the meeting') : (detour(`Open ${m.name}`), notYet())) } },
+    const card = (m) => h('button', { class: 'k-mcard', type: 'button', on: { click: () => openMeeting(m) } },
       h('b', null, m.name, ' ›'), h('div', null, ic('cal', 14), m.date), h('div', null, ic('clock', 14), m.time, ' CET'), h('div', null, ic('lang', 14), m.langs), h('span', { class: `k-chip ${m.status}` }, m.status.toUpperCase()));
-    const meetings = [...(S.meeting ? [{ name: S.meeting.name, date: 'Thu, Nov 26, 2026', time: '14:00 – 15:00', langs: [...S.meeting.speakers, ...S.meeting.translations].join(', '), status: S.meeting.status, mine: true }] : []), { name: 'Weekly Partner Sync', date: 'Fri, Nov 27, 2026', time: '10:00 – 10:30', langs: 'English, Italian', status: 'scheduled' }];
-    return shell(h('h1', { class: 'k-h1' }, 'Welcome back, Demo'), h('h3', { class: 'k-h3' }, 'Upcoming meetings'), h('div', { class: 'k-cards' }, meetings.map(card)),
+    const list = [...myMeetingCard(), otherMeetings[0]];
+    return shell(h('h1', { class: 'k-h1' }, 'Welcome back, Demo'), h('h3', { class: 'k-h3' }, 'Upcoming meetings'), h('div', { class: 'k-cards' }, list.map(card), list.length < 3 ? h('div', { class: 'k-mcard empty' }, 'No more meetings scheduled') : null),
+      h('button', { class: 'k-link', type: 'button', on: { click: () => go('meetings', 'View all my meetings') } }, 'View all my meetings'),
       h('div', { class: 'k-grid2' }, h('div', { class: 'k-panel' }, h('h3', null, 'Usage & analytics'), h('div', { class: 'k-big' }, '412.5', h('small', null, ' / 500 available'))), h('div', { class: 'k-panel' }, h('h3', null, 'Your productivity gain'), h('div', { class: 'k-big green' }, '41.2'))));
   }
-  function startForm() {
-    S.menu = null; log('click', 'New meeting: AI speech translation');
-    S.form = { name: '', type: 'speech', speakers: [], translations: [], detect: false, recording: true, autoRecord: false, hosts: [], external: false, recurring: false };
-    go('new', 'New AI speech translation meeting');
+  function meetingsScreen() {
+    const list = [...myMeetingCard(), ...otherMeetings];
+    return shell(h('h1', { class: 'k-h1' }, 'My meetings'), h('section', { class: 'k-card' }, h('input', { class: 'k-in k-search', placeholder: 'Search' }),
+      h('table', { class: 'k-tbl' }, h('thead', null, h('tr', null, ['Meeting name', 'Date', 'Time', 'Languages', 'Status'].map((x) => h('th', null, x)))),
+        h('tbody', null, list.map((m) => h('tr', { class: 'k-click', on: { click: () => openMeeting(m) } }, h('td', null, h('b', null, m.name)), h('td', null, m.date), h('td', null, m.time), h('td', null, m.langs), h('td', null, h('span', { class: `k-chip ${m.status}` }, m.status.toUpperCase())))))), pager(list.length)));
   }
-  // A language picker like KUDO's: chips plus a searchable list.
-  function picker(id, list, selected, { locked = false, onChange }) {
+  function glossaryTable(inMeeting) {
+    const m = S.meeting;
+    const used = inMeeting ? (m.glossary || S.glossaries.find((g) => g.def).name) : null;
+    const menu = (g) => S.menu === `g:${g.name}` ? h('div', { class: 'k-menu right' }, ...(inMeeting ? [h('button', { type: 'button', on: { click: () => { S.modal = { kind: 'gconfirm', g, def: false }; S.menu = null; draw(); } } }, 'Use for this meeting')] : []),
+      h('button', { type: 'button', on: { click: () => { S.modal = { kind: 'gconfirm', g, def: true }; S.menu = null; draw(); } } }, 'Set as default for all meetings'), h('button', { type: 'button', on: { click: () => { log('click', `View terms: ${g.name}`); toastK(`${g.name}: ${g.terms} terms`); S.menu = null; draw(); } } }, 'View terms')) : null;
+    const chip = (n, label) => h('span', { class: 'k-gchip' }, `${label} ${n}`);
+    return [h('div', { class: 'k-gfilter' }, chip(5, 'All actions'), chip(5, 'Recognize'), chip(1, 'Translate as'), chip(2, 'Block'), chip(4, 'Do-not-translate'), chip(1, 'Replace'), h('input', { class: 'k-in k-search', placeholder: 'Search glossaries...' })),
+      inMeeting ? h('div', { class: 'k-mini', style: 'margin:6px 0 10px' }, 'Terms in this meeting   0 / 500   0 / 2,000   0 / 500   0 / 1,000   0 / 500') : null,
+      h('table', { class: 'k-tbl' }, h('thead', null, h('tr', null, ['Glossary name', 'Terms', 'Actions', ''].map((x) => h('th', null, x)))),
+        h('tbody', null, S.glossaries.map((g) => h('tr', null, h('td', null, h('b', null, g.name), inMeeting && used === g.name ? h('span', { class: 'k-tag green' }, 'Use for this meeting') : null, g.def ? h('span', { class: 'k-tag' }, 'Default glossary') : null),
+          h('td', null, String(g.terms)), h('td', null, h('span', { class: 'k-gchip sm' }, `◉ ${g.rec}`), h('span', { class: 'k-gchip sm' }, `⊘ ${g.dnt}`)),
+          h('td', { class: 'k-rel' }, h('button', { class: 'k-dots', type: 'button', on: { click: () => { S.menu = S.menu === `g:${g.name}` ? null : `g:${g.name}`; log('click', `Glossary menu: ${g.name}`); draw(); } } }, '⋮'), menu(g)))))),
+      pager(S.glossaries.length)];
+  }
+  function glossariesScreen() { return shell(h('div', { class: 'k-rowsp' }, h('h1', { class: 'k-h1' }, 'My glossaries'), h('button', { class: 'k-btn', type: 'button', on: { click: () => { log('click', 'Create glossary'); toastK('Glossary creation is not part of this sandbox yet'); } } }, '+ Create glossary')), h('section', { class: 'k-card' }, ...glossaryTable(false))); }
+  function usageScreen() {
+    return shell(h('h1', { class: 'k-h1' }, 'Usage & analytics'), h('div', { class: 'k-grid2' }, h('div', { class: 'k-panel' }, h('h3', null, 'Platform hours'), h('div', { class: 'k-big' }, '412.5', h('small', null, ' / 500 available')), h('div', { class: 'k-bar' }, h('i', { style: 'width:82%' }))),
+      h('div', { class: 'k-panel' }, h('h3', null, 'This billing cycle'), h('div', { class: 'k-stats' }, ...[['Completed', '38'], ['Upcoming', '4'], ['Booked', '52 h 30 m'], ['Consumed', '41 h 10 m']].map(([k, v]) => h('div', null, h('small', null, k), h('b', null, v)))))),
+      h('section', { class: 'k-card', style: 'margin-top:14px' }, h('b', null, 'Meetings this cycle'), h('table', { class: 'k-tbl' }, h('thead', null, h('tr', null, ['Meeting', 'Date', 'Duration', 'Languages'].map((x) => h('th', null, x)))), h('tbody', null, [['Q3 Board Review', '19 Nov 2026', '1 h 02 m', '2'], ['Weekly Partner Sync', '20 Nov 2026', '31 m', '2'], ['Sales Kick-off', '12 Nov 2026', '2 h 15 m', '4']].map((r) => h('tr', null, r.map((c) => h('td', null, c))))))));
+  }
+
+  // ---------------------------------------------------------------- the meeting form (new AI, new HI, edit)
+  function startForm(kind) {
+    S.menu = null; log('click', `New meeting: ${kind === 'ai' ? 'AI speech translation' : 'Human interpretation'}`);
+    S.form = { kind, name: '', type: 'speech', speakers: [], translations: [], sign: [], detect: false, recording: true, autoRecord: false, hosts: [], external: false, platform: '', link: '', recurring: false, every: 1, unit: 'day(s)', prep: '0 minutes', aiAssist: false, adv: advDefaults(), advOpen: false, defaults: false };
+    go(kind === 'ai' ? 'new-ai' : 'new-hi', kind === 'ai' ? 'New AI speech translation meeting' : 'New Human interpretation meeting');
+  }
+  const advDefaults = () => ({ size: 'small', desktop: 'off', widget: true, autoFloor: true, projection: false, speaking: 'open', mics: 1, poo: false, raise: true, camera: true, stream: 'av', invite: 'links', viewerAuth: false, pin: false, pinSend: 'link', audioMgr: false, audioMode: 'both', pro: false });
+  function picker(id, list, selected, { locked = false, onChange } = {}) {
     const open = S.picker === id;
-    const input = h('input', { class: 'k-pick-in', placeholder: selected.length ? '' : 'Select an option', disabled: locked, on: { focus: () => { if (!locked) { S.picker = id; draw(); } }, input: (e) => { S.pq = e.target.value; drawList(); } } });
+    const input = h('input', { class: 'k-pick-in', placeholder: selected.length ? '' : 'Select an option', disabled: locked, on: { input: (e) => { S.pq = e.target.value; drawList(); } } });
     const listBox = h('div', { class: 'k-pick-list' });
     const drawList = () => listBox.replaceChildren(...list.filter((l) => !selected.includes(l) && l.toLowerCase().includes((S.pq || '').toLowerCase())).map((l) => h('button', { type: 'button', on: { mousedown: (e) => { e.preventDefault(); selected.push(l); S.pq = ''; log('pick', `${id}: ${l}`); onChange?.(l); draw(); } } }, l)));
     drawList();
@@ -105,48 +154,73 @@ export function sandboxView(key, { onExit } = {}) {
       h('div', { class: 'k-pick-chips' }, selected.map((l) => h('span', { class: 'k-lchip' }, locked ? null : h('button', { type: 'button', on: { click: (e) => { e.stopPropagation(); selected.splice(selected.indexOf(l), 1); log('remove', `${id}: ${l}`); draw(); } } }, '×'), l)), input), h('span', { class: 'k-caret' }, '▾'));
     return h('div', { class: 'k-pick-wrap' }, box, open && !locked ? listBox : null, selected.length && !locked ? h('button', { class: 'k-link small', type: 'button', on: { click: () => { selected.length = 0; draw(); } } }, 'Clear all languages') : null);
   }
-  function formScreen(editing) {
-    const f = S.form, live = editing && S.meeting.status === 'live';
-    const warn = (t) => h('div', { class: 'k-warn' }, ic('warn', 13), t);
-    const row = (label, ...body) => h('div', { class: 'k-frow' }, h('div', { class: 'k-flabel' }, label), h('div', { class: 'k-fbody' }, ...body));
-    const toggle = (on, label, fn, disabled) => h('label', { class: `k-toggle ${on ? 'on' : ''} ${disabled ? 'off' : ''}` }, h('input', { type: 'checkbox', checked: on, disabled, on: { change: (e) => fn(e.target.checked) } }), h('span', { class: 'k-sw' }), label ? h('span', null, label) : null);
-    const name = h('input', { class: 'k-in', value: f.name, placeholder: 'Enter your meeting title', on: { input: (e) => { f.name = e.target.value; }, change: (e) => log('input', `Meeting name: ${e.target.value}`) } });
-    const hostEmail = h('input', { class: 'k-in', placeholder: 'Host email' });
-    const form = h('div', { class: 'k-form' }, h('h2', null, editing ? 'Edit a meeting' : 'AI speech translation meeting'),
-      row('Meeting name *', name, h('div', { class: 'k-mini' }, h('span', { class: 'k-link' }, 'Add description'))),
-      row('Date/time *', h('div', { class: 'k-dt' }, h('div', null, h('small', null, 'Start date/time'), h('span', { class: 'k-in fake' }, ic('cal', 14), 'Thu, 26 Nov 2026'), h('span', { class: 'k-in fake' }, ic('clock', 14), '2:00 PM')), h('div', null, h('small', null, 'End date/time'), h('span', { class: 'k-in fake' }, ic('cal', 14), 'Thu, 26 Nov 2026'), h('span', { class: 'k-in fake' }, ic('clock', 14), '3:00 PM'))),
-        h('div', { class: 'k-mini' }, h('span', { class: 'k-link' }, 'Change time zone (CET)'), '   ', h('label', null, h('input', { type: 'checkbox', on: { change: (e) => log('toggle', `Force close meeting: ${e.target.checked}`) } }), ' Force close meeting'))),
-      editing ? null : row('Recurring meeting', toggle(f.recurring, null, (v) => { f.recurring = v; log('toggle', `Recurring: ${v}`); draw(); })),
-      warn('This setting cannot be changed once the meeting has been created'),
-      row('Translation type', ...[['speech', 'AI speech & captions', 'Offer multilingual audio, captions, recording, transcriptions, and AI customization for greater accuracy.'], ['captions', 'AI captions only', 'Supports multilingual closed captioning only, with enhanced display speed. This mode does not support AI customization features.']].map(([k, t, d]) =>
-        h('label', { class: `k-type ${f.type === k ? 'on' : ''} ${editing ? 'dis' : ''}` }, h('input', { type: 'radio', name: 'ttype', checked: f.type === k, disabled: editing, on: { change: () => { f.type = k; log('choose', `Translation type: ${t}`); draw(); } } }), h('span', { class: 'k-type-ic' }, ic(k === 'speech' ? 'speaker' : 'cc', 22)), h('span', null, h('b', null, t), h('small', null, d))))),
-      row('Languages', h('small', null, 'Speaker language(s)'), picker('Speaker language', SPEAKER, f.speakers, { locked: live, onChange: (l) => { if (l === 'English' && !f.translations.includes('English (US)')) f.translations.unshift('English (US)'); } }),
-        toggle(f.detect, 'Detect language automatically', (v) => { f.detect = v; log('toggle', `Detect language automatically: ${v}`); draw(); }, live), h('small', null, 'Translation language(s)'), picker('Translation language', TRANSLATION, f.translations, { onChange: (l) => { if (live) { S.flags.addedLive = S.flags.addedLive || []; S.flags.addedLive.push(l); } } })),
-      warn('This setting cannot be changed once the meeting has been created'),
-      row('External meeting: Using KUDO on another platform?', toggle(f.external, null, (v) => { f.external = v; log('toggle', `External meeting: ${v}`); if (v) detour('External meeting switched on'); draw(); }, editing)),
-      editing ? null : row('Host', h('span', { class: 'k-mini' }, 'Optional · Max. 2 hosts per meeting'), ...f.hosts.map((x) => h('div', { class: 'k-hostrow' }, ic('user', 14), x)),
-        S.addHost ? h('div', { class: 'k-inline' }, hostEmail, h('button', { class: 'k-btn', type: 'button', on: { click: () => { const v = hostEmail.value.trim().toLowerCase(); if (!v) return; f.hosts.push(v); S.addHost = false; log('input', `Host added in the form: ${v}`); draw(); } } }, 'Add')) : h('button', { class: 'k-link', type: 'button', on: { click: () => { S.addHost = true; log('click', '+ Add host'); draw(); } } }, '+ Add host')),
-      warn('This setting cannot be changed once the meeting starts'),
-      row('Recording and transcript', toggle(f.recording, null, (v) => { f.recording = v; log('toggle', `Recording and transcript: ${v}`); draw(); }, live),
-        h('label', { class: 'k-check' }, h('input', { type: 'checkbox', checked: f.autoRecord, disabled: live || !f.recording, on: { change: (e) => { f.autoRecord = e.target.checked; log('toggle', `Automatically record: ${e.target.checked}`); } } }), ' Automatically record this meeting when it starts')),
-      h('div', { class: 'k-formfoot' }, h('button', { class: 'k-link', type: 'button', on: { click: () => { detour('Advanced settings'); notYet(); } } }, 'Advanced settings ▾'),
-        h('div', { class: 'k-row' }, h('button', { class: 'k-btn ghost', type: 'button', on: { click: () => { log('click', 'Cancel'); go(editing ? 'meeting' : 'home', 'Cancel'); } } }, 'Cancel'),
-          h('button', { class: 'k-btn', type: 'button', on: { click: () => (editing ? update() : save()) } }, editing ? 'Update' : 'Save'))));
-    return shell(form);
+  function advancedBlock(f, editing, live) {
+    const a = f.adv, created = 'This setting cannot be changed once the meeting has been created', starts = 'This setting cannot be changed once the meeting starts';
+    const lockC = editing, lockS = live;
+    return h('div', { class: 'k-adv' },
+      warn(created), row('Meeting type', radio('size', [['small', 'Small - Optimised for interactive meetings'], ['large', 'Large - Optimised for broadcasting']], a.size, set(a, 'size', 'Meeting type'), lockC)),
+      warn(created), row('Language Access Desktop App', radio('desk', [['on', 'On'], ['off', 'Off']], a.desktop, set(a, 'desktop', 'Language Access Desktop App'), lockC)),
+      row('Mobile link and iframe widget', toggle(a.widget, null, set(a, 'widget', 'Mobile link and iframe widget')), a.widget ? h('div', null, check(a.autoFloor, 'Enable auto-floor', set(a, 'autoFloor', 'Auto-floor')), check(a.projection, 'Enable horizontal screen projection', set(a, 'projection', 'Horizontal screen projection'))) : null),
+      warn(starts), row('Your logo', h('button', { class: 'k-link', type: 'button', on: { click: () => { log('click', 'Upload logo'); a.logo = true; toastK('Logo uploaded'); draw(); } } }, a.logo ? 'logo.png  ×' : '↑ Upload logo')),
+      row('Speaking mode', radio('speak', [['open', 'Open microphone'], ['rts', 'Request-to-speak']], a.speaking, set(a, 'speaking', 'Speaking mode'), lockS),
+        a.speaking === 'rts' ? h('div', { class: 'k-sub' }, h('span', null, 'Number of active mics '), select(Array.from({ length: 20 }, (_, i) => i + 1), a.mics, set(a, 'mics', 'Number of active mics'), 'sm'), h('span', null, '  Point of order request '), toggle(a.poo, null, set(a, 'poo', 'Point of order request'))) : null),
+      row('Raise hand', toggle(a.raise, null, set(a, 'raise', 'Raise hand'))),
+      row('Mobile application settings', h('div', { class: 'k-sub' }, h('span', null, "Participants' camera access "), toggle(a.camera, null, set(a, 'camera', 'Camera access'))), h('div', { class: 'k-sub' }, h('span', null, "Participant's live stream "), radio('stream', [['av', 'Deliver audio and video'], ['a', 'Deliver audio only']], a.stream, set(a, 'stream', 'Live stream')))),
+      warn(starts), row('Invite method', radio('invite', [['links', 'Shareable links and user invites'], ['pre', 'Pre-approved users']], a.invite, set(a, 'invite', 'Invite method'), lockS), a.invite === 'pre' ? h('div', { class: 'k-sub' }, h('span', null, 'Viewer authentication '), toggle(a.viewerAuth, null, set(a, 'viewerAuth', 'Viewer authentication'))) : null),
+      warn("You can't enable it after the meeting starts. Once enabled, it can't be turned off"), row('PIN protection', toggle(a.pin, null, set(a, 'pin', 'PIN protection'), lockS), a.pin ? radio('pinsend', [['link', 'Send PIN with the invite link'], ['sep', 'Send PIN separately']], a.pinSend, set(a, 'pinSend', 'Send PIN')) : null),
+      warn(created), row('Audio manager', toggle(a.audioMgr, null, set(a, 'audioMgr', 'Audio manager'), lockC), h('small', { class: 'k-mini' }, 'Enable on-site and online participants to join the meeting'),
+        a.audioMgr ? h('div', null, h('div', { class: 'k-warn strong' }, 'Remember to add an Audio manager (in the Users tab) before the start of your meeting.'), radio('amode', [['both', 'On-Site And Online Participants Join Via KUDO'], ['online', 'Online Participants Only Join Via KUDO']], a.audioMode, set(a, 'audioMode', 'Audio manager mode'), lockC), h('small', { class: 'k-mini' }, 'Suitable for when you have a mix of online and on-site participants')) : null),
+      row('Professional services', toggle(a.pro, null, set(a, 'pro', 'Professional services'))));
   }
+  function formScreen(mode) {
+    const editing = mode === 'edit', f = S.form, live = editing && S.meeting.status === 'live', hi = f.kind === 'hi';
+    const name = h('input', { class: 'k-in', value: f.name, placeholder: 'Enter your meeting title', on: { input: (e) => { f.name = e.target.value; }, change: (e) => log('input', `Meeting name: ${e.target.value}`) } });
+    const hostEmail = h('input', { class: 'k-in', placeholder: 'Email' });
+    const created = 'This setting cannot be changed once the meeting has been created', starts = 'This setting cannot be changed once the meeting starts';
+    const form = h('div', { class: 'k-form' }, h('h2', null, editing ? 'Edit a meeting' : hi ? 'Human interpretation meeting' : 'AI speech translation meeting'),
+      row('Meeting name *', name, h('div', { class: 'k-mini' }, h('span', { class: 'k-link' }, 'Add description'))),
+      row(hi ? 'Date/Time *' : 'Date/time *', h('div', { class: 'k-dt' }, h('div', null, h('small', null, 'Start date/time'), h('span', { class: 'k-in fake' }, ic('cal', 14), 'Thu, 26 Nov 2026'), h('span', { class: 'k-in fake' }, ic('clock', 14), '2:00 PM')), h('div', null, h('small', null, 'End date/time'), h('span', { class: 'k-in fake' }, ic('cal', 14), 'Thu, 26 Nov 2026'), h('span', { class: 'k-in fake' }, ic('clock', 14), '3:00 PM'))),
+        h('div', { class: 'k-mini' }, h('span', { class: 'k-link' }, 'Change time zone (CET)'), '   ', check(!!f.force, 'Force close meeting', set(f, 'force', 'Force close meeting')))),
+      editing ? null : row('Recurring meeting', toggle(f.recurring, null, set(f, 'recurring', 'Recurring meeting')), f.recurring ? h('div', { class: 'k-sub' }, h('span', null, 'Repeat every '), select([1, 2, 3, 4], f.every, set(f, 'every', 'Repeat every'), 'sm'), select(['day(s)', 'week(s)', 'month(s)'], f.unit, set(f, 'unit', 'Repeat unit'), 'sm'), h('span', null, '  Ends '), select(['On this day', 'After'], 'On this day', set(f, 'ends', 'Ends'), 'sm'), h('span', { class: 'k-in fake' }, ic('cal', 14), 'Select date')) : null),
+      hi ? row(h('span', null, 'Preparation time', h('small', { class: 'k-mini' }, ' Optional')), select(['0 minutes', '15 minutes', '30 minutes', '45 minutes', '60 minutes', '2 hours'], f.prep, set(f, 'prep', 'Preparation time'), 'sm')) : null,
+      hi ? null : warn(created),
+      hi ? null : row('Translation type', ...[['speech', 'AI speech & captions', 'Offer multilingual audio, captions, recording, transcriptions, and AI customization for greater accuracy.'], ['captions', 'AI captions only', 'Supports multilingual closed captioning only, with enhanced display speed. This mode does not support AI customization features.']].map(([k, t, d]) =>
+        h('label', { class: `k-type ${f.type === k ? 'on' : ''} ${editing ? 'dis' : ''}` }, h('input', { type: 'radio', name: 'ttype', checked: f.type === k, disabled: editing, on: { change: () => { f.type = k; log('choose', `Translation type: ${t}`); draw(); } } }), h('span', { class: 'k-type-ic' }, ic(k === 'speech' ? 'speaker' : 'cc', 22)), h('span', null, h('b', null, t), h('small', null, d))))),
+      hi ? row('Languages', h('small', null, 'Spoken language(s)'), picker('Spoken language', SPEAKER, f.speakers, { locked: live }), h('small', null, 'Sign language(s)'), picker('Sign language', SIGN, f.sign, { locked: live }))
+        : row('Languages', h('small', null, 'Speaker language(s)'), picker('Speaker language', SPEAKER, f.speakers, { locked: live, onChange: (l) => { if (l === 'English' && !f.translations.includes('English (US)')) f.translations.unshift('English (US)'); } }),
+          toggle(f.detect, 'Detect language automatically', set(f, 'detect', 'Detect language automatically'), live), h('small', { class: 'k-mini' }, 'Up to 10 speaker languages, accuracy may be affected'), h('small', null, 'Translation language(s)'), picker('Translation language', TRANSLATION, f.translations)),
+      warn(created),
+      row('External meeting: Using KUDO on another platform?', toggle(f.external, null, set(f, 'external', 'External meeting'), editing),
+        f.external ? h('div', null, h('small', null, 'Meeting platform *'), select([['', 'Please select'], 'Google Meet', 'Microsoft Teams', 'Zoom', 'Webex', 'ON24'], f.platform, set(f, 'platform', 'Meeting platform')), h('small', null, 'Meeting link *'), h('input', { class: 'k-in', placeholder: 'Enter your meeting link', value: f.link, on: { change: (e) => { f.link = e.target.value; log('input', 'Meeting link'); } } })) : null),
+      hi ? warn(starts) : null, hi ? row('AI Assist & Transcripts', toggle(f.aiAssist, null, set(f, 'aiAssist', 'AI Assist & Transcripts'), live)) : null,
+      editing ? null : row(h('span', null, 'Host', h('small', { class: 'k-mini' }, ' Optional')), ...f.hosts.map((x) => h('div', { class: 'k-hostrow' }, ic('user', 14), x)), h('button', { class: 'k-link', type: 'button', on: { click: () => { S.modal = { kind: 'addhost' }; log('click', '+ Add host'); draw(); } } }, '+ Add host'), h('small', { class: 'k-mini' }, 'Max. 2 hosts per meeting')),
+      warn(starts),
+      row(hi ? 'Recording' : 'Recording and transcript', toggle(f.recording, null, set(f, 'recording', 'Recording'), live), check(f.autoRecord, 'Automatically record this meeting when it starts', (v) => { f.autoRecord = v; log('toggle', `Automatically record: ${v}`); }, live || !f.recording)),
+      f.advOpen ? advancedBlock(f, editing, live) : null,
+      h('div', { class: 'k-formfoot' }, h('button', { class: 'k-link', type: 'button', on: { click: () => { f.advOpen = !f.advOpen; log('click', f.advOpen ? 'Advanced settings' : 'Less settings'); if (f.advOpen && !RELEVANT.has('advanced')) detour('Advanced settings'); draw(); } } }, f.advOpen ? 'Less settings ▴' : 'Advanced settings ▾'),
+        h('div', { class: 'k-row' }, h('button', { class: 'k-btn ghost', type: 'button', on: { click: () => { log('click', 'Cancel'); go(editing ? 'meeting' : 'home', 'Cancel'); } } }, 'Cancel'),
+          h('button', { class: 'k-btn', type: 'button', on: { click: () => (editing ? update() : save()) } }, editing ? 'Update' : 'Save'))),
+      editing ? null : h('div', { class: 'k-defaults' }, toggle(f.defaults, 'Save settings as default for future meetings', set(f, 'defaults', 'Save settings as default')), h('small', { class: 'k-mini' }, 'Meeting name, description, date/time, recurrence, host, logo, and meeting integration settings are not saved as default.')));
+    return shell(form, S.modal?.kind === 'addhost' ? modal('Add host', [row('Email', hostEmail)], [['Close', () => { S.modal = null; draw(); }, 'ghost'], ['Next', () => { const v = hostEmail.value.trim().toLowerCase(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return toastK('Enter a valid email'); if (f.hosts.length >= 2) return toastK('Max. 2 hosts per meeting'); f.hosts.push(v); S.modal = null; log('input', `Host added in the form: ${v}`); draw(); }]]) : null);
+  }
+  const modal = (title, body, actions) => h('div', { class: 'k-modal-bg' }, h('div', { class: 'k-modal' }, h('div', { class: 'k-modal-h' }, h('b', null, title), h('button', { type: 'button', on: { click: () => { S.modal = null; draw(); } } }, '×')), ...body,
+    h('div', { class: 'k-row end' }, actions.map(([l, fn, cls]) => h('button', { class: `k-btn ${cls || ''}`, type: 'button', on: { click: fn } }, l)))));
   function save() {
     const f = S.form;
     if (!f.name.trim()) return toastK('Meeting name is required');
-    if (!f.speakers.length || !f.translations.length) return toastK('Choose the speaker and translation languages');
-    S.meeting = { name: f.name.trim(), type: f.type, speakers: [...f.speakers], translations: [...f.translations], recording: f.recording, autoRecord: f.autoRecord, external: f.external,
-      participants: f.hosts.map((e) => ({ email: e, name: e.split('@')[0], role: 'Host', via: 'form' })), status: 'scheduled' };
-    log('save', 'Save: meeting created', { meeting: { ...S.meeting, participants: undefined } });
+    if (!f.speakers.length || (f.kind === 'ai' && !f.translations.length)) return toastK('Choose the languages');
+    if (f.external && (!f.platform || !f.link)) return toastK('Choose the meeting platform and paste the meeting link');
+    S.meeting = { kind: f.kind, name: f.name.trim(), type: f.kind === 'ai' ? f.type : 'hi', speakers: [...f.speakers], translations: f.kind === 'ai' ? [...f.translations] : [], sign: [...f.sign], recording: f.recording, autoRecord: f.autoRecord, external: f.external, adv: { ...f.adv }, prep: f.prep, aiAssist: f.aiAssist,
+      participants: f.hosts.map((e) => ({ email: e, name: e.split('@')[0], role: 'Host', via: 'form' })), operators: [], viewers: [], polls: [], files: [], status: 'scheduled', glossary: null,
+      av: { res: 'Auto (adaptive)', fps: 'Auto (adaptive)', bitrate: 'Auto (adaptive)', stereo: false, level: 50, processing: true },
+      features: { lobby: false, lobbyP: false, lobbyV: false, users: true, docs: true, msg: true, polls: true, request: false, share: true } };
+    log('save', 'Save: meeting created', { meeting: { kind: f.kind, name: S.meeting.name, speakers: S.meeting.speakers, translations: S.meeting.translations, autoRecord: f.autoRecord } });
     go('meeting', 'Meeting created'); toastK('Meeting scheduled successfully');
   }
   function update() {
     const f = S.form, m = S.meeting;
     const added = f.translations.filter((l) => !m.translations.includes(l)), removed = m.translations.filter((l) => !f.translations.includes(l));
-    m.translations = [...f.translations]; m.name = f.name.trim() || m.name;
+    m.translations = [...f.translations]; m.name = f.name.trim() || m.name; Object.assign(m.adv, f.adv);
     if (m.status !== 'live') { m.speakers = [...f.speakers]; m.autoRecord = f.autoRecord; m.recording = f.recording; }
     if (added.length && m.status === 'live') { m.pendingRestart = true; S.flags.liveAdded = [...(S.flags.liveAdded || []), ...added]; }
     if (added.length && m.status === 'scheduled') S.flags.addedBeforeStart = [...(S.flags.addedBeforeStart || []), ...added];
@@ -154,74 +228,167 @@ export function sandboxView(key, { onExit } = {}) {
     log('save', `Update: ${added.length ? `added ${added.join(', ')}` : 'no new language'}${removed.length ? `, removed ${removed.join(', ')}` : ''}`);
     go('meeting', 'Meeting updated'); toastK('Meeting updated successfully');
   }
+
+  // ---------------------------------------------------------------- the meeting page and its tabs
+  const TAB_OF = { meeting: 'overview', users: 'users', participants: 'users', operators: 'users', viewers: 'users', polls: 'content', 'poll-new': 'content', poll: 'content', files: 'content', messages: 'content', recordings: 'content', av: 'settings', features: 'settings', mglossaries: 'glossaries', stats: 'stats' };
   const tabs = () => {
-    const m = S.meeting;
-    const menu = (k, label, items) => h('span', { class: 'k-tabw' }, h('button', { class: `k-tab ${S.tab === k ? 'on' : ''}`, type: 'button', on: { click: () => { S.menu = S.menu === k ? null : k; log('click', `${label} menu`); draw(); } } }, `${label} ▾`),
-      S.menu === k ? h('div', { class: 'k-menu' }, items.map(([l, fn]) => h('button', { type: 'button', on: { click: fn } }, l))) : null);
-    const off = (l) => () => { detour(l); S.menu = null; draw(); notYet(); };
+    const m = S.meeting, cur = TAB_OF[S.screen];
+    const menu = (k, label, items) => h('span', { class: 'k-tabw' }, h('button', { class: `k-tab ${cur === k ? 'on' : ''}`, type: 'button', on: { click: () => { S.menu = S.menu === k ? null : k; log('click', `${label} menu`); draw(); } } }, `${label} ▾`),
+      S.menu === k ? h('div', { class: 'k-menu' }, items.filter(Boolean).map(([l, fn, dis]) => h('button', { type: 'button', disabled: !!dis, class: dis ? 'dis' : '', on: { click: fn } }, l))) : null);
     return h('div', { class: 'k-mhead' }, h('div', { class: 'k-mtitle' }, h('h2', null, m.name), h('span', { class: `k-chip ${m.status}` }, m.status.toUpperCase())),
-      h('nav', { class: 'k-tabs' }, h('button', { class: `k-tab ${S.screen === 'meeting' ? 'on' : ''}`, type: 'button', on: { click: () => go('meeting', 'Overview') } }, 'Overview'),
-        menu('users', 'Users', [['All users', off('Users: All users')], ['Participants', () => go('participants', 'Users: Participants')], ['Operators', off('Users: Operators')], ['Viewers', off('Users: Viewers')]]),
-        menu('content', 'Content', [['Polls', off('Content: Polls')], ['Files', off('Content: Files')], ['Messages', off('Content: Messages')], ['Recordings & transcripts', () => go('recordings', 'Content: Recordings & transcripts')]]),
-        menu('settings', 'Settings', [['Meeting settings', off('Settings')]]),
-        h('button', { class: 'k-tab', type: 'button', on: { click: off('My glossaries') } }, 'My glossaries'),
-        m.status === 'finished' ? h('button', { class: 'k-tab', type: 'button', on: { click: off('Meeting statistics') } }, 'Meeting statistics') : null));
+      h('nav', { class: 'k-tabs' }, h('button', { class: `k-tab ${cur === 'overview' ? 'on' : ''}`, type: 'button', on: { click: () => go('meeting', 'Overview') } }, 'Overview'),
+        menu('users', 'Users', [['All users', () => go('users', 'Users: All users')], ['Participants', () => go('participants', 'Users: Participants')], ['Operators', () => go('operators', 'Users: Operators')], ['Viewers', () => go('viewers', 'Users: Viewers')]]),
+        menu('content', 'Content', [['Polls', () => go('polls', 'Content: Polls')], ['Files', () => go('files', 'Content: Files')], m.status !== 'scheduled' ? ['Messages', () => go('messages', 'Content: Messages')] : null, ['Recordings & transcripts', () => go('recordings', 'Content: Recordings & transcripts')]]),
+        menu('settings', 'Settings', [['AV configurations', () => go('av', 'Settings: AV configurations')], ['Meeting features', () => go('features', 'Settings: Meeting features')], ['Broadcast', () => {}, m.adv.size !== 'large']]),
+        h('button', { class: `k-tab ${cur === 'glossaries' ? 'on' : ''}`, type: 'button', on: { click: () => go('mglossaries', 'My glossaries (meeting)') } }, 'My glossaries'),
+        m.status === 'finished' ? h('button', { class: `k-tab ${cur === 'stats' ? 'on' : ''}`, type: 'button', on: { click: () => go('stats', 'Meeting statistics') } }, 'Meeting statistics') : null));
   };
   const links = () => (S.meeting.status === 'finished' ? h('aside', { class: 'k-links' }, h('p', { class: 'k-mini' }, 'The meeting is finished. The invite links are not available.'))
-    : h('aside', { class: 'k-links' }, h('h4', null, ic('link'), ' KUDO meeting links ', h('small', null, 'Copy all links')),
-      ...['Participant/Speaker', 'Operator', 'Viewer-Only'].map((l) => h('div', { class: 'k-lbox' }, h('b', null, l), h('button', { class: 'k-copy', type: 'button', on: { click: () => { detour(`Copied the ${l} link`); toastK('Link copied'); } } }, 'https://live.kudoway.eu/k8/2402…'))),
-      h('h4', null, 'KUDO language access'), h('div', { class: 'k-lbox' }, h('b', null, 'iframe widget'), h('span', { class: 'k-copy' }, '<iframe name="KUDO Widget"…')), h('div', { class: 'k-lbox' }, h('b', null, 'Mobile Link'), h('span', { class: 'k-copy' }, 'https://audio-widget.kudoway.com/7702…'))));
+    : h('aside', { class: 'k-links' }, h('h4', null, ic('link'), ' KUDO meeting links ', h('small', { class: 'k-click', on: { click: () => { detour('Copy all links'); toastK('Links copied'); } } }, 'Copy all links')),
+      ...['Participant/Speaker', 'Operator', 'Viewer-Only'].map((l) => h('div', { class: 'k-lbox' }, h('b', null, l), h('button', { class: 'k-copy', type: 'button', on: { click: () => { detour(`Copied the ${l} link`); toastK('Link copied'); } } }, 'https://live.kudoway.eu/k8/2402…'), h('span', { class: 'k-mini' }, 'Add to calendar:'))),
+      h('h4', null, 'KUDO language access'), h('div', { class: 'k-lbox' }, h('b', null, 'iframe widget'), h('button', { class: 'k-copy', type: 'button', on: { click: () => { detour('Copied the iframe widget'); toastK('Code copied'); } } }, '<iframe name="KUDO Widget"…')),
+      h('div', { class: 'k-lbox' }, h('b', null, 'Mobile Link'), h('button', { class: 'k-copy', type: 'button', on: { click: () => { detour('Copied the Mobile Link'); toastK('Link copied'); } } }, 'https://audio-widget.kudoway.com/7702…')), h('div', { class: 'k-lbox k-qr' }, h('span', null, 'Download QR code'), h('span', { class: 'k-qrbox' }))));
+  const page = (...body) => shell(tabs(), h('div', { class: 'k-split' }, h('section', { class: 'k-card' }, ...body), links()));
+  const iconBtn = (icon, tip, fn, cls = '') => h('button', { class: `k-ic ${cls}`, type: 'button', title: tip, 'aria-label': tip, on: { click: fn } }, icon);
   function meetingScreen() {
     const m = S.meeting;
-    const iconBtn = (ic, tip, fn, cls = '') => h('button', { class: `k-ic ${cls}`, type: 'button', title: tip, 'aria-label': tip, on: { click: fn } }, ic);
-    const actions = m.status === 'scheduled' ? [iconBtn(ic('play'), 'Start meeting', () => { m.status = 'live'; S.flags.started = true; log('click', 'Start meeting'); toastK('Meeting has been started'); draw(); }, 'go'), iconBtn(ic('edit'), 'Edit meeting', editForm), iconBtn(ic('x'), 'Cancel meeting', () => { log('trap', 'Cancel meeting clicked'); S.flags.cancelTried = true; if (confirm('Cancel this meeting? Its links stop working.')) { log('trap', 'Meeting cancelled'); S.flags.cancelled = true; m.status = 'finished'; } draw(); }, 'stop')]
+    const actions = m.status === 'scheduled' ? [iconBtn(ic('play'), 'Start meeting', () => { m.status = 'live'; S.flags.started = true; log('click', 'Start meeting'); toastK('Meeting has been started'); draw(); }, 'go'), iconBtn(ic('edit'), 'Edit meeting', editForm), iconBtn(ic('x'), 'Cancel meeting', () => { log('trap', 'Cancel meeting clicked'); if (confirm('Cancel this meeting? Its links stop working.')) { log('trap', 'Meeting cancelled'); S.flags.cancelled = true; m.status = 'finished'; } draw(); }, 'stop')]
       : m.status === 'live' ? [iconBtn(ic('restart'), 'Restart translation service', () => { log('click', 'Restart translation service'); if (m.pendingRestart) { m.pendingRestart = false; S.flags.restarted = true; } else S.flags.restartNoChange = (S.flags.restartNoChange || 0) + 1; toastK('Translation service restart in progress. Service should resume shortly'); draw(); }), iconBtn(ic('edit'), 'Edit meeting', editForm), iconBtn(ic('stop'), 'End meeting', () => { log('click', 'End meeting'); if (!confirm('End the meeting for everyone? An AI meeting cannot be restarted.')) return; m.status = 'finished'; S.flags.ended = true; S.flags.endedBeforeSpanish = !(S.flags.liveAdded || []).some(es); toastK('Meeting has been stopped'); draw(); }, 'stop')]
         : [iconBtn(ic('edit'), 'Edit meeting', () => { detour('Edit a finished meeting'); toastK('The meeting is finished'); })];
-    return shell(tabs(), h('div', { class: 'k-split' }, h('section', { class: 'k-card' }, h('div', { class: 'k-cardh' }, h('b', null, ic('doc'), ' Overview'), h('div', { class: 'k-acts' }, ...actions)),
+    const a = m.adv;
+    return page(h('div', { class: 'k-cardh' }, h('b', null, ic('doc'), ' Overview'), h('div', { class: 'k-acts' }, ...actions)),
       h('div', { class: 'k-def' }, h('span', null, 'Date/time'), h('div', null, h('b', null, 'Thursday, Nov 26, 2026'), '  14:00 – 15:00', h('small', null, 'Brussels (UTC +01:00)'))),
-      h('div', { class: 'k-def' }, h('span', null, 'Translation type'), h('div', { class: 'k-typebox' }, m.type === 'speech' ? 'AI speech and captions' : 'AI captions only')),
-      h('div', { class: 'k-def' }, h('span', null, 'Languages'), h('div', null, h('small', null, 'Speaker languages'), h('div', null, m.speakers.map((l) => h('span', { class: 'k-lchip' }, l))), h('small', null, 'Translation languages'), h('div', null, m.translations.map((l) => h('span', { class: 'k-lchip' }, l))))),
-      h('div', { class: 'k-cardf' }, h('button', { class: 'k-link', type: 'button', on: { click: () => { detour('Advanced settings (overview)'); notYet(); } } }, 'Advanced settings ▾'), h('span', { class: 'k-mini' }, 'Support ID: 800 212 907 037'))), links()));
+      h('div', { class: 'k-def' }, h('span', null, 'Translation type'), h('div', { class: 'k-typebox' }, m.kind === 'hi' ? 'Human interpretation' : m.type === 'speech' ? 'AI speech and captions' : 'AI captions only')),
+      h('div', { class: 'k-def' }, h('span', null, 'Languages'), h('div', null, h('small', null, m.kind === 'hi' ? 'Spoken languages' : 'Speaker languages'), h('div', null, m.speakers.map((l) => h('span', { class: 'k-lchip' }, l))), m.kind === 'hi' ? null : h('small', null, 'Translation languages'), m.kind === 'hi' ? null : h('div', null, m.translations.map((l) => h('span', { class: 'k-lchip' }, l))))),
+      S.ovAdv ? h('div', { class: 'k-def' }, h('span', null, 'Advanced settings'), h('div', { class: 'k-mini k-advlist' }, ...[['Meeting type', a.size === 'large' ? 'Large' : 'Small'], ['Mobile link and iframe widget', a.widget ? 'On' : 'Off'], ['Auto-floor', a.autoFloor ? 'On' : 'Off'], ['Speaking mode', a.speaking === 'rts' ? 'Request-to-speak' : 'Open microphone'], ['Raise hand', a.raise ? 'On' : 'Off'], ['Invite method', a.invite === 'pre' ? 'Pre-approved users' : 'Shareable links and user invites'], ['PIN protection', a.pin ? 'On' : 'Off'], ['Audio manager', a.audioMgr ? 'On' : 'Off'], ['Recording', m.recording ? (m.autoRecord ? 'Automatic' : 'Manual') : 'Off']].map(([k, v]) => h('div', null, h('span', null, k), h('b', null, v))))) : null,
+      h('div', { class: 'k-cardf' }, h('button', { class: 'k-link', type: 'button', on: { click: () => { S.ovAdv = !S.ovAdv; log('click', 'Advanced settings (overview)'); if (S.ovAdv) detour('Advanced settings (overview)'); draw(); } } }, S.ovAdv ? 'Less settings ▴' : 'Advanced settings ▾'), h('span', { class: 'k-mini' }, 'Support ID: 800 212 907 037')));
   }
   function editForm() {
     const m = S.meeting; log('click', 'Edit meeting');
     if (m.status === 'finished') return;
-    S.form = { name: m.name, type: m.type, speakers: [...m.speakers], translations: [...m.translations], detect: false, recording: m.recording, autoRecord: m.autoRecord, hosts: [], external: m.external };
+    S.form = { kind: m.kind, name: m.name, type: m.type, speakers: [...m.speakers], translations: [...m.translations], sign: [...(m.sign || [])], detect: false, recording: m.recording, autoRecord: m.autoRecord, hosts: [], external: m.external, adv: { ...m.adv }, advOpen: false, prep: m.prep, aiAssist: m.aiAssist };
     go('edit', 'Edit meeting');
   }
-  function participantsScreen() {
-    const m = S.meeting; const email = h('input', { class: 'k-in', placeholder: 'Email', type: 'email' });
-    const rows = m.participants.map((p) => h('tr', null, h('td', null, h('input', { type: 'checkbox' })), h('td', null, p.name), h('td', null, p.email), h('td', null, p.role === 'Host' ? h('span', null, 'Participant ', h('span', { class: 'k-chip host' }, 'HOST')) : 'Participant'), h('td', null, 'Invited | ', h('span', { class: 'k-link' }, 'Resend')),
-      h('td', { class: 'k-acts' }, p.role === 'Host' ? null : h('button', { class: 'k-ic go', type: 'button', title: 'Make Host', 'aria-label': 'Make Host', on: { click: () => { p.role = 'Host'; log('click', `Make host: ${p.email}`); toastK('New Host appointed successfully'); draw(); } } }, ic('user')),
-        h('button', { class: 'k-ic', type: 'button', title: 'Edit', on: { click: () => detour('Edit participant') } }, ic('edit')),
-        h('button', { class: 'k-ic stop', type: 'button', title: 'Delete', on: { click: () => { log('trap', `Deleted participant ${p.email}`); m.participants.splice(m.participants.indexOf(p), 1); draw(); } } }, ic('trash')))));
+  function usersScreen(kind) {
+    const m = S.meeting; const list = kind === 'all' ? [...m.participants.map((p) => ({ ...p, type: 'Participant' })), ...m.operators.map((p) => ({ ...p, type: 'Operator' })), ...m.viewers.map((p) => ({ ...p, type: 'Viewer' }))] : kind === 'participants' ? m.participants : kind === 'operators' ? m.operators : m.viewers;
+    const label = { all: 'All users', participants: 'Participants', operators: 'Operators', viewers: 'Viewers' }[kind];
+    const addLabel = { participants: '+ Add participant', operators: '+ Add operator', viewers: '+ Add viewer' }[kind];
+    const email = h('input', { class: 'k-in', placeholder: 'Email', type: 'email' });
+    const rows = list.map((p) => h('tr', null, h('td', null, h('input', { type: 'checkbox' })), h('td', null, p.name), h('td', null, p.email),
+      h('td', null, p.type && kind === 'all' ? p.type : kind === 'participants' ? (p.role === 'Host' ? h('span', null, 'Participant ', h('span', { class: 'k-chip host' }, 'HOST')) : 'Participant') : label.replace(/s$/, '')), h('td', null, 'Invited | ', h('span', { class: 'k-link' }, 'Resend')),
+      h('td', { class: 'k-acts' }, kind === 'participants' && p.role !== 'Host' ? h('button', { class: 'k-ic go', type: 'button', title: 'Make Host', 'aria-label': 'Make Host', on: { click: () => { p.role = 'Host'; log('click', `Make host: ${p.email}`); toastK('New Host appointed successfully'); draw(); } } }, ic('user')) : null,
+        h('button', { class: 'k-ic', type: 'button', title: 'Edit', on: { click: () => { log('click', `Edit user ${p.email}`); toastK('User details are managed by the user'); } } }, ic('edit')),
+        kind !== 'all' ? h('button', { class: 'k-ic stop', type: 'button', title: 'Delete', on: { click: () => { log('trap', `Deleted ${label.toLowerCase().replace(/s$/, '')} ${p.email}`); list.splice(list.indexOf(p), 1); draw(); } } }, ic('trash')) : null)));
+    const target = kind === 'operators' ? m.operators : kind === 'viewers' ? m.viewers : m.participants;
     return shell(tabs(), h('div', { class: 'k-split' }, h('section', { class: 'k-card' },
-      h('div', { class: 'k-cardh' }, h('b', null, ic('users'), ' Users  ', h('span', { class: 'k-mini' }, 'Participants ▾')), h('div', { class: 'k-row' }, h('button', { class: 'k-btn soft', type: 'button', on: { click: () => { S.modal = 'add'; log('click', '+ Add participant'); draw(); } } }, '+ Add participant'), h('button', { class: 'k-btn soft', type: 'button', on: { click: () => detour('Import participants') } }, 'Import participants'))),
-      h('table', { class: 'k-tbl' }, h('thead', null, h('tr', null, ['', 'Name', 'Email', 'Role', 'Status', ''].map((x) => h('th', null, x)))), h('tbody', null, rows.length ? rows : h('tr', null, h('td', { colspan: 6, class: 'k-empty' }, "No participant added to this meeting. To add participant click on the '+ Add Participant' button above."))))), links()),
-      S.modal === 'add' ? h('div', { class: 'k-modal-bg' }, h('div', { class: 'k-modal' }, h('div', { class: 'k-modal-h' }, h('b', null, 'Add participant'), h('button', { type: 'button', on: { click: () => { S.modal = null; draw(); } } }, '×')),
-        h('div', { class: 'k-frow' }, h('div', { class: 'k-flabel' }, 'Email'), email),
-        h('div', { class: 'k-row end' }, h('button', { class: 'k-btn ghost', type: 'button', on: { click: () => { S.modal = null; draw(); } } }, 'Close'),
-          h('button', { class: 'k-btn', type: 'button', on: { click: () => { const v = email.value.trim().toLowerCase(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return toastK('Enter a valid email'); m.participants.push({ email: v, name: v === HOST ? 'Host Client Demo' : v.split('@')[0], role: 'Participant', via: 'participants' }); log('input', `Participant added: ${v}`); S.modal = null; toastK('Participant added successfully'); draw(); } } }, 'Next')))) : null);
+      h('div', { class: 'k-cardh' }, h('b', null, ic('users'), ' Users  ', h('span', { class: 'k-mini' }, `${label} ▾`)), addLabel ? h('div', { class: 'k-row' }, h('button', { class: 'k-btn soft', type: 'button', on: { click: () => { S.modal = { kind: 'adduser' }; log('click', addLabel); draw(); } } }, addLabel), h('button', { class: 'k-btn soft', type: 'button', on: { click: () => { log('click', 'Import'); toastK('Import from a CSV file: download the template first'); } } }, `Import ${label.toLowerCase()}`)) : null),
+      h('input', { class: 'k-in k-search', placeholder: 'Search' }),
+      h('table', { class: 'k-tbl' }, h('thead', null, h('tr', null, ['', 'Name', 'Email', 'Role', 'Status', ''].map((x) => h('th', null, x)))), h('tbody', null, rows.length ? rows : h('tr', null, h('td', { colspan: 6, class: 'k-empty' }, `No ${label.toLowerCase()} added to this meeting. To add one click on the '${addLabel || '+ Add'}' button above. You can simply invite them by the 'Kudo Meeting Links'.`)))), pager(rows.length)), links()),
+      S.modal?.kind === 'adduser' ? modal(addLabel.slice(2).replace(/^./, (c) => c.toUpperCase()), [row('Email', email)], [['Close', () => { S.modal = null; draw(); }, 'ghost'], ['Next', () => { const v = email.value.trim().toLowerCase(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return toastK('Enter a valid email'); target.push({ email: v, name: v === HOST ? 'Host Client Demo' : v.split('@')[0], role: kind === 'participants' ? 'Participant' : label.replace(/s$/, ''), via: kind }); log('input', `${label.replace(/s$/, '')} added: ${v}`); S.modal = null; toastK('Successful! User added successfully'); draw(); }]]) : null);
   }
+  // Polls: list, add, details with rights, weight and advanced settings
+  function pollsScreen() {
+    const m = S.meeting;
+    return page(h('div', { class: 'k-cardh' }, h('b', null, ic('doc'), ' Polls'), h('button', { class: 'k-btn soft', type: 'button', on: { click: () => { S.pf = { title: '', q: '', type: 'mc', n: 2, sel: 1, min: 1, answers: ['', ''], results: 'nominative' }; go('poll-new', 'Add poll'); } } }, '+ Add poll')),
+      h('input', { class: 'k-in k-search', placeholder: 'Search' }),
+      h('table', { class: 'k-tbl' }, h('thead', null, h('tr', null, ['Poll title', 'Participant polling rights', 'Status', ''].map((x) => h('th', null, x)))),
+        h('tbody', null, m.polls.length ? m.polls.map((p) => h('tr', null, h('td', null, h('button', { class: 'k-link', type: 'button', on: { click: () => go('poll', `Open poll ${p.title}`, { poll: p, ptab: 'details' }) } }, p.title)), h('td', null, h('span', { class: 'k-link' }, 'Set List as Default')), h('td', null, h('span', { class: 'k-chip' }, p.status)),
+          h('td', { class: 'k-acts' }, h('button', { class: 'k-ic', type: 'button', title: 'Edit', on: { click: () => go('poll', `Open poll ${p.title}`, { poll: p, ptab: 'details' }) } }, ic('edit')), h('button', { class: 'k-ic stop', type: 'button', title: 'Delete', on: { click: () => { m.polls.splice(m.polls.indexOf(p), 1); log('click', 'Delete poll'); draw(); } } }, ic('trash')))))
+          : h('tr', null, h('td', { colspan: 4, class: 'k-empty' }, "No polling added to this meeting. To add polling click on the '+ Add poll' button above.")))), pager(m.polls.length));
+  }
+  function pollNewScreen() {
+    const p = S.pf, parl = p.type === 'parl';
+    const answers = parl ? ['Yes', 'No', 'Abstain'] : p.answers;
+    return page(h('b', null, ic('doc'), ' Add poll'),
+      row('Title *', h('input', { class: 'k-in', placeholder: 'Title of the poll', value: p.title, on: { input: (e) => { p.title = e.target.value; } } }), h('small', { class: 'k-mini' }, `${240 - p.title.length} characters remaining`)),
+      row('Question *', h('input', { class: 'k-in', placeholder: 'Question', value: p.q, on: { input: (e) => { p.q = e.target.value; } } })),
+      row('Type of poll *', radio('ptype', [['mc', 'Multiple Choice'], ['parl', 'Parliamentary']], p.type, set(p, 'type', 'Type of poll'))),
+      parl ? null : row('Number of answers', select([2, 3, 4, 5, 6, 7, 8, 9, 10], p.n, (v) => { p.n = Number(v); while (p.answers.length < p.n) p.answers.push(''); p.answers.length = p.n; log('change', `Number of answers: ${v}`); draw(); })),
+      parl ? null : row('Number of options can be selected', select(Array.from({ length: p.n }, (_, i) => [i + 1, `${i + 1} option${i ? 's' : ''} can be selected`]), p.sel, set(p, 'sel', 'Options can be selected'))),
+      parl ? null : row('Minimum number of options to be selected', select(Array.from({ length: p.n }, (_, i) => [i + 1, `${i + 1} option${i ? 's' : ''} should be selected`]), p.min, set(p, 'min', 'Minimum options'))),
+      ...answers.map((a, i) => row(`Answer ${i + 1}`, h('input', { class: 'k-in', placeholder: `Answer ${i + 1}`, value: a, disabled: parl, on: { input: (e) => { p.answers[i] = e.target.value; } } }))),
+      parl ? row('Results', radio('pres', [['ballot', 'Ballot (anonymous)'], ['nominative', 'Nominative (identifiable vote)']], p.results, set(p, 'results', 'Results')), h('small', { class: 'k-mini' }, 'You are responsible for collecting participants’ consent and to make use of these personally identifiable data in compliance with applicable data protection and privacy laws.')) : null,
+      h('div', { class: 'k-row end' }, h('button', { class: 'k-btn ghost', type: 'button', on: { click: () => go('polls', 'Cancel poll') } }, 'Cancel'), h('button', { class: 'k-btn', type: 'button', on: { click: () => {
+        if (!p.title.trim() || !p.q.trim()) return toastK('Title and question are required');
+        if (!parl && p.answers.some((x) => !x.trim())) return toastK('Fill in every answer');
+        const poll = { title: p.title.trim(), q: p.q.trim(), type: parl ? 'Parliamentary' : 'Multiple Choice', sel: parl ? 1 : p.sel, min: parl ? 1 : p.min, answers: [...answers], status: 'POLL CREATED', rights: 'all', selected: new Set(), weights: {}, control: { client: true, operator: true, host: true }, exp: 'yes', timed: 'no', time: '01:00' };
+        S.meeting.polls.push(poll); log('save', `Poll created: ${poll.title}`); toastK('Poll has been created'); go('poll', `Open poll ${poll.title}`, { poll, ptab: 'details' });
+      } } }, 'Save')));
+  }
+  function pollScreen() {
+    const p = S.poll, m = S.meeting;
+    const nav = [['details', 'Poll Details'], ['rights', 'Polling Rights'], ['weight', 'Polling Weight'], ['adv', 'Advanced Settings']];
+    const body = { details: () => h('div', null, ...[['Question', p.q], ['Type', p.type], ['Number of options can be selected', p.sel], ['Minimum number of options to be selected', p.min], ['Status', h('span', { class: 'k-chip' }, p.status)], ['Answers', h('div', null, p.answers.map((a, i) => h('div', null, h('span', { class: 'k-link' }, `Option ${i + 1}: `), a)))]].map(([k, v]) => h('div', { class: 'k-def' }, h('span', null, k), h('div', null, v))),
+        h('button', { class: 'k-btn soft', type: 'button', on: { click: () => { if (m.status !== 'live') return toastK('The vote can start once the meeting has started'); p.status = 'VOTING'; log('click', 'Start vote'); draw(); } } }, 'Start vote')),
+      rights: () => h('div', null, row('Polling Rights', radio('rights', [['all', 'All Participants'], ['sel', 'Selected Participants']], p.rights, (v) => { p.rights = v; log('change', `Polling rights: ${v}`); toastK('Polling rights has been updated'); draw(); })),
+        p.rights === 'all' ? h('div', { class: 'k-note' }, h('b', null, 'All Participants: '), 'Everyone who is in the meeting can attend in this poll')
+          : h('div', null, h('div', { class: 'k-note' }, h('b', null, 'Selected Participants: '), 'You can select from the participants who are added or joined to the meeting. To add more participants go to the Users tab.'), h('div', { class: 'k-rowsp' }, h('input', { class: 'k-in k-search', placeholder: 'Search' }), h('span', { class: 'k-link' }, '⟳ Refresh List')), h('b', null, 'All Participant List'),
+            h('table', { class: 'k-tbl' }, h('thead', null, h('tr', null, ['Unselect all', 'Name', 'Email', 'Status'].map((x) => h('th', null, x)))), h('tbody', null, m.participants.length ? m.participants.map((u) => h('tr', null, h('td', null, h('input', { type: 'checkbox', checked: p.selected.has(u.email), on: { change: (e) => { if (e.target.checked) p.selected.add(u.email); else p.selected.delete(u.email); log('change', `Polling right ${u.email}: ${e.target.checked}`); } } })), h('td', null, u.name), h('td', null, u.email), h('td', null, 'Invited'))) : h('tr', null, h('td', { colspan: 4, class: 'k-empty' }, 'No participant added yet')))), h('span', { class: 'k-link' }, 'Set List as Default'))),
+      weight: () => h('div', null, h('div', { class: 'k-note' }, 'You can assign polling weight to participants who have the polling rights.  ', h('span', { class: 'k-link' }, '⟳ Refresh List')),
+        h('div', { class: 'k-grid2' }, h('div', null, h('div', { class: 'k-rowsp' }, h('input', { class: 'k-in k-search', placeholder: 'Search' }), h('span', { class: 'k-link' }, 'Reset')), h('small', { class: 'k-mini' }, 'Added Participants'), ...m.participants.map((u) => h('div', { class: 'k-rowsp' }, h('b', null, u.name), select(Array.from({ length: 10 }, (_, i) => i + 1), p.weights[u.email] || 1, (v) => { p.weights[u.email] = Number(v); log('change', `Polling weight ${u.email}: ${v}`); toastK('Polling weight has been updated'); }, 'sm')))),
+          h('div', null, h('input', { class: 'k-in k-search', placeholder: 'Search' }), h('small', { class: 'k-mini' }, 'Joined Participants'), h('p', { class: 'k-mini' }, 'The list of joined participants will be available once the meeting starts')))),
+      adv: () => h('div', null, row(h('span', null, 'Poll Control', h('small', { class: 'k-mini', style: 'display:block' }, 'Define who can manage the vote (start, stop, publish results)')), check(true, 'Client', () => {}, true), check(p.control.operator, 'Operator', (v) => { p.control.operator = v; log('change', `Poll control operator: ${v}`); toastK('Poll control has been updated'); }), check(p.control.host, 'Host(s)', (v) => { p.control.host = v; log('change', `Poll control host: ${v}`); toastK('Poll control has been updated'); })),
+        row(h('span', null, 'Poll Export', h('small', { class: 'k-mini', style: 'display:block' }, 'Select Yes to have the ability to export poll responses with names in the Poll details after the Poll starts and in the reports after the meeting ends.')), radio('pexp', [['yes', 'Yes'], ['no', 'No']], p.exp, (v) => { p.exp = v; log('change', `Poll export: ${v}`); toastK('Poll has been updated'); draw(); })),
+        row(h('span', null, 'Predefined Poll Time', h('small', { class: 'k-mini', style: 'display:block' }, 'This poll will be available to vote within the time assigned.')), radio('ptime', [['yes', 'Yes'], ['no', 'No']], p.timed, (v) => { p.timed = v; log('change', `Predefined poll time: ${v}`); toastK('Poll has been updated'); draw(); }), h('input', { class: 'k-in sm', value: p.time, disabled: p.timed !== 'yes', on: { change: (e) => { p.time = e.target.value; log('change', `Poll time: ${e.target.value}`); } } }))) }[S.ptab]();
+    return shell(tabs(), h('section', { class: 'k-card' }, h('div', { class: 'k-rowsp' }, h('button', { class: 'k-link', type: 'button', on: { click: () => go('polls', 'Back to polls list') } }, '‹ Back to polls list'), h('div', { class: 'k-acts' }, iconBtn(ic('edit'), 'Edit poll', () => log('click', 'Edit poll'), 'go'), iconBtn(ic('trash'), 'Delete poll', () => { m.polls.splice(m.polls.indexOf(p), 1); log('click', 'Delete poll'); go('polls', 'Poll deleted'); }, 'stop'))),
+      h('h3', { class: 'k-h3' }, p.title), h('div', { class: 'k-pollgrid' }, h('nav', { class: 'k-pollnav' }, nav.map(([k, l]) => h('button', { class: S.ptab === k ? 'on' : '', type: 'button', on: { click: () => { S.ptab = k; log('nav', `Poll: ${l}`); draw(); } } }, l))), body)));
+  }
+  function filesScreen() {
+    const m = S.meeting;
+    const SAMPLE = [['Agenda.pdf', 'PDF', '214 KB'], ['Speaker list.docx', 'DOCX', '38 KB'], ['Slides.pptx', 'PPTX', '4.2 MB']];
+    return page(h('div', { class: 'k-cardh' }, h('b', null, ic('doc'), ' Files'), h('button', { class: 'k-btn soft', type: 'button', on: { click: () => { S.modal = { kind: 'file', pick: SAMPLE[0][0], acc: 'All' }; log('click', '+ Add files'); draw(); } } }, '+ Add files')),
+      h('table', { class: 'k-tbl' }, h('thead', null, h('tr', null, ['File name', 'Content type', 'Accessibility', 'File size', 'Actions'].map((x) => h('th', null, x)))),
+        h('tbody', null, m.files.length ? m.files.map((f) => h('tr', null, h('td', null, f.name), h('td', null, f.type), h('td', null, f.acc), h('td', null, f.size), h('td', { class: 'k-acts' }, h('span', { class: 'k-ic go' }, ic('dl', 14)), h('button', { class: 'k-ic stop', type: 'button', title: 'Delete', on: { click: () => { m.files.splice(m.files.indexOf(f), 1); log('click', 'Delete file'); draw(); } } }, ic('trash')))))
+          : h('tr', null, h('td', { colspan: 5, class: 'k-empty' }, 'No files added to this meeting.')))), pager(m.files.length),
+      S.modal?.kind === 'file' ? modal('Add files', [row('File', select(SAMPLE.map((x) => x[0]), S.modal.pick, (v) => { S.modal.pick = v; }), h('small', { class: 'k-mini' }, 'Sandbox: pick one of the sample files')), row('Accessible to', select(['All', 'Participants', 'Interpreters'], S.modal.acc, (v) => { S.modal.acc = v; }))],
+        [['Cancel', () => { S.modal = null; draw(); }, 'ghost'], ['Upload', () => { const s = SAMPLE.find((x) => x[0] === S.modal.pick); m.files.push({ name: s[0].replace(/\.[^.]+$/, ''), type: s[1], size: s[2], acc: S.modal.acc }); log('save', `File uploaded: ${s[0]} (${S.modal.acc})`); S.modal = null; toastK('File uploaded successfully'); draw(); }]]) : null);
+  }
+  function messagesScreen() { return page(h('b', null, ic('doc'), ' Messages'), h('p', { class: 'k-mini' }, 'Messages exchanged in the meeting chat appear here.'), h('table', { class: 'k-tbl' }, h('thead', null, h('tr', null, ['From', 'Message', 'Time'].map((x) => h('th', null, x)))), h('tbody', null, h('tr', null, h('td', { colspan: 3, class: 'k-empty' }, 'No messages yet.'))))); }
   function recordingsScreen() {
     const m = S.meeting; const done = m.status === 'finished' && m.recording && m.autoRecord && !S.flags.cancelled;
     const files = done ? ['Original Audio', ...m.translations] : [];
     return shell(tabs(), h('div', { class: 'k-split' }, h('section', { class: 'k-card' }, h('b', null, ic('doc'), ' Recordings & Transcripts'),
-      h('p', { class: 'k-mini' }, 'If you choose to record your meeting, your recording and transcripts will be stored in the KUDO cloud for 30 days before being automatically deleted.'),
+      h('p', { class: 'k-mini' }, 'If you choose to record your meeting, your recording and transcripts will be stored in the KUDO cloud for 30 days before being automatically deleted. You can download them at any time during this period.'),
       h('table', { class: 'k-tbl' }, h('thead', null, h('tr', null, ['ID', 'Meeting Title', 'Start Date and Time', 'End Date and Time', 'Time Zone', 'Action'].map((x) => h('th', null, x)))),
-        h('tbody', null, done ? h('tr', null, h('td', null, '1'), h('td', null, m.name), h('td', null, '26 November 2026 02:00 PM'), h('td', null, '26 November 2026 03:00 PM'), h('td', null, 'Europe/Brussels'), h('td', null, h('button', { class: 'k-ic go', type: 'button', title: 'Download', on: { click: () => { S.modal = 'dl'; S.flags.foundRecording = true; log('click', 'Download recordings'); draw(); } } }, ic('dl'))))
-          : h('tr', null, h('td', { colspan: 6, class: 'k-empty' }, m.status !== 'finished' ? 'No recordings available of this meeting.' : !m.autoRecord || !m.recording ? 'No recordings available of this meeting. Recording was not switched on.' : 'No recordings available of this meeting.')))),
+        h('tbody', null, done ? h('tr', null, h('td', null, '1'), h('td', null, m.name), h('td', null, '26 November 2026 02:00 PM'), h('td', null, '26 November 2026 03:00 PM'), h('td', null, 'Europe/Brussels'), h('td', null, h('button', { class: 'k-ic go', type: 'button', title: 'Download', on: { click: () => { S.modal = { kind: 'dl' }; S.flags.foundRecording = true; log('click', 'Download recordings'); draw(); } } }, ic('dl'))))
+          : h('tr', null, h('td', { colspan: 6, class: 'k-empty' }, 'No recordings available of this meeting.')))),
       done ? h('p', { class: 'k-mini' }, 'Sandbox time is fast-forwarded: in reality recordings appear 15 to 20 minutes after the meeting ends.') : null), links()),
-    S.modal === 'dl' ? h('div', { class: 'k-modal-bg' }, h('div', { class: 'k-modal' }, h('div', { class: 'k-modal-h' }, h('b', null, 'Download Recordings & Transcripts'), h('button', { type: 'button', on: { click: () => { S.modal = null; draw(); } } }, '×')),
+    S.modal?.kind === 'dl' ? h('div', { class: 'k-modal-bg' }, h('div', { class: 'k-modal' }, h('div', { class: 'k-modal-h' }, h('b', null, 'Download Recordings & Transcripts'), h('button', { type: 'button', on: { click: () => { S.modal = null; draw(); } } }, '×')),
       h('p', { class: 'k-mini' }, 'For videos with captioning we recommend to use VLC media player'), h('button', { class: 'k-btn soft', type: 'button', on: { click: () => log('click', 'Download all (zip)') } }, ic('dl'), ' Download Recordings & Transcripts'),
       h('table', { class: 'k-tbl' }, h('tbody', null, files.map((l) => h('tr', null, h('td', null, h('b', null, l)), h('td', null, '1.2 MB'), h('td', { class: 'k-acts' }, h('span', { class: 'k-ic go' }, ic('play', 14)), h('span', { class: 'k-ic go' }, ic('dl', 14)), h('span', { class: 'k-ic go' }, ic('dl', 14))))))))) : null);
   }
+  function avScreen() {
+    const v = S.meeting.av;
+    return page(h('b', null, ic('doc'), ' AV configurations'), h('b', { class: 'k-subh' }, 'Participant/Speaker'),
+      row('Video resolution', select(['Auto (adaptive)', 'High definition (1280×720)', 'Standard definition (640×480)', 'Low definition (320×240)'], v.res, (x) => { v.res = x; log('change', `Video resolution: ${x}`); })),
+      row('Frame rate', select(['Auto (adaptive)', '15', '24', '30'], v.fps, (x) => { v.fps = x; log('change', `Frame rate: ${x}`); })),
+      row('Audio bitrate', select(['Auto (adaptive)', 'Narrowband (8-12 kbps)', 'Wideband (16-20 kbps)', 'Fullband (28-40 kbps)', 'Fullband (48-64 kbps)'], v.bitrate, (x) => { v.bitrate = x; log('change', `Audio bitrate: ${x}`); })),
+      row('Stereo sound', toggle(v.stereo, null, set(v, 'stereo', 'Stereo sound'))),
+      row('Audio level', h('input', { type: 'range', min: 0, max: 100, value: v.level, class: 'k-range', on: { change: (e) => { v.level = Number(e.target.value); log('change', `Audio level: ${e.target.value}`); } } })),
+      row('Audio processing *', toggle(v.processing, null, set(v, 'processing', 'Audio processing')), h('small', { class: 'k-mini' }, '* Echo cancellation, Automatic gain control, Noise suppression (Default is ON)')),
+      h('div', { class: 'k-row end' }, h('button', { class: 'k-btn soft', type: 'button', on: { click: () => { log('save', 'AV configurations updated'); toastK('AV configurations updated'); } } }, 'Update')));
+  }
+  function featuresScreen() {
+    const ft = S.meeting.features, locked = S.meeting.status !== 'scheduled';
+    const t = (k, label) => h('div', { class: 'k-rowsp k-feat' }, h('span', null, label), toggle(ft[k], null, set(ft, k, label), locked));
+    return page(h('b', null, ic('lock'), ' Meeting features'), h('div', { class: 'k-warn strong' }, "You can't enable these after the meeting starts. Once enabled, they can't be turned off."),
+      row('Lobby (waiting room)', check(ft.lobby, 'Enable Lobby (waiting room)', set(ft, 'lobby', 'Enable lobby'), locked), h('div', { class: 'k-sub' }, check(ft.lobbyP, 'Lobby for participants/speakers', set(ft, 'lobbyP', 'Lobby for participants/speakers'), locked || !ft.lobby), check(ft.lobbyV, 'Lobby for viewers-only', set(ft, 'lobbyV', 'Lobby for viewers-only'), locked || !ft.lobby))),
+      row('Available features for participant/speaker', t('users', 'Active user list'), t('docs', 'Documents'), t('msg', 'Messaging'), t('polls', 'Polls'), t('request', 'Request list'), t('share', 'Screen share')),
+      h('div', { class: 'k-row end' }, h('button', { class: 'k-btn soft', type: 'button', on: { click: () => { log('save', 'Meeting features saved'); toastK('Meeting features updated'); } } }, 'Save')));
+  }
+  function mGlossariesScreen() {
+    const g = S.modal?.kind === 'gconfirm' ? S.modal : null;
+    return shell(tabs(), h('section', { class: 'k-card' }, ...glossaryTable(true)),
+      g ? modal(g.def ? 'Confirm default glossary change' : 'Confirm glossary change', [h('p', null, g.def ? 'Set this as your default glossary for all meetings?' : 'Use this glossary for this meeting?')], [['Cancel', () => { S.modal = null; draw(); }, 'ghost'], ['OK', () => { if (g.def) { S.glossaries.forEach((x) => { x.def = x === g.g; }); log('change', `Default glossary: ${g.g.name}`); } else { S.meeting.glossary = g.g.name; log('change', `Glossary for this meeting: ${g.g.name}`); } S.modal = null; toastK('Glossary updated'); draw(); }]]) : null);
+  }
+  function statsScreen() { return page(h('b', null, ic('doc'), ' Meeting statistics'), h('div', { class: 'k-stats' }, ...[['Duration', '1 h 00 m'], ['Peak attendees', '1'], ['Languages', String(S.meeting.translations.length)], ['Messages', '0']].map(([k, v]) => h('div', null, h('small', null, k), h('b', null, v))))); }
 
   // ---------------------------------------------------------------- hints, scoring, report
   function nextStep() {
     const m = S.meeting, host = m?.participants.find((p) => p.email === HOST && p.role === 'Host');
     if (S.screen === 'login') return 'Log in: the account is filled in for you.';
     if (!m) return 'Create the meeting: New meeting, then AI speech translation.';
+    if (m.kind !== 'ai') return 'This meeting is not an AI speech translation meeting: the client wants AI Translation.';
     if (!host) return m.participants.some((p) => p.email === HOST) ? 'The person is a participant, not the Host yet: Users, Participants, then Make Host on their row.' : 'Add the Host: Users, Participants, + Add participant.';
     if (!m.autoRecord) return 'The meeting must record itself: Edit meeting, Recording and transcript, tick "Automatically record this meeting when it starts". Do it before you start.';
     if (m.status === 'scheduled') return 'Start the meeting from the Overview.';
@@ -238,7 +405,7 @@ export function sandboxView(key, { onExit } = {}) {
     const host = m.participants.find((p) => p.email === HOST && p.role === 'Host');
     const extra = m.translations.filter((l) => !['English (US)', 'English (UK)'].includes(l) && !fr(l) && !de(l) && !es(l));
     const checks = [
-      ['AI speech & captions meeting created', !!S.meeting && m.type === 'speech', 8],
+      ['AI speech & captions meeting created', !!S.meeting && m.kind === 'ai' && m.type === 'speech', 8],
       [`Named "${NAME}"`, !!S.meeting && m.name.toLowerCase().includes('quarterly partner update'), 4],
       ['English as the only speaker language', m.speakers.length === 1 && m.speakers[0] === 'English', 8],
       ['French and German as translation languages, nothing extra', m.translations.some(fr) && m.translations.some(de) && !extra.length, 8],
@@ -255,15 +422,16 @@ export function sandboxView(key, { onExit } = {}) {
     if (F.endedBeforeSpanish && F.ended) traps.push(['Ended the meeting before adding Spanish: an AI meeting cannot be restarted', 10]);
     if (F.cancelled) traps.push(['Cancelled the meeting', 10]);
     if ((F.addedBeforeStart || []).some(es)) traps.push(['Added Spanish before the start, not while live', 4]);
-    if (F.locked_Speaker_language || F['locked_Speaker language']) traps.push(['Tried to change the speaker language while live (locked)', 3]);
+    if (F['locked_Speaker language']) traps.push(['Tried to change the speaker language while live (locked)', 3]);
     if ((F.removed || []).length) traps.push([`Removed a language (${F.removed.join(', ')})`, 4]);
     if (F.restartNoChange) traps.push(['Restarted the translation service with nothing to apply', 2]);
+    if (S.events.some((e) => e.type === 'trap' && /Deleted/.test(e.what))) traps.push(['Deleted a user from the meeting', 3]);
     const detours = S.events.filter((e) => e.type === 'detour').length;
     const path = Math.max(0, 100 - detours * 6 - traps.reduce((t, x) => t + x[1], 0) * 3 - S.hints * 8);
     const secs = Math.round((Date.now() - S.t0) / 1000);
     const time = secs <= 300 ? 100 : secs >= 720 ? 0 : Math.round(100 - ((secs - 300) / 420) * 100);
     const total = Math.round(outcome * 0.7 + path * 0.2 + time * 0.1);
-    return { total, outcome, path, time, secs, checks: checks.map(([label, ok, w]) => ({ label, ok, w })), traps: traps.map(([label]) => label), detours, hints: S.hints, actions: S.events.filter((e) => ['click', 'pick', 'input', 'toggle', 'choose', 'save', 'remove'].includes(e.type)).length };
+    return { total, outcome, path, time, secs, checks: checks.map(([label, ok, w]) => ({ label, ok, w })), traps: traps.map(([label]) => label), detours, hints: S.hints, actions: S.events.filter((e) => ['click', 'pick', 'input', 'toggle', 'choose', 'save', 'remove', 'change'].includes(e.type)).length };
   }
   async function finish() {
     if (S.finished) return;
@@ -275,18 +443,22 @@ export function sandboxView(key, { onExit } = {}) {
     root.replaceChildren(report(sc, r, S.events, saved, onExit));
   }
 
+  const SCREENS = { login: loginScreen, home: homeScreen, meetings: meetingsScreen, glossaries: glossariesScreen, usage: usageScreen, 'new-ai': () => formScreen('new'), 'new-hi': () => formScreen('new'), edit: () => formScreen('edit'), meeting: meetingScreen,
+    users: () => usersScreen('all'), participants: () => usersScreen('participants'), operators: () => usersScreen('operators'), viewers: () => usersScreen('viewers'), polls: pollsScreen, 'poll-new': pollNewScreen, poll: pollScreen, files: filesScreen, messages: messagesScreen, recordings: recordingsScreen, av: avScreen, features: featuresScreen, mglossaries: mGlossariesScreen, stats: statsScreen };
   function draw() {
     root.querySelector('.sbx-url-t').textContent = url();
-    const view = { login: loginScreen, home: homeScreen, new: () => formScreen(false), edit: () => formScreen(true), meeting: meetingScreen, participants: participantsScreen, recordings: recordingsScreen }[S.screen]();
-    app.replaceChildren(view);
+    app.replaceChildren(SCREENS[S.screen]());
   }
-  app.addEventListener('click', (e) => { if (S.picker && !e.target.closest('.k-pick-wrap')) { S.picker = null; draw(); } if (S.menu && !e.target.closest('.k-tabw, .k-newwrap')) { S.menu = null; draw(); } });
+  app.addEventListener('click', (e) => {
+    if (S.picker && !e.target.closest('.k-pick-wrap')) { S.picker = null; draw(); }
+    if (S.menu && !e.target.closest('.k-tabw, .k-newwrap, .k-rel')) { S.menu = null; draw(); }
+  });
   log('start', 'Sandbox opened');
   draw();
   return root;
 }
 
-// ------------------------------------------------------------------ the result
+
 const fmtS = (s) => `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`;
 export function report(sc, r, events, saved, onExit) {
   const bar = (label, v, note) => h('div', { class: 'sbx-sc' }, h('div', { class: 'row spread' }, h('b', null, label), h('span', null, `${v}%`)), h('i', { class: 'ph-bar' }, h('i', { style: `width:${v}%` })), h('span', { class: 'muted small' }, note));
