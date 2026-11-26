@@ -57,15 +57,17 @@ export function sandboxView(key, { onExit } = {}) {
   // ---------------------------------------------------------------- shared pieces
   const sidebar = () => h('aside', { class: 'k-side' },
     h('div', { class: 'k-newwrap' }, h('button', { class: 'k-new', type: 'button', on: { click: () => { S.menu = S.menu === 'new' ? null : 'new'; log('click', 'New meeting'); draw(); } } }, ic('plus'), ' New meeting ▾'),
-      S.menu === 'new' ? h('div', { class: 'k-menu' }, h('button', { type: 'button', on: { click: () => { detour('New meeting: Human interpretation'); toast('Not needed for this task: the client wants AI Translation', true); S.menu = null; draw(); } } }, 'Human interpretation'), h('button', { type: 'button', on: { click: startForm } }, 'AI speech translation')) : null),
+      S.menu === 'new' ? h('div', { class: 'k-menu' }, h('button', { type: 'button', on: { click: () => { detour('New meeting: Human interpretation'); notYet(); S.menu = null; draw(); } } }, 'Human interpretation'), h('button', { type: 'button', on: { click: startForm } }, 'AI speech translation')) : null),
     ...[['home', 'Home'], ['meetings', 'My meetings'], ['glossaries', 'My glossaries'], ['usage', 'Usage & analytics']].map(([k, l]) => h('button', { class: `k-nav ${(k === 'home' && S.screen === 'home') || (k === 'meetings' && ['meeting', 'participants', 'edit', 'recordings'].includes(S.screen)) ? 'on' : ''}`, type: 'button', on: { click: () => {
       if (k === 'home') return go('home', 'Home');
       if (k === 'meetings' && S.meeting) return go('meeting', 'My meetings');
-      detour(l); toast(`${l} is not built in this sandbox: not needed for the task`, true);
+      detour(l); notYet();
     } } }, l)),
     h('div', { class: 'k-acct' }, h('span', { class: 'k-av' }, 'DN'), 'Demo NDK'));
   const top = () => h('header', { class: 'k-top' }, h('img', { src: '/kudo-logo-navy.png', alt: 'KUDO', class: 'k-logo' }), h('span', { class: 'k-top-r' }, ic('help', 20), ic('bell', 20)));
   const shell = (...main) => h('div', { class: 'k-shell' }, top(), h('div', { class: 'k-body' }, sidebar(), h('main', { class: 'k-main' }, ...main)));
+  // Same neutral answer for everything not rebuilt yet, so it never hints at what the task needs.
+  const notYet = () => toastK('This page is not available in the sandbox yet');
   const toastK = (msg) => { const t = h('div', { class: 'k-toast' }, h('span', { class: 'k-dot' }), msg); app.append(t); setTimeout(() => t.remove(), 2600); };
 
   // ---------------------------------------------------------------- screens
@@ -81,7 +83,7 @@ export function sandboxView(key, { onExit } = {}) {
       h('p', { class: 'k-mini' }, 'Sandbox account: the Client role, filled in for you')));
   }
   function homeScreen() {
-    const card = (m) => h('button', { class: 'k-mcard', type: 'button', on: { click: () => (m.mine ? go('meeting', 'Open the meeting') : (detour(`Open ${m.name}`), toast('Another meeting: not the one for this task', true))) } },
+    const card = (m) => h('button', { class: 'k-mcard', type: 'button', on: { click: () => (m.mine ? go('meeting', 'Open the meeting') : (detour(`Open ${m.name}`), notYet())) } },
       h('b', null, m.name, ' ›'), h('div', null, ic('cal', 14), m.date), h('div', null, ic('clock', 14), m.time, ' CET'), h('div', null, ic('lang', 14), m.langs), h('span', { class: `k-chip ${m.status}` }, m.status.toUpperCase()));
     const meetings = [...(S.meeting ? [{ name: S.meeting.name, date: 'Thu, Nov 26, 2026', time: '14:00 – 15:00', langs: [...S.meeting.speakers, ...S.meeting.translations].join(', '), status: S.meeting.status, mine: true }] : []), { name: 'Weekly Partner Sync', date: 'Fri, Nov 27, 2026', time: '10:00 – 10:30', langs: 'English, Italian', status: 'scheduled' }];
     return shell(h('h1', { class: 'k-h1' }, 'Welcome back, Demo'), h('h3', { class: 'k-h3' }, 'Upcoming meetings'), h('div', { class: 'k-cards' }, meetings.map(card)),
@@ -127,7 +129,7 @@ export function sandboxView(key, { onExit } = {}) {
       warn('This setting cannot be changed once the meeting starts'),
       row('Recording and transcript', toggle(f.recording, null, (v) => { f.recording = v; log('toggle', `Recording and transcript: ${v}`); draw(); }, live),
         h('label', { class: 'k-check' }, h('input', { type: 'checkbox', checked: f.autoRecord, disabled: live || !f.recording, on: { change: (e) => { f.autoRecord = e.target.checked; log('toggle', `Automatically record: ${e.target.checked}`); } } }), ' Automatically record this meeting when it starts')),
-      h('div', { class: 'k-formfoot' }, h('button', { class: 'k-link', type: 'button', on: { click: () => { detour('Advanced settings'); toast('Advanced settings are not needed for this task', true); } } }, 'Advanced settings ▾'),
+      h('div', { class: 'k-formfoot' }, h('button', { class: 'k-link', type: 'button', on: { click: () => { detour('Advanced settings'); notYet(); } } }, 'Advanced settings ▾'),
         h('div', { class: 'k-row' }, h('button', { class: 'k-btn ghost', type: 'button', on: { click: () => { log('click', 'Cancel'); go(editing ? 'meeting' : 'home', 'Cancel'); } } }, 'Cancel'),
           h('button', { class: 'k-btn', type: 'button', on: { click: () => (editing ? update() : save()) } }, editing ? 'Update' : 'Save'))));
     return shell(form);
@@ -156,7 +158,7 @@ export function sandboxView(key, { onExit } = {}) {
     const m = S.meeting;
     const menu = (k, label, items) => h('span', { class: 'k-tabw' }, h('button', { class: `k-tab ${S.tab === k ? 'on' : ''}`, type: 'button', on: { click: () => { S.menu = S.menu === k ? null : k; log('click', `${label} menu`); draw(); } } }, `${label} ▾`),
       S.menu === k ? h('div', { class: 'k-menu' }, items.map(([l, fn]) => h('button', { type: 'button', on: { click: fn } }, l))) : null);
-    const off = (l) => () => { detour(l); S.menu = null; toast(`${l}: not needed for this task`, true); draw(); };
+    const off = (l) => () => { detour(l); S.menu = null; draw(); notYet(); };
     return h('div', { class: 'k-mhead' }, h('div', { class: 'k-mtitle' }, h('h2', null, m.name), h('span', { class: `k-chip ${m.status}` }, m.status.toUpperCase())),
       h('nav', { class: 'k-tabs' }, h('button', { class: `k-tab ${S.screen === 'meeting' ? 'on' : ''}`, type: 'button', on: { click: () => go('meeting', 'Overview') } }, 'Overview'),
         menu('users', 'Users', [['All users', off('Users: All users')], ['Participants', () => go('participants', 'Users: Participants')], ['Operators', off('Users: Operators')], ['Viewers', off('Users: Viewers')]]),
@@ -174,12 +176,12 @@ export function sandboxView(key, { onExit } = {}) {
     const iconBtn = (ic, tip, fn, cls = '') => h('button', { class: `k-ic ${cls}`, type: 'button', title: tip, 'aria-label': tip, on: { click: fn } }, ic);
     const actions = m.status === 'scheduled' ? [iconBtn(ic('play'), 'Start meeting', () => { m.status = 'live'; S.flags.started = true; log('click', 'Start meeting'); toastK('Meeting has been started'); draw(); }, 'go'), iconBtn(ic('edit'), 'Edit meeting', editForm), iconBtn(ic('x'), 'Cancel meeting', () => { log('trap', 'Cancel meeting clicked'); S.flags.cancelTried = true; if (confirm('Cancel this meeting? Its links stop working.')) { log('trap', 'Meeting cancelled'); S.flags.cancelled = true; m.status = 'finished'; } draw(); }, 'stop')]
       : m.status === 'live' ? [iconBtn(ic('restart'), 'Restart translation service', () => { log('click', 'Restart translation service'); if (m.pendingRestart) { m.pendingRestart = false; S.flags.restarted = true; } else S.flags.restartNoChange = (S.flags.restartNoChange || 0) + 1; toastK('Translation service restart in progress. Service should resume shortly'); draw(); }), iconBtn(ic('edit'), 'Edit meeting', editForm), iconBtn(ic('stop'), 'End meeting', () => { log('click', 'End meeting'); if (!confirm('End the meeting for everyone? An AI meeting cannot be restarted.')) return; m.status = 'finished'; S.flags.ended = true; S.flags.endedBeforeSpanish = !(S.flags.liveAdded || []).some(es); toastK('Meeting has been stopped'); draw(); }, 'stop')]
-        : [iconBtn(ic('edit'), 'Edit meeting', () => { detour('Edit a finished meeting'); toast('The meeting is finished', true); })];
+        : [iconBtn(ic('edit'), 'Edit meeting', () => { detour('Edit a finished meeting'); toastK('The meeting is finished'); })];
     return shell(tabs(), h('div', { class: 'k-split' }, h('section', { class: 'k-card' }, h('div', { class: 'k-cardh' }, h('b', null, ic('doc'), ' Overview'), h('div', { class: 'k-acts' }, ...actions)),
       h('div', { class: 'k-def' }, h('span', null, 'Date/time'), h('div', null, h('b', null, 'Thursday, Nov 26, 2026'), '  14:00 – 15:00', h('small', null, 'Brussels (UTC +01:00)'))),
       h('div', { class: 'k-def' }, h('span', null, 'Translation type'), h('div', { class: 'k-typebox' }, m.type === 'speech' ? 'AI speech and captions' : 'AI captions only')),
       h('div', { class: 'k-def' }, h('span', null, 'Languages'), h('div', null, h('small', null, 'Speaker languages'), h('div', null, m.speakers.map((l) => h('span', { class: 'k-lchip' }, l))), h('small', null, 'Translation languages'), h('div', null, m.translations.map((l) => h('span', { class: 'k-lchip' }, l))))),
-      h('div', { class: 'k-cardf' }, h('button', { class: 'k-link', type: 'button', on: { click: () => { detour('Advanced settings (overview)'); toast('Not needed for this task', true); } } }, 'Advanced settings ▾'), h('span', { class: 'k-mini' }, 'Support ID: 800 212 907 037'))), links()));
+      h('div', { class: 'k-cardf' }, h('button', { class: 'k-link', type: 'button', on: { click: () => { detour('Advanced settings (overview)'); notYet(); } } }, 'Advanced settings ▾'), h('span', { class: 'k-mini' }, 'Support ID: 800 212 907 037'))), links()));
   }
   function editForm() {
     const m = S.meeting; log('click', 'Edit meeting');
