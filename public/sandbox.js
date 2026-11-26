@@ -68,7 +68,7 @@ export function sandboxView(key, { onExit } = {}) {
     if (!RELEVANT.has(screen)) detour(what || screen);
     draw(); app.scrollTop = 0; app.querySelector('.k-main')?.scrollTo?.(0, 0);
   };
-  const URL = { login: 'users/sign_in', home: '', meetings: 'sessions', glossaries: 'glossaries', usage: 'usage', 'new-ai': 'sessions/new?ai_interpretation=true', 'new-hi': 'sessions/new', meeting: 'sessions/800212907037', users: 'sessions/800212907037/users', participants: 'sessions/800212907037/participants', operators: 'sessions/800212907037/operators', viewers: 'sessions/800212907037/viewers', edit: 'sessions/800212907037/edit', polls: 'sessions/800212907037/polls', 'poll-new': 'sessions/800212907037/polls/new', poll: 'sessions/800212907037/polls/2', files: 'sessions/800212907037/documents', messages: 'sessions/800212907037/messages', recordings: 'sessions/800212907037/recordings', av: 'sessions/800212907037/configurations', features: 'sessions/800212907037/security', mglossaries: 'sessions/800212907037/meeting_glossaries', stats: 'sessions/800212907037/report', broadcast: 'sessions/800212907037/broadcasts', interpreters: 'sessions/800212907037/interpreters' };
+  const URL = { login: 'users/sign_in', home: '', meetings: 'sessions', glossaries: 'glossaries', usage: 'usage', 'new-ai': 'sessions/new?ai_interpretation=true', 'new-hi': 'sessions/new', meeting: 'sessions/800212907037', users: 'sessions/800212907037/users', participants: 'sessions/800212907037/participants', operators: 'sessions/800212907037/operators', viewers: 'sessions/800212907037/viewers', edit: 'sessions/800212907037/edit', polls: 'sessions/800212907037/polls', 'poll-new': 'sessions/800212907037/polls/new', poll: 'sessions/800212907037/polls/2', files: 'sessions/800212907037/documents', messages: 'sessions/800212907037/messages', recordings: 'sessions/800212907037/recordings', av: 'sessions/800212907037/configurations', features: 'sessions/800212907037/security', mglossaries: 'sessions/800212907037/meeting_glossaries', stats: 'sessions/800212907037/report', broadcast: 'sessions/800212907037/broadcasts', rtmp: 'sessions/800212907037/broadcasts/new?str=rtmp', interpreters: 'sessions/800212907037/interpreters' };
   const url = () => `live.kudoway.eu/${URL[S.screen] ?? ''}`;
 
   // ---------------------------------------------------------------- shared pieces
@@ -289,7 +289,7 @@ export function sandboxView(key, { onExit } = {}) {
   }
 
   // ---------------------------------------------------------------- the meeting page and its tabs
-  const TAB_OF = { meeting: 'overview', users: 'users', participants: 'users', operators: 'users', viewers: 'users', polls: 'content', 'poll-new': 'content', poll: 'content', files: 'content', messages: 'content', recordings: 'content', av: 'settings', features: 'settings', broadcast: 'settings', interpreters: 'users', mglossaries: 'glossaries', stats: 'stats' };
+  const TAB_OF = { meeting: 'overview', users: 'users', participants: 'users', operators: 'users', viewers: 'users', polls: 'content', 'poll-new': 'content', poll: 'content', files: 'content', messages: 'content', recordings: 'content', av: 'settings', features: 'settings', broadcast: 'settings', rtmp: 'settings', interpreters: 'users', mglossaries: 'glossaries', stats: 'stats' };
   const tabs = () => {
     const m = S.meeting, cur = TAB_OF[S.screen];
     const menu = (k, label, items) => h('span', { class: 'k-tabw' }, h('button', { class: `k-tab ${cur === k ? 'on' : ''}`, type: 'button', on: { click: () => { S.menu = S.menu === k ? null : k; log('click', `${label} menu`); draw(); } } }, `${label} ▾`),
@@ -313,7 +313,7 @@ export function sandboxView(key, { onExit } = {}) {
   const iconBtn = (icon, tip, fn, cls = '') => h('button', { class: `k-ic ${cls}`, type: 'button', title: tip, 'aria-label': tip, on: { click: fn } }, icon);
   function meetingScreen() {
     const m = S.meeting;
-    const actions = m.status === 'scheduled' ? [iconBtn(ic('play'), 'Start meeting', () => { m.status = 'live'; F().started = true; log('click', 'Start meeting'); toastK('Meeting has been started'); draw(); }, 'go'), iconBtn(ic('edit'), 'Edit meeting', editForm), iconBtn(ic('x'), 'Cancel meeting', () => { log('trap', 'Cancel meeting clicked'); S.modal = { kind: 'cancel' }; draw(); }, 'stop')]
+    const actions = m.status === 'scheduled' ? [iconBtn(ic('play'), 'Start meeting', () => { log('click', 'Start meeting'); S.modal = { kind: 'start' }; draw(); }, 'go'), iconBtn(ic('edit'), 'Edit meeting', editForm), iconBtn(ic('x'), 'Cancel meeting', () => { log('trap', 'Cancel meeting clicked'); S.modal = { kind: 'cancel' }; draw(); }, 'stop')]
       : m.status === 'live' ? [iconBtn(ic('restart'), 'Restart translation service', () => { log('click', 'Restart translation service'); if (m.pendingRestart) { m.pendingRestart = false; F().restarted = true; } else F().restartNoChange = (F().restartNoChange || 0) + 1; toastK('Translation service restart in progress. Service should resume shortly'); draw(); }), iconBtn(ic('edit'), 'Edit meeting', editForm), iconBtn(ic('stop'), 'End meeting', () => { log('click', 'End meeting'); if (!confirm('End the meeting for everyone? An AI meeting cannot be restarted.')) return; m.status = 'finished'; F().ended = true; F().endedBeforeSpanish = !(F().liveAdded || []).some(es); toastK('Meeting has been stopped'); draw(); }, 'stop')]
         : [iconBtn(ic('edit'), 'Edit meeting', () => { detour('Edit a finished meeting'); toastK('The meeting is finished'); })];
     const a = m.adv;
@@ -358,6 +358,7 @@ export function sandboxView(key, { onExit } = {}) {
           h('p', { class: 'k-mini' }, 'Please note that if you invited attendees via a calendar invite or by sharing the meeting link, they will not be notified.'), check(S.modal.notify !== false, 'Notify all users who were added to the meeting in the KUDO interface.', (v) => { S.modal.notify = v; })],
           [['Cancel', close, 'ghost'], ['Cancel meeting', () => { log('trap', 'Meeting cancelled'); F().cancelled = true; m.status = 'canceled'; S.modal = null; go('meetings', 'My meetings', { mtab: 'upcoming' }); toastK('Meeting canceled successfully.'); }]])
       : k === 'prepask' ? modal('', [h('div', { class: 'k-center' }, ic('doc', 30), h('p', null, 'Please add files or links to help interpreters prepare.'))], [['Later', () => { log('click', 'Preparation materials: Later'); close(); }, 'ghost'], ['Add', () => { log('click', 'Preparation materials: Add'); S.modal = { kind: 'notyet' }; draw(); }]])
+      : k === 'start' ? modal('Start meeting', [h('p', { class: 'k-mini' }, 'Every attendee can join from now.')], [['Cancel', close, 'ghost'], ['Start meeting', () => { m.status = 'live'; F().started = true; S.modal = null; log('click', 'Start meeting (confirmed)'); toastK('Meeting has been started'); draw(); }]])
       : k === 'starthls' ? modal('Start broadcast', [h('p', { class: 'k-mini' }, 'The session will be broadcasted to all streams.')], [['Cancel', close, 'ghost'], ['Start HLS broadcast', () => { m.bc.live = true; S.modal = null; log('click', 'Start HLS broadcast'); if (m === S.mine) S.flags.hlsStarted = true; toastK('Your HLS broadcast has started.'); draw(); }]])
       : k === 'notyet' ? modal('', [notYetBox()], [['Close', () => { S.modal = S.modal.back ? { kind: S.modal.back } : null; draw(); }, 'ghost']]) : null;
     if (mod) el.append(mod);
@@ -381,8 +382,31 @@ export function sandboxView(key, { onExit } = {}) {
       h('div', { class: 'k-rowsp' }, h('b', null, ic('speaker'), ' HLS broadcast'), live && bc.hls ? h('button', { class: `k-link small ${bc.live ? 'k-red' : ''}`, type: 'button', on: { click: () => { if (bc.live) { bc.live = false; log('click', 'Stop broadcast'); draw(); } else { S.modal = { kind: 'starthls' }; log('click', 'Start broadcast'); draw(); } } } }, bc.live ? '■ Stop broadcast' : '▸ Start broadcast') : null),
       row('HLS Stream', toggle(bc.hls, null, (v) => { bc.hls = v; log('toggle', `HLS Stream: ${v}`); if (m === S.mine) S.flags.hls = v; saved('Successful! Broadcast settings saved successfully.'); draw(); }, bc.live || m.status === 'finished')),
       bc.hls && !bc.live ? row('Stream Duration', select(['1 hour', '2 hours', '3 hours', '4 hours', '5 hours', '6 hours', '8 hours', '12 hours'], bc.dur, (v) => { bc.dur = v; log('change', `Stream Duration: ${v}`); saved('Successful! Broadcast settings updated successfully.'); }, 'sm')) : null,
-      h('b', null, '≡ RTMP broadcast'),
-      row('RTMP Stream', toggle(bc.rtmp, null, () => { log('toggle', 'RTMP Stream'); S.modal = { kind: 'notyet' }; draw(); }, bc.live))));
+      h('div', { class: 'k-rowsp' }, h('b', null, '≡ RTMP broadcast'), live && bc.rtmp && (bc.streams || []).length ? h('button', { class: `k-link small ${bc.rlive ? 'k-red' : ''}`, type: 'button', on: { click: () => { bc.rlive = !bc.rlive; log('click', bc.rlive ? 'Start RTMP broadcast' : 'Stop RTMP broadcast'); if (bc.rlive && m === S.mine) S.flags.rtmpStarted = true; if (bc.rlive) toastK('Your RTMP broadcast has started.'); draw(); } } }, bc.rlive ? '■ Stop broadcast' : '▸ Start broadcast') : null),
+      row('RTMP Stream', toggle(bc.rtmp, null, (v) => { bc.rtmp = v; bc.streams = bc.streams || []; log('toggle', `RTMP Stream: ${v}`); saved('Successful! Broadcast settings updated successfully.'); draw(); }, bc.rlive || m.status === 'finished')),
+      bc.rtmp ? h('div', { class: 'k-streams' }, ...(bc.streams || []).map((st, i) => h('div', { class: 'k-stream' }, h('div', { class: 'k-rowsp' }, h('span', null, h('span', { class: 'k-link' }, `RTMP Stream ${i + 1}`), bc.rlive ? h('span', { class: 'k-chip' }, 'BROADCASTING') : null),
+          bc.rlive ? null : h('span', { class: 'k-acts' }, iconBtn(ic('edit'), 'Edit stream', () => { S.rf = { ...st, idx: i }; go('rtmp', `Edit RTMP Stream ${i + 1}`); }, 'go'), iconBtn(ic('trash'), 'Delete stream', () => { bc.streams.splice(i, 1); log('click', `Delete RTMP Stream ${i + 1}`); draw(); }, 'stop'))),
+        h('div', { class: 'k-kv' }, ...[['Casting Medium', st.medium], ['Server URL', st.url], ['Stream key', st.key]].map(([a, v]) => h('div', null, h('small', null, a), h('span', null, v)))), h('div', { class: 'k-kv' }, h('div', null, h('small', null, 'Stream Language 1'), h('span', null, st.lang.replace(/ \(.*\)$/, '')))))),
+        bc.rlive ? null : h('button', { class: 'k-link', type: 'button', on: { click: () => { S.rf = { medium: 'YouTube Live', url: '', key: '', lang: '' }; go('rtmp', 'Add RTMP stream'); } } }, '+ Add RTMP stream')) : null));
+  }
+  function rtmpScreen() {
+    const m = S.meeting, f = S.rf, bc = m.bc;
+    const ok = () => f.medium && f.url.trim() && f.key.trim() && f.lang;
+    const saveBtn = h('button', { class: 'k-btn', type: 'button', disabled: !ok(), on: { click: () => {
+      const st = { medium: f.medium, url: f.url.trim(), key: f.key.trim(), lang: f.lang };
+      const others = bc.streams.filter((_, i) => i !== f.idx);
+      if (others.some((o) => o.key === st.key)) log('trap', 'Same stream key used for two RTMP streams');
+      if (others.some((o) => o.lang === st.lang)) log('trap', `Two RTMP streams for ${st.lang}`);
+      if (f.idx != null) bc.streams[f.idx] = st; else bc.streams.push(st);
+      log('save', `RTMP stream saved: ${st.medium}, ${st.lang}`); go('broadcast', 'Broadcast'); toastK('Broadcast settings saved successfully.');
+    } } }, 'Save');
+    const inp = (k, ph) => h('input', { class: 'k-in', placeholder: ph, value: f[k], on: { input: (e) => { f[k] = e.target.value; saveBtn.disabled = !ok(); }, change: (e) => log('input', `${k === 'url' ? 'Server URL' : 'Stream Key'} entered`) } });
+    const langs = ['Original audio', ...(m.kind === 'hi' ? m.speakers : m.translations)];
+    return page(h('b', null, ic('speaker'), f.idx != null ? ` Edit RTMP Stream ${f.idx + 1}` : ' + Add RTMP Stream'),
+      row('Casting Medium *', select(['YouTube Live', 'Facebook Live', 'IBM Video Streaming'], f.medium, (v) => { f.medium = v; log('change', `Casting Medium: ${v}`); })),
+      row('Server URL *', inp('url', 'Enter server URL')), row('Stream Key *', inp('key', 'Enter stream key')),
+      row('Streamed Language *', select([['', 'Select a language'], ...langs], f.lang, (v) => { f.lang = v; saveBtn.disabled = !ok(); log('change', `Streamed Language: ${v}`); })),
+      h('div', { class: 'k-row end' }, h('button', { class: 'k-btn ghost', type: 'button', on: { click: () => go('broadcast', 'Cancel RTMP stream') } }, 'Cancel'), saveBtn));
   }
   function editForm() {
     const m = S.meeting; log('click', 'Edit meeting');
@@ -589,7 +613,7 @@ export function sandboxView(key, { onExit } = {}) {
     root.replaceChildren(report(sc, r, S.events, saved, onExit));
   }
 
-  const SCREENS = { interpreters: interpretersScreen, broadcast: broadcastScreen, login: loginScreen, home: homeScreen, meetings: meetingsScreen, glossaries: glossariesScreen, usage: usageScreen, 'new-ai': () => formScreen('new'), 'new-hi': () => formScreen('new'), edit: () => formScreen('edit'), meeting: meetingScreen,
+  const SCREENS = { rtmp: rtmpScreen, interpreters: interpretersScreen, broadcast: broadcastScreen, login: loginScreen, home: homeScreen, meetings: meetingsScreen, glossaries: glossariesScreen, usage: usageScreen, 'new-ai': () => formScreen('new'), 'new-hi': () => formScreen('new'), edit: () => formScreen('edit'), meeting: meetingScreen,
     users: () => usersScreen('all'), participants: () => usersScreen('participants'), operators: () => usersScreen('operators'), viewers: () => usersScreen('viewers'), polls: pollsScreen, 'poll-new': pollNewScreen, poll: pollScreen, files: filesScreen, messages: messagesScreen, recordings: recordingsScreen, av: avScreen, features: featuresScreen, mglossaries: mGlossariesScreen, stats: statsScreen };
   function draw() {
     root.querySelector('.sbx-url-t').textContent = url();

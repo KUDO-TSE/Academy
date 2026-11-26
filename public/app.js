@@ -175,7 +175,7 @@ async function route() {
     }
     main.replaceChildren(view);
     main.scrollTop = 0;
-    if ((!isAdmin || meMode) && r !== 'collection') revealNew();
+    if ((!isAdmin || meMode) && r !== 'collection' && !r.startsWith('sandbox-')) revealNew();
   } catch (e) {
     if (e.status === 401) { me = null; return render(); }
     if (e.code === 'MUST_CHANGE') { me.mustChange = true; return render(); }
