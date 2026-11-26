@@ -41,9 +41,30 @@ export const SCENARIOS = {
   },
   'rtmp-1': {
     module: 'rtmp', num: 11, title: 'Stream a meeting to YouTube in two languages (RTMP)', apps: ['studio'],
-    request: 'A client streams "Product Day" to its YouTube channel today, in French and in German, one live stream per language. The client gave you access to its channel studio (the "Video studio" tab). Create the AI speech translation meeting (English speaker language; French and German translation languages). In the studio, create one stream key per language. In KUDO, add one RTMP stream per language with the studio\'s stream URL and the matching key. Start the meeting, start the broadcast, then check in the studio that both streams are live.',
-    expert: ['Log in with the Client account', 'New meeting, AI speech translation: "Product Day", English; French and German; Save', 'Video studio: create a stream key "French", copy the stream URL and the key', 'KUDO: Settings, Broadcast, RTMP Stream on, + Add RTMP stream: YouTube Live, paste URL and key, French; Save', 'Video studio: create "German", copy its key', 'KUDO: + Add RTMP stream for German; Save', 'Overview, Start meeting, confirm', 'Settings, Broadcast, Start broadcast', 'Video studio: each stream key shows Live'],
-    expertSeconds: 300,
+    request: 'Build what the client needs from your notes: the KUDO meeting "Product Day" and its live streams. Then start it and check in the client\'s channel studio that viewers get each language.',
+    brief: {
+      who: 'Social media manager at the client', event: '"Product Day", today',
+      opening: 'Hi! Product Day goes live today on our YouTube channel, and we want it in other languages. Can you set it up?',
+      questions: [
+        { id: 'plat', key: true, q: 'Where will people watch, and on which platform?', a: 'On our YouTube channel, live.', note: 'Viewers watch live on the client\'s YouTube channel', why: 'A video platform like YouTube receives KUDO through RTMP.' },
+        { id: 'lang', key: true, q: 'Which language do the speakers use, and which languages do viewers need?', a: 'Our speakers present in English. Viewers need French and German.', note: 'Speakers in English; viewers need French and German', why: 'Without it you cannot set the speaker and translation languages, or know how many streams to create.' },
+        { id: 'per', key: true, q: 'One live stream per language, or one stream for everyone?', a: 'One live stream per language, so each audience has its own.', note: 'One YouTube live stream per language', why: 'YouTube carries one language per stream, three streams at most.' },
+        { id: 'keys', key: true, q: 'Can we create the stream keys in your channel?', a: 'Yes, we gave you access to our channel studio: it is the "Video studio" tab.', note: 'Access to the channel studio: the "Video studio" tab', why: 'Each language needs its own stream key from their channel; a shared key interrupts the stream.' },
+        { id: 'acct', key: true, q: 'Is there a Broadcast tab in your meeting settings?', a: 'Yes, our account has it.', note: 'The account has the Broadcast tab (RTMP enabled)', why: 'No Broadcast tab means RTMP is not enabled: that is a request to customer service, and it is today.' },
+        { id: 'ai', key: true, q: 'Interpreters, or AI speech translation?', a: 'AI speech translation is fine.', note: 'AI speech translation', why: 'It decides the meeting type, and whether interpreters must be booked days ahead.' },
+        { id: 'when', key: true, q: 'When does it start, and how long does it run?', a: 'Today at 15:00, for about an hour.', note: 'Today at 15:00, about an hour', why: 'Today leaves no time to fix a missing Broadcast tab, and the meeting must be running before the broadcast starts.' },
+        { id: 'budget', q: 'What is your budget for this event?', a: 'That is agreed with our account manager.', why: 'Pricing is the account manager\'s: it does not change the set-up.' },
+        { id: 'thumb', q: 'Do you want a thumbnail for the YouTube video?', a: 'Our social team handles that.', why: 'It does not change what you build.' },
+      ],
+      options: [
+        { id: 'one', label: 'One RTMP stream carrying every language', why: 'YouTube takes one language per stream: each language needs its own stream and key.' },
+        { id: 'rtmp', ok: true, label: 'RTMP: one stream per language to their YouTube channel, each with its own key', why: 'They watch on YouTube, one live stream per language: one RTMP stream and one stream key per language.' },
+        { id: 'hls', label: 'HLS broadcast with the code on their website', why: 'They want it on their YouTube channel, not on a web page.' },
+        { id: 'iframe', label: 'The KUDO language widget next to their YouTube video', why: 'The widget sits on the client\'s own web page. They want separate live streams per language on YouTube.' },
+      ],
+    },
+    expert: ['Ask the client the seven questions that decide the set-up (platform, languages, one stream per language, access to the channel, Broadcast tab, AI or interpreters, timing)', 'Choose RTMP: one stream and one key per language', 'Log in with the Client account', 'New meeting, AI speech translation: "Product Day", English; French and German; Save', 'Video studio: create a stream key "French", copy the stream URL and the key', 'KUDO: Settings, Broadcast, RTMP Stream on, + Add RTMP stream: YouTube Live, paste URL and key, French; Save', 'Video studio: create "German", copy its key', 'KUDO: + Add RTMP stream for German; Save', 'Overview, Start meeting, confirm', 'Settings, Broadcast, Start broadcast', 'Video studio: each stream key shows Live'],
+    expertSeconds: 390,
     screens: ['login', 'home', 'meetings', 'new-ai', 'meeting', 'broadcast', 'rtmp'],
   },
 
@@ -52,7 +73,7 @@ export const SCENARIOS = {
     request: 'Build what the client needs from your notes: the KUDO meeting "Investor Day" and the client\'s event page. Then start it and check on the published page that viewers get the event in their language.',
     // The call: the brief starts incomplete. Seven questions decide the set-up; two do not. Only what was asked shows in the notes.
     brief: {
-      who: 'Event manager at the client',
+      who: 'Event manager at the client', event: '"Investor Day", today',
       opening: 'Hi, thanks for taking this. Our "Investor Day" is today and we want it on our own website, in several languages. Can you set it up for us?',
       questions: [
         { id: 'aud', key: true, q: 'Who will watch, how many, and do they need to register?', a: 'About 2,000 investors and analysts. No registration: anyone who opens our event page should be able to watch.', note: 'About 2,000 viewers on the client\'s event page, no registration', why: 'A large audience with no registration points to a broadcast, not a link per person.' },
@@ -88,9 +109,30 @@ export const SCENARIOS = {
   },
   'widget-1': {
     module: 'widget', num: 10, title: 'Put the KUDO widget on the client\'s event page', links: true, apps: ['site'],
-    request: 'The client streams its two-day "Global Summit" on its own event page and wants KUDO next to the video. Each day is a separate KUDO session, both already in the account. Put the KUDO widget for Day 2 on the event page (the "Client website" tab: an embed element), publish it, and check on the published page that the widget shows.',
-    expert: ['Log in with the Client account', 'My meetings: open "Global Summit - Day 2"', 'KUDO language access: copy the iframe widget', 'Client website: Enter code in the embed element, paste, Apply', 'Publish, View site: the widget shows "Welcome! Global Summit - Day 2"'],
-    expertSeconds: 120,
+    request: 'Build what the client needs from your notes: the KUDO language access on the client\'s event page. Then publish the page and check that viewers see it.',
+    brief: {
+      who: 'Event manager at the client', event: '"Global Summit", Day 2 tomorrow',
+      opening: 'Hi! We stream our two-day Global Summit on our own event page, and we want languages right next to our video. Can you set that up for Day 2?',
+      questions: [
+        { id: 'vid', key: true, q: 'Where does your video play, and whose stream is it?', a: 'On our own event page, in our own player. The stream is ours.', note: 'Their own player on their own event page', why: 'They already have video on their page: KUDO adds languages next to it, it does not replace it.' },
+        { id: 'day', key: true, q: 'Is each day a separate KUDO session?', a: 'Yes, Day 1 and Day 2 are both already in our account.', note: 'Day 1 and Day 2 are separate KUDO sessions, already in the account', why: 'Each session has its own code: Day 2 needs the Day 2 code.' },
+        { id: 'av', key: true, q: 'Who can send the event audio into KUDO?', a: 'Our AV operator: they capture the stream with OBS Studio and can join KUDO.', note: 'Their AV operator captures the audio (OBS Studio) and joins KUDO as a Participant', why: 'The widget does not hear their player: someone has to send the event audio into KUDO.' },
+        { id: 'site', key: true, q: 'Who can put code on the event page?', a: 'Our site builder has an embed element. We gave you access: it is the "Client website" tab.', note: 'The page has an embed element; access in the "Client website" tab', why: 'The code goes beside the player: you need to know who places it and how.' },
+        { id: 'talk', key: true, q: 'Do viewers need to speak or appear on camera?', a: 'No, they watch and listen.', note: 'Viewers only watch and listen', why: 'Watch-only viewers need language access next to the video, not a seat in the meeting.' },
+        { id: 'lang', key: true, q: 'Which languages do viewers need?', a: 'The ones already set for Day 2: English, Spanish and Japanese.', note: 'English, Spanish and Japanese, already set on Day 2', why: 'The widget offers the session\'s languages: they must be right before the day.' },
+        { id: 'test', key: true, q: 'Can your AV operator and web team join one test together before Day 2?', a: 'Yes, tomorrow at 8:00.', note: 'Joint test with the AV operator and the web team, tomorrow 8:00', why: 'One full test with the AV operator, the web team and KUDO at the same time catches what separate tests miss.' },
+        { id: 'budget', q: 'What is your budget for this event?', a: 'That is agreed with our account manager.', why: 'Pricing is the account manager\'s: it does not change the set-up.' },
+        { id: 'brand', q: 'Should the widget match your brand colours?', a: 'Nice to have, not important.', why: 'It does not change what you build.' },
+      ],
+      options: [
+        { id: 'hls', label: 'HLS broadcast: the KUDO broadcasting code on their page', why: 'They already stream their own video in their own player. The widget adds languages next to it.' },
+        { id: 'viewer', label: 'Send every viewer the Viewer-only link', why: 'Viewers would leave the event page for the KUDO room.' },
+        { id: 'rtmp', label: 'Stream each language to a video platform (RTMP)', why: 'They stream on their own page, not to a platform: RTMP would add channels and keys they do not need.' },
+        { id: 'iframe', ok: true, label: 'The KUDO widget (iframe) beside their player, with the Day 2 code', why: 'Their video, their page, watch-only viewers: the widget gives language access next to the player, fed by their AV operator.' },
+      ],
+    },
+    expert: ['Ask the client the seven questions that decide the set-up (where the video plays, sessions per day, who sends the audio, who edits the page, interaction, languages, a joint test)', 'Choose the KUDO widget with the Day 2 code', 'Log in with the Client account', 'My meetings: open "Global Summit - Day 2"', 'KUDO language access: copy the iframe widget', 'Client website: Enter code in the embed element, paste, Apply', 'Publish, View site: the widget shows "Welcome! Global Summit - Day 2"'],
+    expertSeconds: 210,
     screens: ['login', 'home', 'meetings', 'meeting', 'preview'],
     setup: ({ base }) => { const d1 = base({ name: 'Global Summit - Day 1', date: 'Thu, Nov 26, 2026', time: '09:00 - 17:00', dur: '8 hours', speakers: ['English'], translations: ['English (US)', 'Spanish (Spain)', 'Japanese'], status: 'scheduled' });
       const d2 = base({ name: 'Global Summit - Day 2', date: 'Fri, Nov 27, 2026', time: '09:00 - 17:00', dur: '8 hours', speakers: ['English'], translations: ['English (US)', 'Spanish (Spain)', 'Japanese'], status: 'scheduled' }); return { list: [d1, d2], mine: d2 }; },
@@ -152,7 +194,7 @@ export function sandboxView(key, { onExit } = {}) {
       h('div', { class: 'row', style: 'justify-content:space-between;margin-top:12px' }, h('button', { class: 'btn', type: 'button', on: { click: () => { c.stage = 'talk'; drawCall(); } } }, 'Back to the call'),
         h('button', { class: 'btn primary', type: 'button', disabled: !c.choice, on: { click: () => { const o = b.options.find((x) => x.id === c.choice); log('choose', `Solution: ${o.label}`); c.done = true; startBuild(); } } }, 'Confirm and start building')));
   }
-  const notesList = () => { const n = sc.brief.questions.filter((q) => q.note && S.call.asked.includes(q.id)); return n.length ? h('ul', null, h('li', null, 'Event: "Investor Day", today'), n.map((q) => h('li', null, q.note))) : h('p', { class: 'muted small' }, 'Nothing noted: you did not ask anything.'); };
+  const notesList = () => { const n = sc.brief.questions.filter((q) => q.note && S.call.asked.includes(q.id)); return n.length ? h('ul', null, h('li', null, `Event: ${sc.brief.event}`), n.map((q) => h('li', null, q.note))) : h('p', { class: 'muted small' }, 'Nothing noted: you did not ask anything.'); };
   function startBuild() {
     const o = sc.brief.options.find((x) => x.id === S.call.choice);
     taskBox.replaceChildren(h('b', null, 'Your task'), h('p', null, sc.request), h('div', { class: 'sbx-notes' }, h('b', null, `You chose: ${o.label}`), notesList()));
@@ -960,7 +1002,7 @@ export function sandboxView(key, { onExit } = {}) {
   });
   const RULE = RULES[key];
   function nextStep() {
-    if (S.call && !S.call.done) return S.call.stage === 'talk' ? 'Ask what decides the set-up: who watches and how, the languages, whether viewers speak, where the video plays, how long it lasts, who can change the page, AI or interpreters.' : 'Pick the solution that fits your notes, then Confirm and start building.';
+    if (S.call && !S.call.done) { const miss = sc.brief.questions.find((x) => x.key && !S.call.asked.includes(x.id)); return S.call.stage === 'talk' ? (miss ? `Ask what decides the set-up. For example: "${miss.q}"` : 'You have what you need: choose the solution.') : 'Pick the solution that fits your notes, then Confirm and start building.'; }
     if (S.screen === 'login') return 'Log in: the account is filled in for you.';
     return RULE.next() || 'All done: click "I am done".';
   }

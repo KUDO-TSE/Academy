@@ -1,6 +1,6 @@
 # KUDO Academy: pending items
 
-Updated 26 Nov 2026. Ask "what is still pending?" at any time; this list is kept up to date with every change.
+Updated 26 Nov 2026 (client calls added to the Widget and RTMP exercises). Ask "what is still pending?" at any time; this list is kept up to date with every change.
 
 ## Waiting on Nils
 - **Claude API key for the virtual coach.** Add `ANTHROPIC_API_KEY` in Railway (service variables). Until then the coach gives built-in answers only; with it, it answers any question from the trainee's own data. Optional: `COACH_MODEL`.
@@ -10,7 +10,7 @@ Updated 26 Nov 2026. Ask "what is still pending?" at any time; this list is kept
 - **Facts to confirm** (wording drafted from the lessons, a step beyond them):
   - Platform story: ending the meeting makes "every partner drop out"; "ten minutes on Monday decides whether Thursday runs itself".
   - RingCentral story: pasting the whole Mobile Link "gives no access" (treated as a wrong Meeting ID).
-  - HLS client call: the seven deciding questions and the client's answers are KUDO's real discovery list for a "put it on our website" request (anything missing, such as a rehearsal with the web team?).
+  - Client calls (Widget, RTMP, HLS exercises): the seven deciding questions and the client's answers per exercise are KUDO's real discovery list for that request (anything missing?).
 - **Open decisions:**
   - Is a Large Meeting required for the RTMP and HLS exercises (scored or not)?
   - Does starting an RTMP broadcast need a confirmation step?
@@ -23,7 +23,6 @@ Updated 26 Nov 2026. Ask "what is still pending?" at any time; this list is kept
 - **Security:** reset the YouTube stream key visible in the RTMP recording.
 
 ## Next to build (Claude)
-- Client call before the build for the Widget and RTMP exercises, as in HLS (once the HLS format is confirmed).
 - Third-party look-alikes for Teams, Zoom, Meet/Webex/ON24 and RingCentral Events, from the recordings.
 - Correct the slide mocks of the client tools from the recordings.
 - Regenerate Jack's handover ZIP (outdated: predates card rules v2, both UX passes, the client call, the lesson stories, the virtual coach and trainer messages). Do it once the recordings are in, so he gets one current version.
