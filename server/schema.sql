@@ -355,3 +355,18 @@ CREATE TABLE IF NOT EXISTS group_sessions (
   created_by INT REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Messages from a trainee to the KUDO Trainer, sent from the virtual coach panel; they land on the trainer's board.
+CREATE TABLE IF NOT EXISTS trainer_messages (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('question','remark','observation')),
+  text TEXT NOT NULL,
+  page TEXT,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','answered','noted')),
+  reply TEXT,
+  replied_at TIMESTAMPTZ,
+  replied_by INT REFERENCES users(id) ON DELETE SET NULL,
+  seen_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

@@ -29,7 +29,7 @@ export function coachWidget() {
   const chips = h('div', { class: 'co-chips' }, SUGGEST.map((s) => h('button', { type: 'button', on: { click: () => send(s) } }, s)));
   const bubble = (role, text, links = []) => {
     const b = h('div', { class: `co-msg ${role}` }, ...(role === 'coach' ? rich(text) : [h('p', null, text)]),
-      links.length ? h('div', { class: 'co-links' }, links.map((l) => h('a', { href: l.href, ...(l.href.startsWith('https') ? { target: '_blank', rel: 'noopener' } : {}), on: { click: () => { if (l.href.startsWith('#') && window.innerWidth < 760) toggle(false); } } }, `${l.label} →`))) : null);
+      links.length ? h('div', { class: 'co-links' }, links.map((l) => h('a', { href: l.href, ...(l.href.startsWith('https') ? { target: '_blank', rel: 'noopener' } : {}), on: { click: (e) => { if (l.href === '#ask-trainer') { e.preventDefault(); toTrainer(l.prefill || ''); return; } if (l.href.startsWith('#') && window.innerWidth < 760) toggle(false); } } }, `${l.label} →`))) : null);
     log.append(b); log.scrollTop = log.scrollHeight; return b;
   };
   async function send(q) {
@@ -39,21 +39,50 @@ export function coachWidget() {
     const wait = h('div', { class: 'co-msg coach wait' }, h('i'), h('i'), h('i')); log.append(wait); log.scrollTop = log.scrollHeight;
     try {
       const r = await api('POST', '/api/me/coach', { message: q, history });
-      wait.remove(); bubble('coach', r.text, r.links || []);
+      wait.remove(); bubble('coach', r.text, [...(r.links || []), ...(r.intent === 'help' || r.intent === 'trainer' ? [{ label: 'Ask your KUDO Trainer', href: '#ask-trainer', prefill: r.intent === 'help' ? q : '' }] : [])]);
       history.push({ role: 'me', text: q }, { role: 'coach', text: r.text });
     } catch (e) { wait.remove(); bubble('coach', e.message || 'Something went wrong. Try again in a moment.'); }
     busy = false; input.focus();
   }
+  // ---- Your KUDO Trainer: send a question, remark or observation; see replies.
+  let unread = 0;
+  const kind = h('select', { 'aria-label': 'Type of message' }, h('option', { value: 'question' }, 'Question'), h('option', { value: 'remark' }, 'Remark'), h('option', { value: 'observation' }, 'Observation'));
+  const msg = h('textarea', { rows: 4, maxlength: 2000, placeholder: 'Write to your KUDO Trainer. They see it on their board and reply here.', 'aria-label': 'Your message' });
+  const mlist = h('div', { class: 'co-mlist' });
+  const KLABEL = { question: 'Question', remark: 'Remark', observation: 'Observation' };
+  const loadMsgs = async () => {
+    const r = await api('GET', '/api/me/trainer-messages'); unread = r.unread; badge();
+    mlist.replaceChildren(...(r.messages.length ? r.messages.map((m) => h('div', { class: `co-m ${m.status}` },
+      h('div', { class: 'co-m-h' }, h('span', { class: 'chip grey' }, KLABEL[m.kind]), h('small', null, new Date(m.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })), h('span', { class: `chip ${m.status === 'open' ? 'amber' : 'green'}` }, m.status === 'open' ? 'Waiting' : m.status === 'answered' ? 'Answered' : 'Noted')),
+      h('p', null, m.text), m.reply ? h('div', { class: 'co-reply' }, h('b', null, 'Your KUDO Trainer: '), m.reply) : null)) : [h('p', { class: 'muted small' }, 'No messages yet.')]));
+  };
+  const sendMsg = async () => {
+    try { await api('POST', '/api/me/trainer-messages', { kind: kind.value, text: msg.value, page: location.hash.slice(1) }); msg.value = ''; toastIn('Sent. Your KUDO Trainer will reply here.'); loadMsgs(); } catch (e) { toastIn(e.message || 'Could not send'); }
+  };
+  const note = h('div', { class: 'co-note', hidden: true });
+  const toastIn = (t) => { note.textContent = t; note.hidden = false; setTimeout(() => { note.hidden = true; }, 4000); };
+  const trainerView = h('div', { class: 'co-trainer', hidden: true },
+    h('div', { class: 'co-form' }, h('div', { class: 'row', style: 'gap:8px;align-items:center' }, h('small', null, 'Type'), kind), msg, note, h('button', { class: 'btn primary sm', type: 'button', on: { click: sendMsg } }, 'Send to your KUDO Trainer')),
+    h('div', { class: 'co-mh' }, 'Your messages'), mlist);
+  const coachView = h('div', { class: 'co-coach' }, log, chips,
+    h('form', { class: 'co-in', on: { submit: (e) => { e.preventDefault(); send(input.value); } } }, input, h('button', { class: 'btn primary sm', type: 'submit' }, 'Ask')));
+  const tabC = h('button', { type: 'button', class: 'on', on: { click: () => view('coach') } }, 'Coach');
+  const tabT = h('button', { type: 'button', on: { click: () => view('trainer') } }, 'Your KUDO Trainer');
+  function view(v) {
+    tabC.classList.toggle('on', v === 'coach'); tabT.classList.toggle('on', v === 'trainer'); coachView.hidden = v !== 'coach'; trainerView.hidden = v !== 'trainer';
+    if (v === 'trainer') { loadMsgs().then(() => { if (unread) api('POST', '/api/me/trainer-messages/seen').then(() => { unread = 0; badge(); }).catch(() => {}); }).catch(() => {}); setTimeout(() => msg.focus(), 50); }
+  }
+  function toTrainer(prefill) { view('trainer'); if (prefill) { msg.value = prefill; kind.value = 'question'; } }
   const panel = h('section', { class: 'co-panel', hidden: true, role: 'dialog', 'aria-label': 'Virtual coach' },
     h('header', null, h('div', null, h('b', null, 'Virtual coach'), h('small', null, 'Answers from your own programme and results')),
       h('button', { type: 'button', class: 'co-x', 'aria-label': 'Close', on: { click: () => toggle(false) } }, '×')),
-    log, chips,
-    h('form', { class: 'co-in', on: { submit: (e) => { e.preventDefault(); send(input.value); } } }, input, h('button', { class: 'btn primary sm', type: 'submit' }, 'Ask')),
-    h('div', { class: 'co-foot' }, 'Not sure about an answer? Ask your KUDO Trainer.'));
-  const fab = h('button', { class: 'co-fab', type: 'button', 'aria-label': 'Open the virtual coach', on: { click: () => toggle() } }, h('span', { class: 'co-dot' }), 'Ask your coach');
+    h('div', { class: 'co-tabs' }, tabC, tabT), coachView, trainerView);
+  const badge = () => { fab.classList.toggle('has-new', unread > 0); tabT.textContent = unread ? `Your KUDO Trainer (${unread} new)` : 'Your KUDO Trainer'; };
+  api('GET', '/api/me/trainer-messages').then((r) => { unread = r.unread; badge(); }).catch(() => {});
+  const fab = h('button', { class: 'co-fab', type: 'button', 'aria-label': 'Open the virtual coach', on: { click: () => { toggle(); if (unread) view('trainer'); } } }, h('span', { class: 'co-dot' }), 'Ask your coach');
   function toggle(v = !open) {
     open = v; panel.hidden = !open; fab.hidden = open;
-    if (open && !log.children.length) bubble('coach', `Hi! I can tell you what is next, when your sessions are, how you are progressing and how the Academy works.${ai ? ' Ask me anything about your programme.' : ' Pick a question or type your own.'}`);
+    if (open && !log.children.length) bubble('coach', `Hi! I can tell you what is next, when your sessions are, how you are progressing and how the Academy works.${ai ? ' Ask me anything about your programme.' : ' Pick a question or type your own.'} For anything else, write to your KUDO Trainer in the second tab.`);
     if (open) setTimeout(() => input.focus(), 50);
   }
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && open) toggle(false); });

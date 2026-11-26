@@ -7,9 +7,9 @@
 //    answer is used.
 // Questions are not stored. Only the trainee's own data is ever loaded.
 import { Router } from 'express';
-import { q } from './db.js';
+import { q, audit } from './db.js';
 import { programmeFor, progressFor } from './programme.js';
-import { PHASES, PASS, targetFor } from './engine.js';
+import { PASS } from './engine.js';
 import { MODULE_BY_KEY } from './curriculum.js';
 import { SANDBOX } from './sandboxes.js';
 
@@ -89,6 +89,7 @@ function monthsIn(t, today) {
 }
 
 const INTENTS = [
+  { key: 'trainer', re: /\b(ask|message|contact|write to|tell|talk to|speak to|reach)\b.*\b(trainer|coach|jack|a human|a person|someone)\b|\b(remark|observation|feedback|complain)/i },
   { key: 'group', re: /\bgroup\b|team session|workshop|everyone together|all trainees/i },
   { key: 'session', re: /1[:\s-]?(on|to)?[:\s-]?1|one[- ]to[- ]one|\bsession|coaching|check-?in|kick-?off|mock (client )?call|meet (with )?(my )?(coach|trainer|jack)|\bmeeting with\b|book(ed)? .*(trainer|coach)/i },
   { key: 'progress', re: /progress|progression|improv|evolv|from \w+ to \w+|between \w+ and \w+|since|how am i doing|how have i done|so far/i },
@@ -180,7 +181,9 @@ export function builtInAnswer(question, c) {
     return { intent, links: [{ label: 'Home', href: '#programme' }, { label: 'My training', href: '#training' }, { label: 'My results', href: '#results' }, { label: 'My progress', href: '#progress' }], text: 'Where things are:\n- Home: your programme at a glance, with "Continue my training".\n- My training: this week\'s steps, the weekly challenge, your focus areas, your plan week by week, and your next sessions with your KUDO Trainer.\n- Each lesson: Step 1 Learn (slides), Step 2 Practise (sandbox or task), Step 3 Prove it (the check).\n- My results: every test and sandbox exercise.\n- My progress: how each test moved your level.\n- My collection: your cards. The Guided tour is in the menu.' };
   }
 
-  return { intent: 'help', links: [], text: 'I can help with your programme, your results and how the Academy works. Try one of the questions below.' };
+  if (intent === 'trainer') return { intent, links: [], text: 'Use the "Your KUDO Trainer" tab at the top of this panel: choose Question, Remark or Observation, write it and send. It lands on your KUDO Trainer\'s board, and their reply comes back here.' };
+
+  return { intent: 'help', links: [], text: 'I cannot answer that from your programme and results. I can help with what is next, your sessions, your progress and how the Academy works, or you can send the question to your KUDO Trainer.' };
 }
 
 // ------------------------------------------------------------------ free-form with Claude (optional)
@@ -241,6 +244,32 @@ coachRouter.get('/group-sessions', async (_req, res, next) => {
   try { res.json({ sessions: (await q('SELECT id,title,topic,starts_at,minutes,link FROM group_sessions WHERE starts_at >= now() - interval \'1 hour\' ORDER BY starts_at LIMIT 5')).rows }); } catch (e) { next(e); }
 });
 
+// ------------------------------------------------------------------ messages to the KUDO Trainer
+// A trainee sends a question, remark or observation from the coach panel. It lands on the trainer's board; the reply
+// (or "noted") comes back to the trainee's panel.
+const KINDS = ['question', 'remark', 'observation'];
+coachRouter.post('/trainer-messages', async (req, res, next) => {
+  try {
+    const kind = KINDS.includes(req.body?.kind) ? req.body.kind : 'question';
+    const text = String(req.body?.text || '').trim().slice(0, 2000);
+    if (text.length < 3) return res.status(400).json({ error: 'Write your message first.' });
+    const today = (await q("SELECT count(*)::int n FROM trainer_messages WHERE user_id=$1 AND created_at > now() - interval '1 day'", [req.user.id])).rows[0].n;
+    if (today >= 10) return res.status(429).json({ error: 'You have sent 10 messages today. Your KUDO Trainer will get back to you.' });
+    const page = String(req.body?.page || '').slice(0, 80) || null;
+    const row = (await q('INSERT INTO trainer_messages (user_id,kind,text,page) VALUES ($1,$2,$3,$4) RETURNING id', [req.user.id, kind, text, page])).rows[0];
+    res.json({ id: row.id });
+  } catch (e) { next(e); }
+});
+coachRouter.get('/trainer-messages', async (req, res, next) => {
+  try {
+    const rows = (await q('SELECT id,kind,text,status,reply,replied_at,seen_at,created_at FROM trainer_messages WHERE user_id=$1 ORDER BY created_at DESC LIMIT 30', [req.user.id])).rows;
+    res.json({ messages: rows, unread: rows.filter((m) => m.status !== 'open' && !m.seen_at).length });
+  } catch (e) { next(e); }
+});
+coachRouter.post('/trainer-messages/seen', async (req, res, next) => {
+  try { await q("UPDATE trainer_messages SET seen_at=now() WHERE user_id=$1 AND status <> 'open' AND seen_at IS NULL", [req.user.id]); res.json({ ok: true }); } catch (e) { next(e); }
+});
+
 // Admin: the KUDO Trainer schedules group sessions (date, time, topic, link).
 export const groupAdminRouter = Router();
 groupAdminRouter.get('/group-sessions', async (_req, res, next) => { try { res.json({ sessions: (await q('SELECT id,title,topic,starts_at,minutes,link FROM group_sessions ORDER BY starts_at DESC LIMIT 50')).rows }); } catch (e) { next(e); } });
@@ -255,4 +284,19 @@ groupAdminRouter.post('/group-sessions', async (req, res, next) => {
 });
 groupAdminRouter.delete('/group-sessions/:id', async (req, res, next) => { try { await q('DELETE FROM group_sessions WHERE id=$1', [Number(req.params.id)]); res.json({ ok: true }); } catch (e) { next(e); } });
 
-export { PHASES, targetFor };
+// Admin: answer a trainee's message (or mark it noted). The board lists the open ones.
+groupAdminRouter.post('/trainer-messages/:id/reply', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id); const noted = req.body?.noted === true;
+    const reply = String(req.body?.reply || '').trim().slice(0, 4000);
+    if (!noted && reply.length < 2) return res.status(400).json({ error: 'Write a reply, or mark it as noted.' });
+    const r = await q("UPDATE trainer_messages SET status=$2, reply=$3, replied_at=now(), replied_by=$4, seen_at=NULL WHERE id=$1 AND status='open' RETURNING id", [id, noted ? 'noted' : 'answered', reply || null, req.user.id]);
+    if (!r.rowCount) return res.status(404).json({ error: 'Already answered, or not found.' });
+    await audit(req, noted ? 'message.noted' : 'message.reply', String(id));
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+groupAdminRouter.get('/trainer-messages', async (_req, res, next) => {
+  try { res.json({ messages: (await q('SELECT m.id,m.kind,m.text,m.status,m.reply,m.created_at,m.replied_at,u.name FROM trainer_messages m JOIN users u ON u.id=m.user_id ORDER BY m.created_at DESC LIMIT 100')).rows }); } catch (e) { next(e); }
+});
+

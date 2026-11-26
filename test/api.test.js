@@ -672,3 +672,27 @@ test('virtual coach: answers from the trainee\'s own data; group sessions come f
   await adm('DELETE', `/api/admin/group-sessions/${g.json.id}`);
   assert.equal((await client()('POST', '/api/me/coach', { message: 'hi' })).status, 401);
 });
+
+test('messages to the KUDO Trainer: sent from the coach panel, on the board, replied, seen', async () => {
+  const d = client(); await d('POST', '/api/auth/login', { email: 'dana@test.local', password: 'Quiet-valley-pass-73' });
+  const adm = client(); await adm('POST', '/api/auth/login', { email: 'boss@test.local', password: 'Quiet-harbor-pass-55' });
+  assert.equal((await d('POST', '/api/me/trainer-messages', { kind: 'question', text: '' })).status, 400);
+  const m = await d('POST', '/api/me/trainer-messages', { kind: 'observation', text: 'The RTMP lesson mentions three streams but the sandbox uses two.', page: 'module-rtmp' });
+  assert.equal(m.status, 200);
+  const task = (await adm('GET', '/api/admin/board')).json.tasks.find((t) => t.key === `message:${m.json.id}`);
+  assert.ok(task, 'the message is on the board'); assert.equal(task.type, 'message'); assert.equal(task.urgency, 'now'); assert.match(task.detail, /three streams/);
+  assert.equal((await d('POST', `/api/admin/trainer-messages/${m.json.id}/reply`, { reply: 'x' })).status, 403, 'trainees cannot reply');
+  assert.equal((await adm('POST', `/api/admin/trainer-messages/${m.json.id}/reply`, { reply: '' })).status, 400);
+  assert.equal((await adm('POST', `/api/admin/trainer-messages/${m.json.id}/reply`, { reply: 'Good catch: the sandbox keeps it to two on purpose.' })).status, 200);
+  assert.equal((await adm('POST', `/api/admin/trainer-messages/${m.json.id}/reply`, { reply: 'again' })).status, 404, 'answered once');
+  assert.ok(!(await adm('GET', '/api/admin/board')).json.tasks.some((t) => t.key === `message:${m.json.id}`), 'off the board once answered');
+  const mine = (await d('GET', '/api/me/trainer-messages')).json;
+  assert.equal(mine.unread, 1); assert.equal(mine.messages[0].status, 'answered'); assert.match(mine.messages[0].reply, /on purpose/);
+  await d('POST', '/api/me/trainer-messages/seen');
+  assert.equal((await d('GET', '/api/me/trainer-messages')).json.unread, 0);
+  const n = await d('POST', '/api/me/trainer-messages', { kind: 'remark', text: 'Loving the slides.' });
+  assert.equal((await adm('POST', `/api/admin/trainer-messages/${n.json.id}/reply`, { noted: true })).status, 200);
+  assert.equal((await d('GET', '/api/me/trainer-messages')).json.messages[0].status, 'noted');
+  const c = (await d('POST', '/api/me/coach', { message: 'How do I contact my trainer?' })).json;
+  assert.match(c.text, /Your KUDO Trainer/);
+});

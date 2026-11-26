@@ -131,9 +131,16 @@ export async function buildBoard() {
     if (x) add({ key: `content:q:${id}`, type: 'content', title: 'Check a question most people miss', detail: `"${x.q}" (${MODULE_BY_KEY[x.module]?.title}): ${Math.round((it.s / it.n) * 100)}% success over ${it.n} answers. Unclear wording, or a gap in the lesson?`, minutes: 15, due: iso(today), urgency: 'later_ok', link: `#curriculum-${x.module}`, canHandle: true });
   }
 
+  // Messages from trainees (sent from the virtual coach panel): a trainee is waiting, so they come first.
+  const msgs = (await q("SELECT m.id,m.user_id,m.kind,m.text,m.created_at FROM trainer_messages m WHERE m.status='open' ORDER BY m.created_at")).rows;
+  for (const m of msgs) {
+    const u = users.get(m.user_id); const name = u?.name || (await q('SELECT name FROM users WHERE id=$1', [m.user_id])).rows[0]?.name || 'A trainee';
+    add({ key: `message:${m.id}`, type: 'message', messageId: m.id, kind: m.kind, person: name, userId: m.user_id, demo: !!u?.is_demo, title: `${m.kind[0].toUpperCase()}${m.kind.slice(1)} from ${name.split(' ')[0]}`, detail: m.text, minutes: 5, due: iso(m.created_at), urgency: 'now', link: `#person-${m.user_id}`, sent: m.created_at });
+  }
+
   // Suggested week: fill the owner's available days with this week's work, most urgent first.
   const rank = { overdue: 0, now: 1, this_week: 2, next_week: 4, later_ok: 5 };
-  const typeRank = { session: 0, milestone: 0, approval: 1, review: 2, signoff: 3, nudge: 3, pairing: 4, learning: 5, content: 6 };
+  const typeRank = { session: 0, milestone: 0, message: 1, approval: 1, review: 2, signoff: 3, nudge: 3, pairing: 4, learning: 5, content: 6 };
   // Scheduling order: overdue sessions, then sessions, then what blocks trainees (approvals, reviews), then the rest.
   const work = tasks.filter((t) => t.urgency !== 'next_week' && !t.demo).sort((a, b) => ((a.urgency === 'overdue' ? 0 : 1) - (b.urgency === 'overdue' ? 0 : 1)) || (typeRank[a.type] - typeRank[b.type]) || (rank[a.urgency] - rank[b.urgency]) || a.due.localeCompare(b.due));
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -152,7 +159,7 @@ export async function buildBoard() {
   return {
     settings, today: iso(today), weekOf: iso(thisMon),
     reviewSplit: { recording: tasks.filter((t) => t.type === 'review' && !t.demo && t.sub !== 'practice').length, practice: tasks.filter((t) => t.type === 'review' && !t.demo && t.sub === 'practice').length },
-    counts: Object.fromEntries(['approval', 'session', 'review', 'signoff', 'nudge', 'content', 'milestone'].map((k) => [k, tasks.filter((t) => t.type === k && !t.demo).length])),
+    counts: Object.fromEntries(['approval', 'session', 'review', 'signoff', 'nudge', 'content', 'milestone', 'message'].map((k) => [k, tasks.filter((t) => t.type === k && !t.demo).length])),
     tasks: tasks.sort((a, b) => (rank[a.urgency] - rank[b.urgency]) || (typeRank[a.type] - typeRank[b.type])),
     week: { days, overflow, needMinutes: need, capacityMinutes: settings.hours * 60 },
   };

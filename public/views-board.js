@@ -1,6 +1,6 @@
 import { h, api, toast, fmtDate, modal } from './ui.js';
 
-const TYPE = { approval: ['amber', 'Approve'], session: ['coral', 'Session'], milestone: ['coral', 'Milestone'], review: ['blue', 'Review'], signoff: ['green', 'Sign-off'], nudge: ['grey', 'Nudge'], pairing: ['green', 'Teach-back'], learning: ['blue', 'Sessions'], content: ['blue', 'Content'] };
+const TYPE = { approval: ['amber', 'Approve'], session: ['coral', 'Session'], milestone: ['coral', 'Milestone'], review: ['blue', 'Review'], signoff: ['green', 'Sign-off'], nudge: ['grey', 'Nudge'], pairing: ['green', 'Teach-back'], learning: ['blue', 'Sessions'], content: ['blue', 'Content'], message: ['amber', 'Message'] };
 const GROUPS = [['overdue', 'Overdue', 'Sessions that should have happened already'], ['now', 'Do first', 'Waiting on you and blocking a trainee'], ['this_week', 'This week', ''], ['next_week', 'Next week', 'Book these now'], ['later_ok', 'When you can', '']];
 const hrs = (m) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? `${m % 60} min` : ''}`.trim() : `${m} min`);
 
@@ -17,11 +17,18 @@ export async function boardView() {
       try { const r = await api('POST', '/api/admin/board/group-done', { itemKey: t.itemKey, userIds: ids }); close(); toast(`Logged for ${r.logged} trainees`); window.dispatchEvent(new HashChangeEvent('hashchange')); } catch (e) { toast(e.message, true); }
     } } }, 'Mark held')] });
   };
+  // A trainee's message from the coach panel: reply (they see it in their panel) or mark it noted.
+  const replyTo = (t) => {
+    const ta = h('textarea', { rows: 5, placeholder: 'Your reply: the trainee sees it in their coach panel', maxlength: 4000 });
+    const send = async (noted, close) => { try { await api('POST', `/api/admin/trainer-messages/${t.messageId}/reply`, noted ? { noted: true, reply: ta.value } : { reply: ta.value }); close(); toast(noted ? 'Marked as noted' : 'Reply sent'); window.dispatchEvent(new HashChangeEvent('hashchange')); } catch (e) { toast(e.message, true); } };
+    modal(`${t.title}`, h('div', null, h('div', { class: 'note-box' }, h('div', { class: 'muted small' }, `${t.person} · ${new Date(t.sent).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`), h('p', { style: 'white-space:pre-wrap;margin:6px 0 0' }, t.detail)), h('label', { class: 'f', style: 'margin-top:12px' }, h('span', { class: 'l' }, 'Reply'), ta)),
+      { actions: (close) => [h('button', { class: 'btn', on: { click: close } }, 'Cancel'), h('button', { class: 'btn', title: 'No answer needed: the trainee sees it was noted (with your note, if you wrote one)', on: { click: () => send(true, close) } }, 'Noted'), h('button', { class: 'btn primary', on: { click: () => send(false, close) } }, 'Send reply')] });
+  };
   const card = (t) => h('div', { class: `task ${t.urgency}` },
     h('div', { class: 'task-main' },
       h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap' }, h('span', { class: `chip ${TYPE[t.type][0]}` }, TYPE[t.type][1]), t.person ? h('b', null, t.person) : null, t.demo ? h('span', { class: 'chip grey' }, 'Demo') : null, h('span', { class: 'muted small' }, `${t.minutes} min`), t.type === 'session' || t.type === 'milestone' ? h('span', { class: 'muted small' }, `due ${fmtDate(t.due)}`) : null),
       h('div', { class: 'task-t' }, t.title), t.detail ? h('div', { class: 'muted small' }, t.detail) : null),
-    h('div', { class: 'task-act' }, t.group ? h('button', { class: 'btn sm primary', on: { click: () => groupHeld(t) } }, 'Mark held') : openBtn(t),
+    h('div', { class: 'task-act' }, t.type === 'message' ? h('button', { class: 'btn sm primary', on: { click: () => replyTo(t) } }, 'Reply') : t.group ? h('button', { class: 'btn sm primary', on: { click: () => groupHeld(t) } }, 'Mark held') : openBtn(t),
       t.message ? h('button', { class: 'btn sm', on: { click: async () => { try { await navigator.clipboard.writeText(t.message); toast('Message copied: paste it in Teams'); } catch { toast('Could not copy', true); } } } }, 'Copy message') : null,
       t.canHandle ? h('button', { class: 'btn sm', on: { click: () => act(t.key, 'handled') } }, 'Done') : null,
       h('button', { class: 'btn sm', title: 'Hide for a week', on: { click: () => act(t.key, 'snooze') } }, 'Snooze')));
@@ -37,7 +44,7 @@ export async function boardView() {
       h('a', { class: 'btn', href: '/api/admin/board/week.ics' }, 'Add this week\'s sessions to my calendar')),
     h('div', { class: 'grid g4' },
       h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Sessions to hold'), h('div', { class: 'value' }, c.session), h('div', { class: 'note' }, 'This week, next week and overdue')),
-      h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Approvals'), h('div', { class: 'value' }, c.approval), h('div', { class: 'note' }, 'Plans and plan changes')),
+      h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Approvals and messages'), h('div', { class: 'value' }, c.approval + (c.message || 0)), h('div', { class: 'note' }, `${c.approval} plan${c.approval === 1 ? '' : 's'} · ${c.message || 0} message${c.message === 1 ? '' : 's'}`)),
       h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Reviews and sign-offs'), h('div', { class: 'value' }, c.review + c.signoff), h('div', { class: 'note' }, [b.reviewSplit ? `${b.reviewSplit.recording} recording${b.reviewSplit.recording === 1 ? '' : 's'}` : `${c.review} reviews`, b.reviewSplit?.practice ? `${b.reviewSplit.practice} practice` : null, c.signoff ? `${c.signoff} sign-off${c.signoff === 1 ? '' : 's'}` : null].filter(Boolean).join(' · '))),
       h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Trainees to nudge'), h('div', { class: 'value' }, c.nudge), h('div', { class: 'note' }, 'Behind pace or inactive'))),
 
