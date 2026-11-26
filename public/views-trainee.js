@@ -152,25 +152,26 @@ function liveProgress() {
     const chart = h('div', { class: 'card' }, h('h2', null, 'Since October, scenario by scenario'),
       h('p', { class: 'sub' }, 'Hollow dot: your October level. Full dot: where your tests put you now. Green: up. Coral: down. The tick is your target.'),
       progressDumbbell(rows));
-    const kindLabel = { check: 'Module test', scenario: 'Decision walkthrough', baseline: 'Baseline check' };
+    const kindLabel = { check: 'Module test', scenario: 'Decision walkthrough', baseline: 'Baseline check', explain: 'Explain it' };
     const feed = h('div', { class: 'card' }, h('h2', null, 'Every test that counted'), h('p', { class: 'sub' }, 'Newest first, with what each one did to your level'),
       d.feed.length ? h('ul', { class: 'lp-feed' }, d.feed.slice(0, 30).map((e) => { const ch = e.to - e.from; return h('li', null,
         h('span', { class: 'muted small lp-when' }, ago(e.at)),
-        h('div', { class: 'lp-what' }, e.module !== 'baseline' ? h('a', { href: `#module-${e.module}` }, e.moduleTitle) : h('b', null, e.moduleTitle), h('span', { class: 'muted small' }, ` · ${kindLabel[e.kind] || 'Test'} · you scored ${e.score}%`)),
+        h('div', { class: 'lp-what' }, e.module !== 'baseline' ? h('a', { href: `#module-${e.module}` }, e.moduleTitle) : h('b', null, e.moduleTitle), h('span', { class: 'muted small' }, ` · ${kindLabel[e.kind] || 'Test'}${e.kind === 'explain' ? (e.reviewed ? ', reviewed by your KUDO Trainer' : ', automatic review') : ''} · you scored ${e.score}%`)),
         h('div', { class: 'lp-eff' }, h('span', null, `${e.short} ${e.from}% → ${e.to}%`), h('span', { class: `lp-d ${ch > 0 ? 'up' : ch < 0 ? 'down' : ''}` }, signed(ch)))); }))
         : h('p', { class: 'muted', style: 'margin:8px 0 0' }, 'No test yet. Open a module and take its test: your first attempt counts.'));
     const mrows = d.modules.map((m) => h('tr', null,
       h('td', null, h('a', { href: `#module-${m.key}` }, m.title), m.short ? h('div', { class: 'muted small' }, m.short) : h('div', { class: 'muted small' }, 'Cross-cutting topic')),
       h('td', { class: 'num' }, m.check ? h('span', null, `${m.check.pct}%`, h('span', { class: `chip ${m.check.passed ? 'green' : 'amber'}`, style: 'margin-left:8px' }, m.check.passed ? 'Passed' : 'Below pass')) : h('a', { class: 'small', href: `#module-${m.key}` }, 'Not taken')),
       h('td', { class: 'num' }, m.walk ? `${m.walk.pct}%` : '–'),
+      h('td', { class: 'num' }, m.explain ? h('span', { title: m.explain.reviewed ? 'Reviewed by your KUDO Trainer' : 'Automatic review: your KUDO Trainer may change it' }, `${m.explain.pct}%`, h('span', { class: 'muted small' }, m.explain.reviewed ? ' reviewed' : ' auto')) : '–'),
       h('td', { class: 'num' }, m.effect != null ? h('span', { class: `lp-d ${m.effect > 0 ? 'up' : m.effect < 0 ? 'down' : ''}` }, signed(m.effect)) : m.scenario ? '–' : h('span', { class: 'muted small' }, 'No scenario level')),
       h('td', { class: 'num muted small' }, m.practice ? `${m.practice.n} · best ${m.practice.best}%` : '–')));
     const table = h('div', { class: 'card' }, h('h2', null, 'By module'), h('p', { class: 'sub' }, `The test of record is your first attempt (pass mark ${Math.round(d.pass * 100)}%). Retakes are practice: they show here but never change your level`),
-      h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Module', 'Test of record', 'Walkthrough', 'Effect on level', 'Practice retakes'].map((x, i) => h('th', { class: i ? 'num' : null }, x)))), h('tbody', null, mrows))));
+      h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Module', 'Test of record', 'Walkthrough', 'Explain it', 'Effect on level', 'Practice retakes'].map((x, i) => h('th', { class: i ? 'num' : null }, x)))), h('tbody', null, mrows))));
     const rules = h('div', { class: 'card lp-rules' }, h('h2', null, 'What moves your level'),
       h('div', { class: 'grid g2' },
-        h('div', null, h('b', { class: 'lp-yes' }, 'Counts'), h('ul', null, h('li', null, 'Your first attempt at each module test'), h('li', null, 'Your first decision walkthrough in each module'), h('li', null, 'The baseline check'), h('li', null, 'The quarterly knowledge test, which resets your starting point'))),
-        h('div', null, h('b', { class: 'lp-no' }, 'Does not count'), h('ul', null, h('li', null, 'Reading the lessons and watching the videos'), h('li', null, 'Practice tasks and explain-it recordings (feedback only)'), h('li', null, 'Retakes, the weekly challenge and spaced reviews'), h('li', null, 'Ticking steps off your plan')))),
+        h('div', null, h('b', { class: 'lp-yes' }, 'Counts'), h('ul', null, h('li', null, 'Your first attempt at each module test'), h('li', null, 'Your first decision walkthrough in each module'), h('li', null, 'Your first explain-it recording. If your KUDO Trainer reviews it, their score replaces the automatic one'), h('li', null, 'The baseline check'), h('li', null, 'The quarterly knowledge test, which resets your starting point'))),
+        h('div', null, h('b', { class: 'lp-no' }, 'Does not count'), h('ul', null, h('li', null, 'Reading the lessons and watching the videos'), h('li', null, 'Practice tasks (feedback only)'), h('li', null, 'Retakes, the weekly challenge and spaced reviews'), h('li', null, 'Ticking steps off your plan')))),
       h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'Each test pulls your level most of the way towards its score: a good result lifts it, a poor one lowers it. Only your first attempt counts, so read the lesson and take the test when you feel ready'));
     box.replaceChildren(head, chart, feed, table, rules);
   }).catch((e) => box.replaceChildren(h('div', { class: 'card empty' }, h('b', null, 'Your live progress could not load'), e.message)));

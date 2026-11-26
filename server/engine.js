@@ -83,6 +83,9 @@ export async function loadContext(userId = null) {
   };
 }
 
+// An explain-it rubric as a 0-100 score: accuracy, completeness and hand-over, each 1 to 3 (clarity is feedback only).
+export const explainScore = (r) => { const k = ['accurate', 'complete', 'handover'].filter((x) => [1, 2, 3].includes(r?.[x])); return k.length ? ((k.reduce((t, x) => t + r[x], 0) / k.length - 1) / 2) * 100 : null; };
+
 /** Where the trainee is now: a 0-100 estimate per scenario, with where it came from. */
 export function computeLevels(u, ctx, { forPlanning = false } = {}) {
   const self = ctx.self.get(u.id) || {}, live = ctx.live.get(u.id) || {};
@@ -107,6 +110,8 @@ export function computeLevels(u, ctx, { forPlanning = false } = {}) {
   // Only results of record count: the first attempt in the cycle. Retakes are practice.
   for (const a of ctx.attempts.get(u.id) || []) if (after(a.created_at) && a.counts !== false) events.push({ at: a.created_at, type: 'attempt', a });
   for (const i of ctx.inputs.get(u.id) || []) if (after(i.happened_on)) events.push({ at: i.happened_on, type: 'input', i });
+  // Explain-it recordings of record count like a test: the automatic score, replaced by the KUDO Trainer's when they review it.
+  for (const sb of ctx.subs.get(u.id) || []) if ((sb.kind || 'explain') === 'explain' && sb.counts !== false && ['auto', 'reviewed'].includes(sb.status) && sb.rubric && after(sb.created_at)) events.push({ at: sb.created_at, type: 'explain', sb });
   events.sort((x, y) => new Date(x.at) - new Date(y.at));
   for (const e of events) {
     if (e.type === 'attempt') {
@@ -130,6 +135,13 @@ export function computeLevels(u, ctx, { forPlanning = false } = {}) {
       per[s].est = (1 - w) * per[s].est + w * sc; per[s].source = 'check';
       per[s].note = a.kind === 'scenario' ? `Updated by your ${short(s)} decision walkthrough` : `Updated by your ${MODULE_BY_KEY[a.module_key].title} check`;
       per[s].history.push({ at: a.created_at, what: a.kind === 'scenario' ? 'Walkthrough' : 'Module check', v: round(per[s].est), from: round(from), score: round(sc), module: a.module_key, kind: a.kind });
+    } else if (e.type === 'explain' && !forPlanning) {
+      const sb = e.sb, s = MODULE_BY_KEY[sb.module_key]?.scenario; if (!s) continue;
+      const sc = explainScore(sb.rubric); if (sc == null) continue;
+      const from = per[s].est, reviewed = sb.status === 'reviewed';
+      per[s].est = 0.5 * per[s].est + 0.5 * sc; per[s].source = 'check';
+      per[s].note = `Updated by your ${MODULE_BY_KEY[sb.module_key].title} explain-it${reviewed ? ', reviewed by your KUDO Trainer' : ''}`;
+      per[s].history.push({ at: sb.created_at, what: 'Explain it', v: round(per[s].est), from: round(from), score: round(sc), module: sb.module_key, kind: 'explain', reviewed });
     } else if (e.type === 'input' && forPlanning) {
       // The KUDO Trainer's 1:1 signals shape the plan; the level shown to the trainee moves only with test results.
       for (const sig of e.i.signals || []) {

@@ -579,3 +579,27 @@ test('live progress: only tests move a level; lessons, practice and retakes do n
   assert.equal(again.modules.find((x) => x.key === 'hybrid').practice.n, 1);
   assert.equal((await client()('GET', '/api/me/progress-live')).status, 401);
 });
+
+test('explain-it of record counts like a test, and the KUDO Trainer\'s review replaces the automatic score', async () => {
+  const d = client(); await d('POST', '/api/auth/login', { email: 'dana@test.local', password: 'Quiet-valley-pass-73' });
+  const adm = client(); await adm('POST', '/api/auth/login', { email: 'boss@test.local', password: 'Quiet-harbor-pass-55' });
+  const id = (await q("SELECT id FROM users WHERE email='dana@test.local'")).rows[0].id;
+  const lvl = async () => (await d('GET', '/api/me/progress-live')).json;
+  const before = (await lvl()).scenarios.find((s) => s.key === 'widget').now;
+  const sid = (await q("INSERT INTO submissions (user_id,module_key,kind,counts,status,rubric,auto,text_answer) VALUES ($1,'widget','explain',true,'auto',$2,$3,'x') RETURNING id",
+    [id, { accurate: 1, complete: 1, clear: 3, handover: 1 }, { rating: 'gap' }])).rows[0].id;
+  const auto = await lvl();
+  const w1 = auto.scenarios.find((s) => s.key === 'widget').now;
+  assert.ok(w1 < before, `a weak automatic score lowers the level (${before} → ${w1})`);
+  assert.equal(auto.modules.find((m) => m.key === 'widget').explain.pct, 0);
+  assert.equal(auto.feed[0].kind, 'explain'); assert.equal(auto.feed[0].reviewed, false);
+  // The KUDO Trainer listens and scores it higher: the level follows the review
+  assert.equal((await adm('POST', `/api/admin/submissions/${sid}/review`, { rubric: { accurate: 3, complete: 3, clear: 2, handover: 3 } })).status, 200);
+  const rev = await lvl();
+  const w2 = rev.scenarios.find((s) => s.key === 'widget').now;
+  assert.ok(w2 > before, `the review replaces the automatic score (${before} → ${w2})`);
+  assert.equal(rev.modules.find((m) => m.key === 'widget').explain.reviewed, true);
+  // A second recording is practice
+  await q("INSERT INTO submissions (user_id,module_key,kind,counts,status,rubric,text_answer) VALUES ($1,'widget','explain',false,'auto',$2,'y')", [id, { accurate: 1, complete: 1, clear: 1, handover: 1 }]);
+  assert.equal((await lvl()).scenarios.find((s) => s.key === 'widget').now, w2);
+});
