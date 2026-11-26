@@ -51,7 +51,7 @@ function brandHero(title, text, { preview = true } = {}) {
   const route = h('div', { class: 'lp-route' }, Array.from({ length: 12 }, (_, k) => { const w = k + 1;
     return h('div', { class: `lp-stop ${w < 4 ? 'done' : w === 4 ? 'now' : ''}` }, h('span', { class: `lp-tag ${tags[w] ? '' : 'none'} ${w === 12 ? 'key' : ''} ${w === 1 ? 'met' : ''}` }, tags[w] || '·'),
       w < 4 ? h('span', { class: 'lp-node' }, svg(tick)) : h('span', { class: 'lp-node' }, String(w))); }));
-  const card = { key: 'start', set: 'Journey', tier: 'bronze', title: 'Starting line', glyph: 'flag', earned: true };
+  const card = { key: 'first-step', set: 'Journey', tier: 'bronze', title: 'First step', glyph: 'step', earned: true };
   const win = preview ? h('div', { class: 'lp-preview', 'aria-hidden': 'true' },
     h('div', { class: 'lp-win' },
       h('div', { class: 'lp-win-h' }, h('b', null, 'Your 12 weeks'), h('span', null, 'Week 4 of 12 · Build')),
@@ -62,9 +62,8 @@ function brandHero(title, text, { preview = true } = {}) {
         h('div', null, h('span', null, 'This week'), h('b', null, '3 steps', h('em', null, ' · about 55 min')), h('span', { class: 'lp-next' }, 'Next: Practise a Teams setup')))),
     h('div', { class: 'lp-card' }, cardArt(card, { size: 132 }))) : null;
   return h('div', { class: 'login-hero' },
-    h('img', { class: 'login-logo', src: '/kudo-logo.png', alt: 'KUDO' }),
-    h('div', { class: 'login-mid' }, h('div', { class: 'copy' }, h('div', { class: 'login-eyebrow' }, 'KUDO Academy'), h('h1', null, title), h('p', null, text)), win),
-    preview ? h('ul', { class: 'login-facts' }, h('li', null, h('b', null, '12'), ' client scenarios'), h('li', null, h('b', null, 'Your plan'), ' built from your results'), h('li', null, h('b', null, '1:1'), ' coaching with your KUDO Trainer')) : null);
+    h('div', { class: 'login-name', role: 'img', 'aria-label': 'KUDO Academy' }, h('img', { src: '/kudo-logo.png', alt: '' }), h('span', null, 'Academy')),
+    h('div', { class: 'login-mid' }, h('div', { class: 'copy' }, h('h1', null, title), h('p', null, text)), win));
 }
 function loginScreen() {
   const email = h('input', { type: 'email', autocomplete: 'username', required: true, placeholder: 'you@kudo.ai' });

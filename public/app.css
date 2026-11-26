@@ -946,3 +946,9 @@ button.k-qrbox{border:none;cursor:pointer}
 .not-taken{margin-top:10px}.not-taken summary{cursor:pointer;color:var(--muted,#66666d);font-size:13px}.chips-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .this-week .challenge{border:none;box-shadow:none;border-top:1px solid var(--border-soft);border-radius:0;padding:14px 0 0;margin-top:14px;background:none}
 .this-week .challenge h2{font-size:15px}
+/* sign-in: the tool name leads */
+.login-name{display:flex;align-items:center;gap:14px}
+.login-name img{height:46px;width:auto;display:block}
+.login-name span{font-size:44px;font-weight:600;letter-spacing:-.02em;line-height:1;color:#fff}
+.login-hero h1{font-size:34px}
+@media (max-width:860px){.login-name img{height:32px}.login-name span{font-size:31px}.login-hero h1{font-size:24px}}
