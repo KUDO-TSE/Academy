@@ -11,9 +11,7 @@ export const KIND_LABEL = { scenario: 'Decision walkthrough', explain: 'Explain 
 const KIND_CHIP = { scenario: 'amber', explain: 'coral', survey: 'grey', lesson: 'blue', practice: 'amber', check: 'green', review: 'green', baseline: 'green', one_to_one: 'coral', milestone: 'coral', missed: 'blue', teach: 'amber' };
 export const DEPTH_LABEL = { know: 'Know', setup: 'Set up', handover: 'Hand over' };
 const BAND_CHIP = { ready: 'green', nearly: 'blue', developing: 'amber', gap: 'coral', none: 'grey' };
-const SOURCE = { test: 'Knowledge test', estimated: 'Estimated', self: 'Self Assessment (estimate)', check: 'Updated by your checks', coach: 'Updated by your KUDO Trainer', none: 'No data yet' };
 const check = () => svg('<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>');
-const moduleTitle = (data, key) => data.modules.find((m) => m.key === key)?.title || key;
 const first = (n) => { const m = String(n || '').match(/\(([^)]+)\)/); return m ? `${m[1]} (test)` : String(n || '').split(' ')[0]; };
 
 function itemHref(it) {
@@ -109,7 +107,7 @@ function focusChoice() {
   return box;
 }
 
-// ------------------------------------------------------------------ the programme page
+// ------------------------------------------------------------------ Home and My training (one view, two parts)
 export function programmeView(data, { readOnly = false, banner = null, part = 'home' } = {}) {
   if (data.status === 'pending' || data.status === 'none') {
     return h('div', { class: 'page' }, banner,
@@ -231,7 +229,7 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
 
   const markBtn = (it, label) => {
     if (!it || admin) return null;
-    if (it.done) return h('span', { class: 'chip green' }, 'Done');
+    if (it.done) return h('span', { class: 'row', style: 'gap:8px' }, h('span', { class: 'chip green' }, 'Done'), it.signed_off ? null : h('button', { class: 'k-link small btn-link', type: 'button', on: { click: async () => { try { await api('DELETE', `/api/me/items/${it.key}/done`); toast('Marked as not done'); onDone?.(); } catch (e) { toast(e.message, true); } } } }, 'Undo'));
     const note = h('textarea', { rows: 2, placeholder: it.kind === 'practice' ? 'One line on what you did or learned (your KUDO Trainer sees this)' : 'Optional note' });
     return h('div', { class: 'stack', style: 'margin-top:10px' }, note, h('button', { class: 'btn primary', on: { click: async () => { try { await api('POST', `/api/me/items/${it.key}/done`, { note: note.value }); toast('Nice work. Ticked off.'); onDone?.(); } catch (e) { toast(e.message, true); } } } }, label));
   };

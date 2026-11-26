@@ -2,7 +2,7 @@
 // that fits the owner's available hours. Tasks are derived from the live data, so doing the action clears the task.
 import { Router } from 'express';
 import { q, audit } from './db.js';
-import { loadContext, refreshAll, liveState } from './engine.js';
+import { refreshAll, liveState } from './engine.js';
 import { MODULE_BY_KEY } from './curriculum.js';
 import { itemById } from './assess.js';
 import { SCENARIOS } from './scenarios.js';

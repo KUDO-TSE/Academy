@@ -28,5 +28,5 @@ Updated 26 Nov 2026 (client calls added to the Widget and RTMP exercises). Ask "
 - Regenerate Jack's handover ZIP (outdated: predates card rules v2, both UX passes, the client call, the lesson stories, the virtual coach and trainer messages). Do it once the recordings are in, so he gets one current version.
 
 ## Known limits
-- The virtual coach is for trainee accounts; an admin who is also on the team uses "Try as a trainee" to see it.
+- The virtual coach shows on trainee pages, and for an admin who is also on the team, in their own Academy (My Academy in the menu).
 - Questions to the coach are not stored; messages to the KUDO Trainer are (they need a reply).

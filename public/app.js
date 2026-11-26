@@ -122,7 +122,8 @@ function shell() {
   const toggle = h('button', { class: 'nav-toggle', type: 'button', 'aria-label': 'Menu', 'aria-expanded': 'false', on: { click: (e) => { e.stopPropagation(); const open = !document.body.classList.contains('nav-open'); document.body.classList.toggle('nav-open', open); toggle.setAttribute('aria-expanded', String(open)); } } },
     h('span'), h('span'), h('span'));
   const traineeTabs = me.role !== 'admin' ? h('nav', { class: 'tabbar', 'aria-label': 'Main' }, NAV_TRAINEE.map(([k, l, ic]) => h('a', { href: `#${k}`, 'data-r': k }, icon(ic), h('span', null, l.replace(/^My (.)/, (_m, c) => c.toUpperCase()))))) : null;
-  return h('div', { class: `shell ${me.actingAs ? 'testing' : ''} ${traineeTabs ? 'has-tabbar' : ''}` }, testBar, h('aside', { class: 'sidebar' }, h('div', { class: 'brand' }, h('img', { src: '/kudo-logo-navy.png', alt: 'KUDO' }), h('span', { class: 'tag' }, 'Academy')), list, acct, toggle), h('main', { class: 'main', id: 'main', tabindex: -1 }), traineeTabs, me.role !== 'admin' && !me.mustChange ? coachWidget() : null);
+  document.body.dataset.admin = me.role === 'admin' ? '1' : '';
+  return h('div', { class: `shell ${me.actingAs ? 'testing' : ''} ${traineeTabs ? 'has-tabbar' : ''}` }, testBar, h('aside', { class: 'sidebar' }, h('div', { class: 'brand' }, h('img', { src: '/kudo-logo-navy.png', alt: 'KUDO' }), h('span', { class: 'tag' }, 'Academy')), list, acct, toggle), h('main', { class: 'main', id: 'main', tabindex: -1 }), traineeTabs, (me.role !== 'admin' || me.isTrainee) && !me.mustChange ? coachWidget() : null);
 }
 
 // ------------------------------------------------------------ Router
@@ -130,6 +131,15 @@ const TRAINEE_ROUTES = { programme: null, training: null, collection: null, resu
 const ADMIN_ROUTES = { try: () => P.tryView(me), board: boardView, overview: A.overviewView, team: A.teamView, priorities: A.prioritiesView, programme: P.programmeOverview, reviews: P.reviewsView, sessions: sessionsView, releases: releasesView, feedback: P.feedbackView, curriculum: () => P.curriculumView(), imports: A.importView, users: A.usersView, audit: A.auditView, logic: A.logicView };
 const isTraineeDyn = (r) => r.startsWith('module-') || r.startsWith('sandbox-') || r === 'missed' || r === 'survey';
 const isAdminDyn = (r) => r.startsWith('session-') || r.startsWith('release-') || r.startsWith('person-') || r.startsWith('preview') || r.startsWith('pview-') || r.startsWith('curriculum-');
+
+// An admin who is also on the team uses their own Academy under "me-" addresses. While they are there, in-page links
+// to trainee pages (#training, #results, #module-…) stay in their Academy instead of opening the admin pages.
+let lastMeMode = false;
+document.addEventListener('click', (e) => {
+  const a = e.target.closest?.('a[href^="#"]'); if (!a || !lastMeMode || e.defaultPrevented) return;
+  const k = a.getAttribute('href').slice(1);
+  if (k && !k.startsWith('me-') && (k in TRAINEE_ROUTES || isTraineeDyn(k))) { e.preventDefault(); location.hash = `me-${k}`; }
+});
 
 async function route() {
   if (!me || me.mustChange) return;
@@ -144,6 +154,7 @@ async function route() {
   if (!isAdmin && !okTrainee(r)) r = 'programme';
   if (meMode && !okTrainee(r)) r = 'programme';
   if (isAdmin && !meMode && !(r in ADMIN_ROUTES) && !isAdminDyn(r)) r = 'overview';
+  lastMeMode = meMode; document.body.dataset.me = meMode ? '1' : '';
   const navKey = meMode ? `me-${r}` : r;
   document.body.classList.remove('nav-open'); document.querySelector('.nav-toggle')?.setAttribute('aria-expanded', 'false');
   document.querySelectorAll('.nav a, .tabbar a').forEach((a) => a.classList.toggle('active', a.dataset.r === navKey || (r.startsWith('person-') && a.dataset.r === 'team') || (r.startsWith('curriculum-') && a.dataset.r === 'curriculum') || ((r === 'sessions' || r === 'releases' || r.startsWith('session-') || r.startsWith('release-')) && a.dataset.r === 'imports') || (isTraineeDyn(r) && a.dataset.r === (meMode ? 'me-training' : 'training'))));

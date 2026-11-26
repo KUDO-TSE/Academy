@@ -439,7 +439,7 @@ export const STORIES = {
         mock: { crumb: 'Joint test', items: [{ t: 'row', label: 'AV operator', value: '✓' }, { t: 'row', label: 'Web team', value: '✓' }, { t: 'row', label: 'KUDO active', value: '✓', hi: true }] },
         say: 'One full test with all three at the same time. Every first Widget deployment goes to Technical Support, with the platform name, the AV operator and the event date.' },
       { kind: 'traps', title: 'Where people slip', points: ['Assuming the Widget picks up the event audio by itself.', 'Reusing last month\'s Widget code: every session has its own.', 'Testing the AV side and the web side on different days.', 'Forgetting to tell viewers to mute the player.'] },
-      { kind: 'recap', title: 'Remember these four', points: ['Two parts: AV ingest, then the embed', 'The code from Language Access, one per session', 'The player is muted; the Widget carries the language', 'One joint test, and Technical Support for a first deployment'], next: 'Now do it yourself: Step 2 puts this exact widget on the client\'s page in the sandbox.' },
+      { kind: 'recap', title: 'Remember these four', points: ['Two parts: AV ingest, then the embed', 'The code from Language Access, one per session', 'The player is muted; the Widget carries the language', 'One joint test, and Technical Support for a first deployment'], next: 'Now do it yourself: Step 2 starts with the client\'s call, then you put this exact widget on their page in the sandbox.' },
     ],
   },
 
@@ -514,7 +514,7 @@ export const STORIES = {
         mock: { crumb: 'Troubleshooting', items: [{ t: 'row', label: 'Won\'t start', value: 'URL and key, destination active, language channel, broadcast started in KUDO', hi: true }, { t: 'row', label: 'Unstable', value: 'upload bandwidth; stop, verify, restart' }] },
         say: 'A first RTMP setup for a client, IBM streams and sign language combinations go to Technical Support.' },
       { kind: 'traps', title: 'Where people slip', points: ['Reusing one stream key for two languages: the stream breaks.', 'Starting the broadcast before the meeting.', 'Running it from Safari, which publishes audio only.', 'Promising no delay: expect 10 to 25 seconds.'] },
-      { kind: 'recap', title: 'Remember these four', points: ['Large Meeting with a Broadcast tab', 'One destination and one key per language', 'Meeting first, then the broadcast', 'Expect 10 to 25 seconds of delay; no Safari'], next: 'Now do it yourself: Step 2 streams this exact event to the client\'s channel in the sandbox.' },
+      { kind: 'recap', title: 'Remember these four', points: ['Large Meeting with a Broadcast tab', 'One destination and one key per language', 'Meeting first, then the broadcast', 'Expect 10 to 25 seconds of delay; no Safari'], next: 'Now do it yourself: Step 2 starts with the client\'s call, then you stream this exact event to their channel in the sandbox.' },
     ],
   },
 

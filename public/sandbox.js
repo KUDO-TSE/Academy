@@ -1,7 +1,7 @@
 // Sandbox: a replica of the KUDO screens a scenario needs, rebuilt from an expert's screen recording.
 // The trainee does the task here instead of in a test account. Everything they do is recorded (clicks, fields,
 // screens, time, detours, hints) and the run is scored: outcome first, then path, then time.
-// Scenario 1 (pilot): run a meeting, add a language live, find the recordings. Test data only.
+// Seven exercises (see SCENARIOS); scenarios with a brief start with a client call. Test data only.
 import { h, api, toast, svg } from './ui.js';
 // Line icons (stroke) in the style of the KUDO screens.
 const I = {
@@ -946,7 +946,7 @@ export function sandboxView(key, { onExit } = {}) {
     'platform-2': {
       next() {
         const need = [['speakers', 'participant', 'Participant/Speaker link'], ['attendees', 'viewer', 'Viewer-Only link'], ['producer', 'operator', 'Operator link'], ['web', 'iframe', 'iframe widget'], ['room', 'mobile', 'Mobile Link (or the QR code)']];
-        for (const [id, k, l] of need) if (!S.clip.some((c) => c.kind === k)) return `Open "Partner Summit" and copy the ${l} from the links panel.`;
+        for (const [, k, l] of need) if (!S.clip.some((c) => c.kind === k)) return `Open "Partner Summit" and copy the ${l} from the links panel.`;
         const miss = sc.reply.find((r) => !R(r.id)); if (miss) return `Open "Reply to the client" and choose what ${miss.label.toLowerCase()} need.`;
         return null;
       },

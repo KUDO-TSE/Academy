@@ -187,7 +187,7 @@ export function feedbackCard(moduleKey, { onDone } = {}) {
   return box;
 }
 
-// ------------------------------------------------------------------ spaced review (programme page)
+// ------------------------------------------------------------------ spaced review (My training)
 export function spacedCard() {
   const box = h('div');
   (async () => {
@@ -203,7 +203,7 @@ export function spacedCard() {
   return box;
 }
 
-// ------------------------------------------------------------------ weekly challenge (programme page)
+// ------------------------------------------------------------------ weekly challenge (My training)
 export function challengeCard() {
   const box = h('div', { class: 'card challenge' }, h('div', { class: 'muted' }, 'Loading…'));
   (async () => {
@@ -232,5 +232,5 @@ export async function surveyView() {
   return h('div', { class: 'page lesson' }, h('a', { href: '#programme', class: 'muted' }, '← Home'),
     h('div', { class: 'page-head', style: 'margin-top:8px' }, h('div', null, h('h1', null, 'How did the programme work for you?'), h('p', null, s.done ? 'You have already answered. You can update your answers.' : 'Ten questions, about five minutes. Ratings are 1 (not at all) to 5 (completely).'))),
     h('div', { class: 'card' }, s.questions.map((x, i) => h('div', { class: 'qq' }, h('b', null, `${i + 1}. ${x.q}`), h('div', { style: 'margin-top:6px' }, q(x)))),
-      h('button', { class: 'btn primary', on: { click: async () => { try { await api('POST', '/api/me/survey', { answers }); toast('Thank you'); location.hash = 'programme'; } catch (e) { toast(e.message, true); } } } }, 'Send my answers')));
+      h('button', { class: 'btn primary', on: { click: async () => { try { await api('POST', '/api/me/survey', { answers }); toast('Thank you'); location.hash = `${document.body.dataset.me ? 'me-' : ''}programme`; } catch (e) { toast(e.message, true); } } } }, 'Send my answers')));
 }

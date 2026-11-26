@@ -696,3 +696,15 @@ test('messages to the KUDO Trainer: sent from the coach panel, on the board, rep
   const c = (await d('POST', '/api/me/coach', { message: 'How do I contact my trainer?' })).json;
   assert.match(c.text, /Your KUDO Trainer/);
 });
+
+test('a trainee can undo a step marked done by mistake, but not once it is signed off', async () => {
+  const d = client(); await d('POST', '/api/auth/login', { email: 'dana@test.local', password: 'Quiet-valley-pass-73' });
+  const id = (await q("SELECT id FROM users WHERE email='dana@test.local'")).rows[0].id;
+  await q("INSERT INTO plan_progress (user_id,item_key,status,completed_at) VALUES ($1,'glossary.lesson','done',now()) ON CONFLICT (user_id,item_key) DO UPDATE SET status='done', signed_off_at=NULL", [id]);
+  assert.equal((await d('DELETE', '/api/me/items/glossary.lesson/done')).status, 200);
+  assert.equal((await q("SELECT 1 FROM plan_progress WHERE user_id=$1 AND item_key='glossary.lesson'", [id])).rowCount, 0, 'undone');
+  await q("INSERT INTO plan_progress (user_id,item_key,status,completed_at,signed_off_at) VALUES ($1,'glossary.lesson','done',now(),now())", [id]);
+  await d('DELETE', '/api/me/items/glossary.lesson/done');
+  assert.equal((await q("SELECT 1 FROM plan_progress WHERE user_id=$1 AND item_key='glossary.lesson'", [id])).rowCount, 1, 'a signed-off step stays done');
+  await q("DELETE FROM plan_progress WHERE user_id=$1 AND item_key='glossary.lesson'", [id]);
+});

@@ -266,14 +266,6 @@ meProgramme.post('/explain/:id/ask-jack', async (req, res, next) => {
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
-meProgramme.patch('/explain/:id/points', async (req, res, next) => {
-  try {
-    const pts = Array.isArray(req.body?.points) ? req.body.points.filter((x) => Number.isInteger(x) && x >= 0 && x < 20) : [];
-    const r = await q('UPDATE submissions SET self_points=$3 WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.user.id, JSON.stringify(pts)]);
-    if (!r.rowCount) return res.status(404).json({ error: 'Not found.' });
-    res.json({ ok: true });
-  } catch (e) { next(e); }
-});
 
 meProgramme.get('/survey', async (req, res, next) => {
   try { const r = await q('SELECT answers FROM survey_responses WHERE user_id=$1', [req.user.id]); res.json({ questions: SURVEY, done: r.rowCount > 0 }); } catch (e) { next(e); }

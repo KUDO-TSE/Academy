@@ -77,6 +77,7 @@ export async function sessionsView() {
         h('label', { class: 'f' }, h('span', { class: 'l' }, 'Transcript or recording'), file),
         h('p', { class: 'muted small' }, 'Best: the Teams transcript (.vtt or .docx). It is instant and knows who spoke. A recording (.mp4, .m4a, .mp3) also works: it is transcribed here, which takes a while for long sessions, and the file is deleted once transcribed.'),
         bar, go)),
+    publishedCard(),
     ins.recurring.length ? h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Questions that keep coming back'),
       h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Question', 'Module', 'Times', 'Sessions', ''].map((x) => h('th', null, x)))),
         h('tbody', null, ins.recurring.map((r) => h('tr', null, h('td', null, r.q), h('td', null, r.module), h('td', { class: 'num' }, r.count), h('td', { class: 'num' }, r.sessions),
@@ -171,3 +172,19 @@ export async function sessionView(id) {
   return box;
 }
 const confirmDelete = h('div', { class: 'card warn-card', hidden: true }, 'Click "Delete session" again to delete it, with its transcript and findings. Content already added to the Academy stays.');
+
+// What sessions added to the Academy (FAQ entries and check questions), with a way to withdraw each one.
+function publishedCard() {
+  const box = h('div', { class: 'card', style: 'margin-top:16px' });
+  const load = async () => {
+    const { notes } = await api('GET', '/api/admin/field-notes');
+    if (!notes.length) { box.hidden = true; return; }
+    box.hidden = false;
+    box.replaceChildren(h('h2', null, 'Added to the Academy'), h('p', { class: 'sub keep' }, `${notes.length} FAQ entr${notes.length === 1 ? 'y' : 'ies'} and check questions from sessions`),
+      ...notes.map((n) => h('div', { class: 'row spread', style: 'padding:8px 0;border-top:1px solid var(--border-soft);gap:12px' },
+        h('div', null, h('span', { class: 'chip grey', style: 'margin-right:6px' }, n.kind === 'faq' ? 'FAQ' : 'Check question'), h('b', null, n.question), h('div', { class: 'muted small' }, `${n.module_key} · ${fmtDate(n.published_at)}`)),
+        h('button', { class: 'btn sm', on: { click: async () => { if (!window.confirm('Withdraw it from the Academy? Trainees stop seeing it; the session finding goes back to open.')) return; try { await api('DELETE', `/api/admin/field-notes/${n.id}`); toast('Withdrawn'); load(); } catch (e) { toast(e.message, true); } } } }, 'Withdraw'))));
+  };
+  load().catch(() => { box.hidden = true; });
+  return box;
+}

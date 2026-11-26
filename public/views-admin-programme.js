@@ -43,7 +43,7 @@ export async function programmeOverview() {
     jackItems.length ? h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Sessions to book'), h('p', { class: 'sub' }, 'The next open KUDO Trainer sessions in approved plans. Log each one as an input on the person\'s page: that ticks it off.'),
       jackItems.map((x) => h('div', { class: 'row spread', style: 'padding:7px 0;border-top:1px solid var(--border-soft)' }, h('span', null, h('b', null, x.who), ` · ${x.t}`), h('a', { href: `#person-${x.id}`, on: { click: () => sessionStorage.setItem('personTab', 'inputs') } }, 'Log it')))) : null);
 }
-function confirmBox(text) { return window.confirm(text); } // eslint-disable-line no-alert
+function confirmBox(text) { return window.confirm(text); }
 
 // Group sessions: date, time, topic and link. Trainees see the next one on My training, and the virtual coach answers from it.
 function groupSessionsCard() {
@@ -145,7 +145,7 @@ export function tabInputs(personId, reload) {
       for (const s of r.signals) sel[s.scenario].value = s.rating;
       hints.replaceChildren(h('b', null, 'Suggested from the text. Check each one before saving: '), ...r.signals.map((s) => h('div', null, `${sc(s.scenario)}: ${s.rating} (${s.mentions} mentions) — “${s.example}”`)));
     };
-    const shared = h('textarea', { rows: 3, maxlength: 2000, placeholder: 'What the trainee sees on their programme page (optional). Keep the transcript private.' });
+    const shared = h('textarea', { rows: 3, maxlength: 2000, placeholder: 'What the trainee sees on their Home page (optional). Keep the transcript private.' });
     const save = async () => {
       try {
         const signals = Object.entries(sel).filter(([, s]) => s.value).map(([scenario, s]) => ({ scenario, rating: s.value }));
@@ -212,7 +212,7 @@ export async function reviewsView() {
       x.transcript ? h('details', { open: true }, h('summary', null, 'Transcript'), h('div', { class: 'pre' }, x.transcript)) : x.text_answer ? h('div', { class: 'pre' }, x.text_answer) : null,
       x.auto?.rubric ? h('div', { class: 'auto-box' }, h('b', null, `Automatic review: ${x.auto.rating} (${x.auto.avg}/3)`), h('div', { class: 'small' }, x.auto.note), x.auto.flags?.length ? h('div', { class: 'small', style: 'color:var(--danger)' }, `Flags: ${x.auto.flags.join('; ')}`) : null, h('div', { class: 'muted small' }, `Pace ${x.auto.metrics?.wpm ?? '–'} words/min · ${x.auto.metrics?.fillers ?? 0} filler words`)) : null,
       x.human_requested ? h('div', { class: 'chip coral' }, 'The trainee asked for your view') : null,
-      h('div', { class: 'small', style: 'margin-top:8px' }, h('b', null, 'Key points (✓ = trainee says they covered it): '), h('ul', { style: 'list-style:none;padding-left:4px;margin:4px 0' }, x.points.map((p, i) => h('li', null, (x.self_points || []).includes(i) ? '✓ ' : '○ ', p)))),
+      h('div', { class: 'small', style: 'margin-top:8px' }, h('b', null, x.auto?.points ? 'Key points (automatic check: ✓ covered, ? unsure, ○ not heard): ' : 'Key points: '), h('ul', { style: 'list-style:none;padding-left:4px;margin:4px 0' }, x.points.map((p, i) => { const a = x.auto?.points?.[i]; return h('li', null, a ? (a.covered ? '✓ ' : a.unsure ? '? ' : '○ ') : '• ', p); }))),
       h('div', { class: 'grid g4' }, d.rubric.map((c) => h('label', { class: 'f' }, h('span', { class: 'l' }, c.label), sel[c.key], h('div', { class: 'hint' }, c.hint)))),
       comment,
       h('button', { class: 'btn primary', style: 'margin-top:8px', on: { click: async () => {

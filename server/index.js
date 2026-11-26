@@ -163,7 +163,6 @@ export async function createApp() {
   app.use(express.static(path.join(here, '..', 'public'), { index: 'index.html', etag: true, lastModified: true, setHeaders: (res, file) => { res.setHeader('Cache-Control', /\.(png|svg|ico)$/.test(file) ? 'public, max-age=86400' : 'no-cache'); } }));
   app.get('*', (_req, res) => res.sendFile(path.join(here, '..', 'public', 'index.html')));
 
-  // eslint-disable-next-line no-unused-vars
   app.use((err, _req, res, _next) => {
     console.error(err);
     res.status(500).json({ error: 'Something went wrong. Please try again.' });

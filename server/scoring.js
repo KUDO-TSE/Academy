@@ -35,7 +35,6 @@ export function latestByUser(rows, kind) {
  */
 export function computePriorities({ users, selfByUser, liveByUser, critical, useLive = true }) {
   const people = users.filter((u) => Number(u.weight) > 0);
-  const W = people.reduce((a, u) => a + Number(u.weight), 0) || 1;
   const maxCrit = Math.max(1, ...SCENARIO_KEYS.map((k) => critical[k] || 0));
 
   const personWeak = (u, s) => {

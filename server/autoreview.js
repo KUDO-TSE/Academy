@@ -7,7 +7,7 @@
 import { spawnSync } from 'node:child_process';
 import { q } from './db.js';
 import { MODULE_BY_KEY } from './curriculum.js';
-import { EXPLAIN, RUBRIC, PRACTICE } from './curriculum-extra.js';
+import { EXPLAIN, PRACTICE } from './curriculum-extra.js';
 import { refreshPlan } from './engine.js';
 
 const WHISPER = process.env.WHISPER_MODEL || 'onnx-community/whisper-base';

@@ -164,6 +164,7 @@ export function builtInAnswer(question, c) {
   }
 
   if (intent === 'weak') {
+    if (!c.levels.length) return { intent, links: [{ label: 'My results', href: '#results' }], text: 'Your levels appear once your plan is approved. Meanwhile, your October results are on My results.' };
     const sorted = [...c.levels].sort((a, b) => (a.now - a.target) - (b.now - b.target));
     const ready = c.levels.filter((l) => l.now >= l.target);
     return { intent, links: [{ label: 'My results', href: '#results' }, { label: 'My progress', href: '#progress' }], text: `Biggest gaps to your target:\n${bullets(sorted.slice(0, 3).map((l) => `${l.label}: ${l.now}% (target ${l.target}%, ${l.band})`))}${ready.length ? `\n\nAt target: ${ready.map((l) => l.label.replace(/\.$/, '')).join(', ')}.` : ''}${c.attempts.filter((a) => a.record).length ? `\n\nTests of record so far: ${c.attempts.filter((a) => a.record).length}.` : ''}` };
@@ -208,10 +209,12 @@ ${KNOWLEDGE}
 THE TRAINEE'S DATA (JSON)
 ${fmtCtx(c)}`;
 
-async function claudeAnswer(history, question, c) {
+export async function claudeAnswer(history, question, c) {
   const key = process.env.ANTHROPIC_API_KEY; if (!key) return null;
   const messages = [...history.slice(-8).map((m) => ({ role: m.role === 'coach' ? 'assistant' : 'user', content: String(m.text || '').slice(0, 2000) })), { role: 'user', content: String(question).slice(0, 2000) }];
   while (messages.length && messages[0].role !== 'user') messages.shift();
+  // The API needs alternating turns: merge two in a row from the same side (e.g. after a failed answer).
+  for (let i = messages.length - 1; i > 0; i--) if (messages[i].role === messages[i - 1].role) { messages[i - 1].content += `\n\n${messages[i].content}`; messages.splice(i, 1); }
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: process.env.COACH_MODEL || 'claude-sonnet-5-5', max_tokens: 600, system: SYSTEM(c), messages }),
@@ -295,8 +298,5 @@ groupAdminRouter.post('/trainer-messages/:id/reply', async (req, res, next) => {
     await audit(req, noted ? 'message.noted' : 'message.reply', String(id));
     res.json({ ok: true });
   } catch (e) { next(e); }
-});
-groupAdminRouter.get('/trainer-messages', async (_req, res, next) => {
-  try { res.json({ messages: (await q('SELECT m.id,m.kind,m.text,m.status,m.reply,m.created_at,m.replied_at,u.name FROM trainer_messages m JOIN users u ON u.id=m.user_id ORDER BY m.created_at DESC LIMIT 100')).rows }); } catch (e) { next(e); }
 });
 

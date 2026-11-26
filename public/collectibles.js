@@ -91,7 +91,7 @@ export async function collectionView() {
   return page;
 }
 
-/** A small strip for the programme page: progress and the latest cards. */
+/** A small strip for the bottom of Home: progress and the latest cards. */
 export function collectionStrip() {
   const box = h('div');
   (async () => {
