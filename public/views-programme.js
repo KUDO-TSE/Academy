@@ -5,11 +5,11 @@ import { collectionStrip } from './collectibles.js';
 import { checkForm, resultView, walkthroughCard, explainCard, feedbackCard, challengeCard, spacedCard } from './assess-ui.js';
 
 // ------------------------------------------------------------------ shared bits
-export const KIND_LABEL = { scenario: 'Decision walkthrough', explain: 'Explain it', survey: 'Survey', lesson: 'Lesson', practice: 'Practice', check: 'Check', review: 'Spaced review', baseline: 'Baseline check', one_to_one: 'With Jack', milestone: 'Milestone', missed: 'Review', teach: 'Teach-back' };
+export const KIND_LABEL = { scenario: 'Decision walkthrough', explain: 'Explain it', survey: 'Survey', lesson: 'Lesson', practice: 'Practice', check: 'Check', review: 'Spaced review', baseline: 'Baseline check', one_to_one: 'With your KUDO Trainer', milestone: 'Milestone', missed: 'Review', teach: 'Teach-back' };
 const KIND_CHIP = { scenario: 'amber', explain: 'coral', survey: 'grey', lesson: 'blue', practice: 'amber', check: 'green', review: 'green', baseline: 'green', one_to_one: 'coral', milestone: 'coral', missed: 'blue', teach: 'amber' };
 export const DEPTH_LABEL = { know: 'Know', setup: 'Set up', handover: 'Hand over' };
 const BAND_CHIP = { ready: 'green', nearly: 'blue', developing: 'amber', gap: 'coral', none: 'grey' };
-const SOURCE = { test: 'Knowledge test', estimated: 'Estimated', self: 'Self Assessment (estimate)', check: 'Updated by your checks', coach: 'Updated by Jack', none: 'No data yet' };
+const SOURCE = { test: 'Knowledge test', estimated: 'Estimated', self: 'Self Assessment (estimate)', check: 'Updated by your checks', coach: 'Updated by your KUDO Trainer', none: 'No data yet' };
 const check = () => svg('<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>');
 const moduleTitle = (data, key) => data.modules.find((m) => m.key === key)?.title || key;
 const first = (n) => { const m = String(n || '').match(/\(([^)]+)\)/); return m ? `${m[1]} (test)` : String(n || '').split(' ')[0]; };
@@ -30,7 +30,7 @@ function itemRow(it, { readOnly, compact } = {}) {
     h('div', { class: 'pi-main' },
       h('div', { class: 'pi-t' }, href && !readOnly ? h('a', { href }, it.title) : it.title),
       h('div', { class: 'pi-meta' }, h('span', { class: `chip ${KIND_CHIP[it.kind] || 'grey'}` }, KIND_LABEL[it.kind] || it.kind), h('span', { class: 'muted small' }, `${it.minutes} min`),
-        it.owner === 'jack' ? h('span', { class: 'muted small' }, 'Jack books this') : null, it.mandatory ? h('span', { class: 'muted small' }, 'Core') : null,
+        it.owner === 'jack' ? h('span', { class: 'muted small' }, 'Your KUDO Trainer books this') : null, it.mandatory ? h('span', { class: 'muted small' }, 'Core') : null,
         it.recorded != null ? h('span', { class: `chip ${it.below ? 'amber' : 'green'}` }, `Recorded ${it.recorded}%`) : null, it.signoff && it.done ? h('span', { class: `chip ${it.signed_off ? 'green' : 'grey'}` }, it.signed_off ? 'Signed off' : 'Waiting for sign-off') : null, it.how ? h('span', { class: 'muted small' }, it.how) : null),
       !compact && it.why ? h('div', { class: 'pi-why' }, it.why) : null),
     href && !readOnly && !it.done && !compact ? h('a', { class: 'btn sm', href }, ACTION[it.kind] || 'Open') : null);
@@ -68,7 +68,7 @@ function warmUp() {
   const items = [
     { t: 'mcq', q: 'How long is the Academy programme?', o: ['6 weeks', '12 weeks', '6 months', 'One year'], a: 1, why: 'Twelve weeks in four phases' },
     { t: 'multi', q: 'Which of these are phases of your plan?', pick: 2, o: ['Warm-up', 'Prove it', 'Holiday', 'Onboarding'], a: [0, 1], why: 'Warm-up, Build, Broaden and Prove it' },
-    { t: 'order', q: 'Put the four phases in order', steps: ['Warm-up', 'Build', 'Broaden', 'Prove it'], why: 'From the basics to proving it with Jack' },
+    { t: 'order', q: 'Put the four phases in order', steps: ['Warm-up', 'Build', 'Broaden', 'Prove it'], why: 'From the basics to proving it with your KUDO Trainer' },
   ];
   const shuffle = (a) => a.map((x) => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map((p) => p[1]);
   const box = h('div');
@@ -92,17 +92,17 @@ function warmUp() {
   return d;
 }
 
-// The trainee keeps the first two focus areas and may choose the third. Jack approves the change.
+// The trainee keeps the first two focus areas and may choose the third. The KUDO Trainer approves the change.
 function focusChoice() {
   const box = h('div');
   (async () => {
     const o = await api('GET', '/api/me/plan/options');
     if (!o.canChoose) return;
-    if (o.pending) { box.replaceChildren(h('div', { class: 'muted small', style: 'margin-top:10px' }, 'Your change is waiting for Jack\'s approval.')); return; }
+    if (o.pending) { box.replaceChildren(h('div', { class: 'muted small', style: 'margin-top:10px' }, 'Your change is waiting for your KUDO Trainer\'s approval.')); return; }
     box.replaceChildren(h('details', { style: 'margin-top:10px' }, h('summary', null, 'Prefer a different third focus area?'),
-      h('p', { class: 'muted small' }, 'The first two come from your results and stay. For the third, pick what matters most for your clients. Jack approves the change, then your plan updates.'),
+      h('p', { class: 'muted small' }, 'The first two come from your results and stay. For the third, pick what matters most for your clients. Your KUDO Trainer approves the change, then your plan updates.'),
       h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap' }, o.options.map((x) => h('button', { class: `btn sm ${x.current ? 'primary' : ''}`, disabled: x.current, on: { click: async () => {
-        try { await api('POST', '/api/me/plan/focus', { third: x.scenario }); toast('Sent to Jack for approval'); box.replaceChildren(h('div', { class: 'muted small', style: 'margin-top:10px' }, 'Your change is waiting for Jack\'s approval.')); } catch (e) { toast(e.message, true); }
+        try { await api('POST', '/api/me/plan/focus', { third: x.scenario }); toast('Sent to your KUDO Trainer for approval'); box.replaceChildren(h('div', { class: 'muted small', style: 'margin-top:10px' }, 'Your change is waiting for your KUDO Trainer\'s approval.')); } catch (e) { toast(e.message, true); }
       } } }, `${x.label} · ${x.gap} points to go${x.current ? ' (current)' : ''}`)))));
   })().catch(() => {});
   return box;
@@ -113,7 +113,7 @@ export function programmeView(data, { readOnly = false, banner = null } = {}) {
   if (data.status === 'pending' || data.status === 'none') {
     return h('div', { class: 'page' }, banner,
       h('div', { class: 'page-head' }, h('div', null, h('h1', null, `Welcome, ${first(data.user?.name)}`), h('p', null, 'Your personal Academy programme'))),
-      h('div', { class: 'card empty' }, h('b', null, 'Your programme is being finalised'), 'Jack is reviewing the plan built from your October results. It will appear here as soon as it is approved. Meanwhile, your results are under My results.'));
+      h('div', { class: 'card empty' }, h('b', null, 'Your programme is being finalised'), 'Your KUDO Trainer is reviewing the plan built from your October results. It will appear here as soon as it is approved. Meanwhile, your results are under My results.'));
   }
   const { plan, state: st, settings } = data;
   const focusRows = st.levels.filter((l) => l.focus);
@@ -130,12 +130,12 @@ export function programmeView(data, { readOnly = false, banner = null } = {}) {
         h('div', { class: 'eyebrow' }, `${first(data.user.name)}'s KUDO Academy programme`),
         h('h1', null, settings.goal),
         h('div', { class: 'hero-meta' }, h('span', null, `Week ${st.week} of ${st.weeks}`), h('span', null, 'Self-paced: work through it any time in the week'), st.started_on ? h('span', null, `Started ${fmtDate(st.started_on)}`) : null),
-        data.message ? h('div', { class: 'hero-msg' }, h('b', null, 'From Jack: '), data.message) : null),
+        data.message ? h('div', { class: 'hero-msg' }, h('b', null, 'From your KUDO Trainer: '), data.message) : null),
       h('div', { class: 'hero-ring' }, h('div', { class: 'ring big', style: `--p:${st.progress.pct}`, role: 'img', 'aria-label': `${st.progress.pct}% of your plan done` }, h('b', null, `${st.progress.pct}%`)),
         h('div', null, `${st.progress.done} of ${st.progress.total} steps done`), h('span', { class: `chip ${paceChip[0]}` }, paceChip[1]))),
 
     h('section', { class: 'card roadmap-card' },
-      h('div', null, h('h2', null, 'Your 12 weeks at a glance'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, 'Four phases, one stop per week. Each stop shows what the week covers, how much of it is done and when you meet Jack')),
+      h('div', null, h('h2', null, 'Your 12 weeks at a glance'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, 'Four phases, one stop per week. Each stop shows what the week covers, how much of it is done and when you meet your KUDO Trainer')),
       journeyMap({ items: st.items, week: st.week, weeks: st.weeks, phases: data.phases, levels: st.levels, modules: data.modules, hrefFor: readOnly ? () => null : itemHref })),
     h('section', { class: 'journey' },
       h('div', { class: 'card jr' }, h('div', { class: 'jr-k' }, '1 · Where you are now'), h('div', { class: 'jr-big' }, `${st.readiness.now}%`), h('div', { class: 'muted' }, `Average readiness across the 12 scenarios. Ready on ${st.readiness.ready} of ${st.readiness.of}.`),
@@ -152,8 +152,8 @@ export function programmeView(data, { readOnly = false, banner = null } = {}) {
       h('div', { class: 'card this-week' }, h('div', { class: 'row spread' }, h('h2', null, thisWeek.length ? 'This week' : 'Up next'),
           h('span', { class: 'muted small' }, thisWeek.length ? `${thisWeek.length} step${thisWeek.length > 1 ? 's' : ''} · about ${fmtMin(thisWeek.reduce((t, i) => t + (i.minutes || 0), 0))}` : 'You are ahead of your plan')),
         thisWeek.length ? thisWeek.map((it) => itemRow(it, { readOnly })) : st.next.length ? st.next.map((it) => itemRow(it, { readOnly })) : h('div', { class: 'ok', style: 'margin-top:10px' }, 'Everything on your side is done. Well done.'),
-        st.jackNext.length ? h('div', { class: 'jack-next' }, h('b', null, 'Coming up with Jack: '), st.jackNext.map((i) => i.title).join(' · ')) : null),
-      h('div', { class: 'card focus-card' }, h('h2', null, 'Why these three focus areas'), h('p', { class: 'sub' }, plan.focusPinned ? 'Chosen with Jack' : 'Picked from your results, your clients and the team priorities'),
+        st.jackNext.length ? h('div', { class: 'jack-next' }, h('b', null, 'Coming up with your KUDO Trainer: '), st.jackNext.map((i) => i.title).join(' · ')) : null),
+      h('div', { class: 'card focus-card' }, h('h2', null, 'Why these three focus areas'), h('p', { class: 'sub' }, plan.focusPinned ? 'Chosen with your KUDO Trainer' : 'Picked from your results, your clients and the team priorities'),
         plan.focus.length ? plan.focus.map((s) => { const l = st.levels.find((x) => x.scenario === s); return h('div', { class: 'focus-why' }, h('div', { class: 'row spread' }, h('b', null, l.label), h('span', { class: `chip ${BAND_CHIP[l.band.key]}` }, `${l.now}% → ${l.target}%`)), h('div', { class: 'muted small' }, `Because ${plan.focusReasons[s]}.`)); }) : h('div', { class: 'muted' }, 'You are already at target on every scenario: your plan keeps it sharp and proves it.'),
         plan.tip ? h('div', { class: 'tip' }, h('b', null, 'How you like to learn: '), plan.tip) : null,
         readOnly ? null : focusChoice())),
@@ -174,8 +174,8 @@ export function programmeView(data, { readOnly = false, banner = null } = {}) {
         weeks.map((w) => h('div', { class: 'wk' }, h('div', { class: `wk-h ${w === st.week ? 'now' : ''}` }, `Week ${w}${w === st.week ? ' · this week' : ''}`), p.items.filter((i) => i.week === w).map((it) => itemRow(it, { readOnly, compact: false })))));
     })),
 
-    data.shared?.length ? h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Notes from your sessions with Jack'), data.shared.map((n) => h('div', { class: 'note-box' }, h('b', null, n.title), h('div', null, n.text), h('div', { class: 'when' }, fmtDate(n.on))))) : null,
-    h('p', { class: 'muted small', style: 'margin-top:18px' }, 'Your plan updates as you go: checks, practice and your sessions with Jack move your levels. When the plan itself needs to change, Jack reviews it first.'),
+    data.shared?.length ? h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Notes from your KUDO Trainer sessions'), data.shared.map((n) => h('div', { class: 'note-box' }, h('b', null, n.title), h('div', null, n.text), h('div', { class: 'when' }, fmtDate(n.on))))) : null,
+    h('p', { class: 'muted small', style: 'margin-top:18px' }, 'Your plan updates as you go: checks, practice and your KUDO Trainer sessions move your levels. When the plan itself needs to change, your KUDO Trainer reviews it first.'),
   );
 }
 
@@ -191,7 +191,7 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
   const markBtn = (it, label) => {
     if (!it || admin) return null;
     if (it.done) return h('span', { class: 'chip green' }, 'Done');
-    const note = h('textarea', { rows: 2, placeholder: it.kind === 'practice' ? 'One line on what you did or learned (Jack sees this)' : 'Optional note' });
+    const note = h('textarea', { rows: 2, placeholder: it.kind === 'practice' ? 'One line on what you did or learned (your KUDO Trainer sees this)' : 'Optional note' });
     return h('div', { class: 'stack', style: 'margin-top:10px' }, note, h('button', { class: 'btn primary', on: { click: async () => { try { await api('POST', `/api/me/items/${it.key}/done`, { note: note.value }); toast('Nice work. Ticked off.'); onDone?.(); } catch (e) { toast(e.message, true); } } } }, label));
   };
 
@@ -216,7 +216,7 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
         x.obj != null ? h('span', { class: 'chip grey', style: 'margin-left:4px' }, `O${x.obj + 1} · ${LVL[x.lvl] || ''}`) : null,
         x.reserve ? h('span', { class: 'chip amber', style: 'margin-left:4px' }, 'Next cycle') : null,
         x.field ? h('span', { class: 'chip blue', style: 'margin-left:4px' }, 'From a session') : null,
-        x.obj != null ? h('span', { class: 'chip coral', style: 'margin-left:4px', title: 'Drafted from the lesson content; Jack checks before the January cycle.' }, 'New: to check') : null,
+        x.obj != null ? h('span', { class: 'chip coral', style: 'margin-left:4px', title: 'Drafted from the lesson content; your KUDO Trainer checks before the January cycle.' }, 'New: to check') : null,
         x.t === 'mcq' || x.t === 'multi' ? h('ul', null, x.o.map((o, oi) => h('li', { class: (x.t === 'mcq' ? x.a === oi : x.a.includes(oi)) ? 'right' : '' }, o))) : null,
         x.t === 'match' ? h('ul', null, x.pairs.map((p) => h('li', null, `${p[0]} → `, h('b', null, p[1])))) : null,
         x.t === 'order' ? h('ol', null, x.steps.map((st) => h('li', null, st))) : null,

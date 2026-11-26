@@ -321,3 +321,9 @@ CREATE TABLE IF NOT EXISTS content_edits (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS content_edits_active ON content_edits (active, ref);
+
+-- ---- One-off (v8): the coaching role is "your KUDO Trainer", not a named person. Rewrites stored plan texts.
+UPDATE plans SET data = replace(replace(replace(replace(data::text, ' with Jack', ' with your KUDO Trainer'), 'Jack plays the client', 'Your KUDO Trainer plays the client'), 'Jack reviews it', 'Your KUDO Trainer reviews it'), 'chosen by Jack', 'chosen by your KUDO Trainer')::jsonb
+  WHERE data::text ~ '( with Jack|Jack plays the client|Jack reviews it|chosen by Jack)';
+UPDATE inputs SET title = replace(title, ' with Jack', ' with your KUDO Trainer') WHERE title LIKE '% with Jack%';
+UPDATE plan_items SET title = replace(title, ' with Jack', ' with your KUDO Trainer') WHERE title LIKE '% with Jack%';

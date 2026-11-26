@@ -5,7 +5,7 @@
 //   reserve  true for parallel forms kept back for the next assessment cycle: they are not drawn in the first cycle,
 //            so the 3-month reassessment does not only repeat questions trainees have already practised.
 // Items are appended after the existing pools, so existing question ids never change.
-// Status: drafted by Claude from the lessons, to be checked by Jack before the January cycle.
+// Status: drafted by Claude from the lessons, to be checked by the KUDO Trainer before the January cycle.
 
 export const BANK = {
   foundations: [
@@ -149,7 +149,7 @@ export const BANK = {
 };
 
 // Worked examples and common mistakes per module (v4). The examples are illustrative cases built from the lesson
-// facts, not real client stories: Jack can replace them with real ones. Mistakes come from the lesson content and
+// facts, not real client stories: The KUDO Trainer can replace them with real ones. Mistakes come from the lesson content and
 // the wrong choices in the decision walkthroughs.
 export const CASES = {
   foundations: { example: 'A client plans a product launch: the CEO presents for 30 minutes to 600 staff in five countries. You recommend AI Speech & Captions (one speaker, many listeners who want a voice), set the speaker language when creating the meeting, add a Host who joins from the email link, switch on Automatic Recording, and remind the client to download the recordings on the day, because they are deleted after 30 days.', mistakes: ['Choosing AI Captions Only for a keynote: listeners get text but no translated voice.', 'Planning a lunch break as a "pause": KUDO has no pause, and a stopped AI meeting cannot be restarted.', 'Leaving recording at the default: it is not automatic unless Automatic Recording is on.'] },

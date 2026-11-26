@@ -1,10 +1,10 @@
-// Sessions: Jack uploads the recording or transcript of a 1:1 or group session. The Academy learns from it:
+// Sessions: The KUDO Trainer uploads the recording or transcript of a 1:1 or group session. The Academy learns from it:
 //  1. it reads the transcript (Teams .vtt or .docx, plain text) or transcribes the audio/video itself (free Whisper model);
 //  2. it finds the questions asked, who asked them, and the answer given;
 //  3. it maps each question to a module and checks whether the lesson and the questions already cover it;
 //  4. it spots questions that come back across sessions;
-//  5. Jack turns findings into lesson FAQ entries or new check questions, with one click and his own wording.
-// Nothing reaches trainees without Jack's approval. Names never leave the admin side: FAQ entries are anonymous.
+//  5. The KUDO Trainer turns findings into lesson FAQ entries or new check questions, with one click and his own wording.
+// Nothing reaches trainees without the KUDO Trainer's approval. Names never leave the admin side: FAQ entries are anonymous.
 // Media files are deleted as soon as they are transcribed; the transcript stays until the session is deleted.
 import { Router } from 'express';
 import fs from 'node:fs';
@@ -85,7 +85,7 @@ const splitSentences = (t) => String(t).split(/(?<=[.?!])\s+/).map((x) => x.trim
 export const cos = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
 export const jac = (a, b) => { const A = new Set(a), B = new Set(b); if (!A.size || !B.size) return 0; let i = 0; for (const x of A) if (B.has(x)) i++; return i / Math.min(A.size, B.size); };
 
-/** Find questions with their asker and the answer that followed. hostName = the session lead (Jack). */
+/** Find questions with their asker and the answer that followed. hostName = the session lead (the KUDO Trainer). */
 export function extractQuestions(utts, hostName = '') {
   const host = String(hostName || '').toLowerCase().split(/\s+/)[0];
   const role = (s) => (s == null ? 'unknown' : host && s.toLowerCase().includes(host) ? 'host' : 'participant');
@@ -203,7 +203,7 @@ export async function processSession(id, file) {
       for (const e of earlier) for (const g of e.findings || []) if (g.module === f.module && (f.v && g.v ? cos(f.v, g.v) > 0.8 : jac(words(f.q), words(g.q)) > 0.6)) { seen++; break; }
       return { id: i + 1, ...f, seenBefore: seen, status: 'open' };
     });
-    // A 1:1 with one trainee: suggest level signals for their plan, as with any other input (Jack confirms).
+    // A 1:1 with one trainee: suggest level signals for their plan, as with any other input (the KUDO Trainer confirms).
     // Only what the trainee said counts, not the host's explanations.
     const hostFirst = String(s.host_name || '').toLowerCase().split(/\s+/)[0];
     const theirs = utts.some((u) => u.s) ? utts.filter((u) => u.s && !(hostFirst && u.s.toLowerCase().includes(hostFirst))).map((u) => u.t).join('\n') : transcript;
@@ -322,7 +322,7 @@ sessionsRouter.post('/sessions/:id/findings/:fid', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// Jack publishes a finding as a lesson FAQ entry or as a new check question, in his own words.
+// the KUDO Trainer publishes a finding as a lesson FAQ entry or as a new check question, in his own words.
 sessionsRouter.post('/field-notes', async (req, res, next) => {
   try {
     const b = req.body || {};

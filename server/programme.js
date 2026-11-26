@@ -242,14 +242,14 @@ meProgramme.post('/challenge', async (req, res, next) => {
 });
 
 // Trainee choice: keep the first two focus scenarios and choose the third from the next two in priority. The change
-// becomes a draft plan that Jack approves, like any other change to the plan's structure.
+// becomes a draft plan that the KUDO Trainer approves, like any other change to the plan's structure.
 meProgramme.get('/plan/options', async (req, res, next) => {
   try {
     const ctx = await loadContext(req.user.id); const u = ctx.users.find((x) => x.id === req.user.id);
     const pr = await q("SELECT data FROM plans WHERE user_id=$1 AND status='approved' ORDER BY version DESC LIMIT 1", [req.user.id]);
     const plan = pr.rows[0]?.data; if (!plan) return res.json({ canChoose: false });
     const pending = (await q("SELECT 1 FROM plans WHERE user_id=$1 AND status='draft'", [req.user.id])).rowCount > 0;
-    if (plan.focusPinned || plan.focus.length < 3) return res.json({ canChoose: false, reason: plan.focusPinned ? 'Jack chose your focus areas with you.' : null });
+    if (plan.focusPinned || plan.focus.length < 3) return res.json({ canChoose: false, reason: plan.focusPinned ? 'Your KUDO Trainer chose your focus areas with you.' : null });
     const levels = computeLevels(u, ctx, { forPlanning: true });
     const pri = personalPriority(u, levels, ctx).filter((p) => p.gapPts >= 5 && !plan.focus.slice(0, 2).includes(p.scenario));
     const options = pri.slice(0, 3).map((p) => ({ scenario: p.scenario, label: SCENARIOS.find((x) => x.key === p.scenario)?.label || p.scenario, gap: Math.round(p.gapPts), current: p.scenario === plan.focus[2] }));
@@ -260,7 +260,7 @@ meProgramme.post('/plan/focus', async (req, res, next) => {
   try {
     const third = String(req.body?.third || '');
     const pr = await q("SELECT data FROM plans WHERE user_id=$1 AND status='approved' ORDER BY version DESC LIMIT 1", [req.user.id]);
-    const plan = pr.rows[0]?.data; if (!plan || plan.focusPinned || plan.focus.length < 3) return bad(res, 'Your focus areas cannot be changed here. Ask Jack.');
+    const plan = pr.rows[0]?.data; if (!plan || plan.focusPinned || plan.focus.length < 3) return bad(res, 'Your focus areas cannot be changed here. Ask your KUDO Trainer.');
     const ctx = await loadContext(req.user.id); const u = ctx.users.find((x) => x.id === req.user.id);
     const allowed = personalPriority(u, computeLevels(u, ctx, { forPlanning: true }), ctx).filter((p) => p.gapPts >= 5 && !plan.focus.slice(0, 2).includes(p.scenario)).slice(0, 3).map((p) => p.scenario);
     if (!allowed.includes(third)) return bad(res, 'Pick one of the suggested scenarios.');
@@ -618,7 +618,7 @@ function itemStats(rows) {
   }).sort((a, b) => (a.module || '').localeCompare(b.module || '') || a.id.localeCompare(b.id, undefined, { numeric: true }));
 }
 
-// How often the automatic review agrees with Jack on the same submission, per rubric line and on the overall rating.
+// How often the automatic review agrees with the KUDO Trainer on the same submission, per rubric line and on the overall rating.
 function autoAgreement(rows) {
   const lines = RUBRIC.map((c) => ({ key: c.key, label: c.label, n: 0, exact: 0, within1: 0 }));
   let ratingN = 0, ratingSame = 0;

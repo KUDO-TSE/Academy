@@ -63,7 +63,7 @@ function brandHero(title, text, { preview = true } = {}) {
   return h('div', { class: 'login-hero' },
     h('img', { class: 'login-logo', src: '/kudo-logo.png', alt: 'KUDO' }),
     h('div', { class: 'login-mid' }, h('div', { class: 'copy' }, h('div', { class: 'login-eyebrow' }, 'KUDO Academy'), h('h1', null, title), h('p', null, text)), win),
-    preview ? h('ul', { class: 'login-facts' }, h('li', null, h('b', null, '12'), ' client scenarios'), h('li', null, h('b', null, 'Your plan'), ' built from your results'), h('li', null, h('b', null, '1:1'), ' coaching with Jack')) : null);
+    preview ? h('ul', { class: 'login-facts' }, h('li', null, h('b', null, '12'), ' client scenarios'), h('li', null, h('b', null, 'Your plan'), ' built from your results'), h('li', null, h('b', null, '1:1'), ' coaching with your KUDO Trainer')) : null);
 }
 function loginScreen() {
   const email = h('input', { type: 'email', autocomplete: 'username', required: true, placeholder: 'you@kudo.ai' });
@@ -76,7 +76,7 @@ function loginScreen() {
     catch (ex) { err.replaceChildren(h('div', { class: 'err', role: 'alert' }, ex.message)); btn.disabled = false; pw.value = ''; pw.focus(); }
   } } },
   h('label', { class: 'f' }, h('span', { class: 'l' }, 'Email'), email), h('label', { class: 'f' }, h('span', { class: 'l' }, 'Password'), pw), err, btn);
-  return h('div', { class: 'login' }, brandHero('Become the person clients trust with KUDO', 'Your own 12-week plan: learn each scenario, practise it on real client situations and prove it with Jack.'),
+  return h('div', { class: 'login' }, brandHero('Become the person clients trust with KUDO', 'Your own 12-week plan: learn each scenario, practise it on real client situations and prove it with your KUDO Trainer.'),
     h('div', { class: 'login-panel' }, h('div', { class: 'login-card' }, h('h2', null, 'Sign in'), h('p', { class: 'lead' }, 'Use your KUDO email to open your programme'), form,
       h('p', { class: 'login-help' }, h('b', null, 'First time here? '), 'Use the password you were given. You will choose your own right after.')),
       h('div', { class: 'login-foot' }, 'KUDO Academy · internal training for KUDO teams')));

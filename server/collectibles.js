@@ -17,7 +17,7 @@ const SC = Object.fromEntries(SCENARIOS.map((s) => [s.key, s]));
 export const CATALOG = [
   { key: 'start', set: 'Journey', tier: 'bronze', title: 'Starting line', earn: 'Your programme is approved and ready.', glyph: 'flag' },
   ...PHASES.map((p, i) => ({ key: `phase-${p.n}`, set: 'Journey', tier: i === 3 ? 'gold' : 'silver', title: `${p.name} cleared`, earn: `Finish every step of the ${p.name} phase that is yours to do.`, glyph: ['spark', 'build', 'broaden', 'trophy'][i] })),
-  { key: 'client-ready', set: 'Journey', tier: 'gold', title: 'Client-ready', earn: 'Complete your mock client call with Jack.', glyph: 'handshake' },
+  { key: 'client-ready', set: 'Journey', tier: 'gold', title: 'Client-ready', earn: 'Complete your mock client call with your KUDO Trainer.', glyph: 'handshake' },
   { key: 'graduate', set: 'Journey', tier: 'gold', title: 'Graduate', earn: 'Take the 3-month retest.', glyph: 'cap' },
   ...SCENARIOS.map((s) => ({ key: `sc-${s.key}`, set: 'Scenarios', tier: 'gold', title: s.short, earn: `Reach your target level on ${s.label}.`, glyph: `sc-${s.key}`, scenario: s.key })),
   { key: 'first-step', set: 'Craft', tier: 'bronze', title: 'First step', earn: 'Complete your first step: a lesson, a check or a practice.', glyph: 'step' },
@@ -26,7 +26,7 @@ export const CATALOG = [
   { key: 'self-aware', set: 'Craft', tier: 'silver', title: 'Knows what they know', earn: 'Score 80% or more on a check with your certainty well judged.', glyph: 'target' },
   { key: 'comeback', set: 'Craft', tier: 'silver', title: 'Comeback', earn: 'Answer every question right in a spaced review of questions you once missed.', glyph: 'loop' },
   { key: 'teacher', set: 'Craft', tier: 'silver', title: 'Teacher', earn: 'Complete a teach-back with a colleague.', glyph: 'people' },
-  { key: 'curious', set: 'Craft', tier: 'gold', title: 'Curious mind', earn: 'Ask a question in a session that Jack adds to the Academy.', glyph: 'bulb' },
+  { key: 'curious', set: 'Craft', tier: 'gold', title: 'Curious mind', earn: 'Ask a question in a session that your KUDO Trainer adds to the Academy.', glyph: 'bulb' },
   { key: 'regular-3', set: 'Habit', tier: 'bronze', title: 'Regular', earn: 'Be active 3 weeks (weekly challenge). Weeks do not need to be in a row.', glyph: 'cal3' },
   { key: 'regular-6', set: 'Habit', tier: 'silver', title: 'Steady', earn: 'Be active 6 weeks. Weeks do not need to be in a row.', glyph: 'cal6' },
   { key: 'regular-10', set: 'Habit', tier: 'gold', title: 'Committed', earn: 'Be active 10 weeks. Weeks do not need to be in a row.', glyph: 'cal10' },

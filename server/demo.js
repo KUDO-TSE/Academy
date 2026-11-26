@@ -65,7 +65,7 @@ export async function createDemo(email, name) {
   await approvePlan(id, null);
   await q("UPDATE plans SET started_on = CURRENT_DATE - 9 WHERE user_id=$1 AND status='approved'", [id]);
   await q(`INSERT INTO inputs (user_id,kind,happened_on,title,body,signals,item_key,shared_summary)
-           VALUES ($1,'one_to_one',CURRENT_DATE - 8,'Kick-off with Jack','(Demo) Agreed the goal and the plan. Strong on the platform basics; not sure how the Teams bot is admitted from the lobby.',$2,'kickoff',$3)`,
+           VALUES ($1,'one_to_one',CURRENT_DATE - 8,'Kick-off with your KUDO Trainer','(Demo) Agreed the goal and the plan. Strong on the platform basics; not sure how the Teams bot is admitted from the lobby.',$2,'kickoff',$3)`,
     [id, JSON.stringify([{ scenario: 'teams', rating: 'gap', note: 'Lobby and IT policy questions' }]), 'Great start. Teams is your first focus because your clients bring it most: watch the video before the lesson, and bring your IT questions to our next session.']);
   await q("INSERT INTO plan_progress (user_id,item_key,status,completed_at) VALUES ($1,'foundations.lesson','done',now() - interval '8 days'), ($1,'foundations.practice','done',now() - interval '7 days'), ($1,'teams.lesson','done',now() - interval '1 day') ON CONFLICT DO NOTHING", [id]);
   const f = MODULE_BY_KEY.foundations.quiz;

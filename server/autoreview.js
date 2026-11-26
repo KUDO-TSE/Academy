@@ -3,7 +3,7 @@
 //  - a small sentence-embedding model (all-MiniLM-L6-v2) checks which key points the explanation covers, by meaning,
 //    confirmed by keyword cues because embeddings cannot see negation;
 //  - delivery is measured from the transcript (pace, filler words) and hand-over from who the trainee says they would involve.
-// Facts are never marked wrong automatically. Doubtful cases, a random sample and every request go to Jack as spot-checks.
+// Facts are never marked wrong automatically. Doubtful cases, a random sample and every request go to the KUDO Trainer as spot-checks.
 import { spawnSync } from 'node:child_process';
 import { q } from './db.js';
 import { MODULE_BY_KEY } from './curriculum.js';
@@ -12,7 +12,7 @@ import { refreshPlan } from './engine.js';
 
 const WHISPER = process.env.WHISPER_MODEL || 'onnx-community/whisper-base';
 const EMBED = 'Xenova/all-MiniLM-L6-v2';
-const SAMPLE_RATE = Number(process.env.SPOTCHECK_SAMPLE || 0.2); // share of reviews Jack spot-checks at random
+const SAMPLE_RATE = Number(process.env.SPOTCHECK_SAMPLE || 0.2); // share of reviews your KUDO Trainer spot-checks at random
 
 // Keyword cues per key point, in the same order as EXPLAIN[module].points. Any cue counts.
 const KW = {
@@ -126,7 +126,7 @@ export async function assess(moduleKey, text, seconds, spec = specFor('explain',
   const unsureCount = points.filter((x) => x.unsure).length;
   const accurate = coverage >= 0.8 && unsureCount === 0 ? 3 : coverage >= 0.4 ? 2 : 1; // facts are not marked wrong automatically
   const rubric = { accurate, complete, clear, handover: ho };
-  // Clarity (pace, filler words) is feedback only: it is not yet validated against Jack's reviews and would mark down
+  // Clarity (pace, filler words) is feedback only: it is not yet validated against the KUDO Trainer's reviews and would mark down
   // non-native speakers for something that is not KUDO knowledge. It does not count towards the rating or the level.
   const SCORED = ['accurate', 'complete', 'handover'];
   const avg = SCORED.reduce((a, k) => a + rubric[k], 0) / SCORED.length;
@@ -164,7 +164,7 @@ export async function processSubmission(id) {
     let text = brand(s.text_answer || ''), seconds = s.audio_seconds || null;
     if (s.audio) { const t = await transcribe(s.audio); text = [t.text, s.text_answer].filter(Boolean).join('\n'); seconds = t.seconds; }
     const a = await assess(s.module_key, text, s.audio ? seconds : null, specFor(s.kind, s.module_key));
-    // Only the first submission is the result of record; retries are practice and never go to Jack unless asked.
+    // Only the first submission is the result of record; retries are practice and never go to the KUDO Trainer unless asked.
     const spot = s.counts ? (a.flags.length > 0 || a.rating === 'gap' || Math.random() < SAMPLE_RATE) : !!s.human_requested;
     if (!s.counts) a.note = `Practice attempt: your recorded result stays the one from your first submission. ${a.note}`;
     await q("UPDATE submissions SET status='auto', transcript=$2, audio_seconds=COALESCE($3::int, audio_seconds), auto=$4, rubric=$5, review_comment=$6, needs_human=$7, reviewed_at=now() WHERE id=$1",
@@ -180,7 +180,7 @@ export async function processSubmission(id) {
     await refreshPlan(s.user_id);
   } catch (e) {
     console.error('Auto-review failed', id, e.message);
-    await q("UPDATE submissions SET status='submitted', needs_human=TRUE, auto=$2 WHERE id=$1", [id, { error: 'The automatic review could not run. Jack will review it.' }]);
+    await q("UPDATE submissions SET status='submitted', needs_human=TRUE, auto=$2 WHERE id=$1", [id, { error: 'The automatic review could not run. Your KUDO Trainer will review it.' }]);
   }
 }
 

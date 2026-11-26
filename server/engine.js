@@ -21,10 +21,10 @@ export const DEFAULT_SETTINGS = {
   target: 80,
 };
 export const PHASES = [
-  { n: 1, name: 'Warm-up', weeks: [1, 2], aim: 'Baseline, foundations and your kick-off with Jack.' },
+  { n: 1, name: 'Warm-up', weeks: [1, 2], aim: 'Baseline, foundations and your kick-off with your KUDO Trainer.' },
   { n: 2, name: 'Build', weeks: [3, 7], aim: 'Your focus scenarios, in depth: learn, practise, prove it.' },
   { n: 3, name: 'Broaden', weeks: [8, 10], aim: 'The rest of the scenarios and the cross-cutting topics, plus spaced reviews.' },
-  { n: 4, name: 'Prove it', weeks: [11, 12], aim: 'A mock client call with Jack and the retest.' },
+  { n: 4, name: 'Prove it', weeks: [11, 12], aim: 'A mock client call with your KUDO Trainer and the retest.' },
 ];
 const clamp = (n, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
 const round = (n) => Math.round(n);
@@ -33,8 +33,8 @@ const PREF_TIP = {
   'Short Videos': 'Start with the explainer video, then read the lesson.',
   'Written Guides & Articles': 'Start with the lesson, then the Help Center articles.',
   'Practising real scenarios / Roleplay with a colleague': 'Do the practice task first with a colleague, then read the lesson to fill the gaps.',
-  'Live Sessions': 'Ask Jack for a live walkthrough of this scenario at the next team session.',
-  '1:1 Coaching': 'Bring your questions to your coaching session with Jack.',
+  'Live Sessions': 'Ask your KUDO Trainer for a live walkthrough of this scenario at the next team session.',
+  '1:1 Coaching': 'Bring your questions to your coaching session with your KUDO Trainer.',
 };
 const SIGNAL_EFFECT = { gap: (v) => Math.min(v, 45), developing: (v) => clamp(v, 50, 69), solid: (v) => Math.max(v, 80) };
 // Target per depth level: you need less on a scenario you hand over than on one you run yourself.
@@ -169,7 +169,7 @@ export function personalPriority(u, levels, ctx) {
 /** Build the plan structure (what gets approved). */
 export const STABLE_POINTS = 15; // a level change smaller than this is within the noise of a 6-question check
 export function buildPlan(u, ctx, { keepFocus = null } = {}) {
-  // Structure is planned from assessments, the baseline check and Jack's inputs only. The trainee's own module checks
+  // Structure is planned from assessments, the baseline check and the KUDO Trainer's inputs only. The trainee's own module checks
   // move their live levels and progress but do not reshuffle the plan, so approved plans stay stable.
   const levels = computeLevels(u, ctx, { forPlanning: true });
   const target = ctx.settings.target;
@@ -203,12 +203,12 @@ export function buildPlan(u, ctx, { keepFocus = null } = {}) {
     const practice = { key: `${mkey}.practice`, kind: 'practice', module: mkey, scenario: s, phase, week, title: `Practise: ${m.title}`, why: practiceFirst && priBy[s]?.over ? 'Try it first: doing the task shows where the gaps are before you read.' : 'Do it, then submit it in the lesson (written or recorded). It is reviewed within a minute and signed off when it passes.', minutes: 30, mandatory: focusItem, signoff: focusItem };
     if (focusItem || m.depth === 'setup') { if (practiceFirst) add(practice), add(lesson); else add(lesson), add(practice); } else add(lesson);
     if (WALKTHROUGHS[mkey] && (focusItem || m.depth === 'setup')) add({ key: `${mkey}.scenario`, kind: 'scenario', module: mkey, scenario: s, phase, week, title: `Decide: ${WALKTHROUGHS[mkey].title}`, why: 'A realistic client situation. Your choices get feedback straight away.', minutes: 10, mandatory: focusItem });
-    if (EXPLAIN[mkey] && focusItem) add({ key: `${mkey}.explain`, kind: 'explain', module: mkey, scenario: s, phase, week, title: `Explain it: ${m.title}`, why: 'Record yourself (or write it) explaining this to a client. Jack reviews it and it counts towards your level.', minutes: 15, mandatory: true });
+    if (EXPLAIN[mkey] && focusItem) add({ key: `${mkey}.explain`, kind: 'explain', module: mkey, scenario: s, phase, week, title: `Explain it: ${m.title}`, why: 'Record yourself (or write it) explaining this to a client. Your KUDO Trainer reviews it and it counts towards your level.', minutes: 15, mandatory: true });
     add({ key: `${mkey}.check`, kind: 'check', module: mkey, scenario: s, phase, week, title: `Check: ${m.title}`, why: `Your first attempt is the score we keep (aim for ${Math.round(PASS * 100)}%). Retake it afterwards as often as you like to practise.`, minutes: 10, mandatory: focusItem });
   };
 
   // Phase 1: Warm-up
-  add({ key: 'kickoff', kind: 'one_to_one', phase: 1, week: 1, title: 'Kick-off with Jack', why: 'Agree your goal and walk through this plan together.', owner: 'jack', minutes: 30, mandatory: true });
+  add({ key: 'kickoff', kind: 'one_to_one', phase: 1, week: 1, title: 'Kick-off with your KUDO Trainer', why: 'Agree your goal and walk through this plan together.', owner: 'jack', minutes: 30, mandatory: true });
   const estimatedFocus = focus.some((s) => ['self', 'estimated', 'none'].includes(levels.per[s].source));
   if (!levels.hasPerScenarioTest || estimatedFocus) add({ key: 'baseline', kind: 'baseline', phase: 1, week: 1, title: 'Baseline check: one question per scenario', why: 'You have no per-scenario test result yet, so this short check replaces the estimate and sharpens your plan.', minutes: 15, mandatory: true });
   const tgt = (s) => targetFor(depthOf(s), target);
@@ -223,10 +223,10 @@ export function buildPlan(u, ctx, { keepFocus = null } = {}) {
   focus.forEach((s, i) => {
     const mk = MODULE_FOR_SCENARIO[s]; const wk = starts[i] ?? 6;
     moduleItems(mk, { phase: 2, week: wk, full: true, focusItem: true, s });
-    if (coachOn.has(s)) add({ key: `coach.${mk}`, kind: 'one_to_one', module: mk, scenario: s, phase: 2, week: wk, title: `Coaching with Jack: ${short(s)}`, why: levels.per[s].est < 50 ? 'Your biggest gap, so you get a 1:1 on it.' : 'You said 1:1 coaching works best for you.', owner: 'jack', minutes: 30 });
+    if (coachOn.has(s)) add({ key: `coach.${mk}`, kind: 'one_to_one', module: mk, scenario: s, phase: 2, week: wk, title: `Coaching with your KUDO Trainer: ${short(s)}`, why: levels.per[s].est < 50 ? 'Your biggest gap, so you get a 1:1 on it.' : 'You said 1:1 coaching works best for you.', owner: 'jack', minutes: 30 });
   });
   if (missed.length) add({ key: 'missed', kind: 'missed', phase: 2, week: 6, title: `Revisit the ${missed.length} question${missed.length > 1 ? 's' : ''} you missed in October`, why: 'Answer each one out loud before revealing the answer: retrieval makes it stick.', minutes: 20, mandatory: true });
-  add({ key: 'midpoint', kind: 'one_to_one', phase: 2, week: 6, title: 'Mid-point check-in with Jack', why: 'Review progress and adjust the second half of your plan.', owner: 'jack', minutes: 20, mandatory: true });
+  add({ key: 'midpoint', kind: 'one_to_one', phase: 2, week: 6, title: 'Mid-point check-in with your KUDO Trainer', why: 'Review progress and adjust the second half of your plan.', owner: 'jack', minutes: 20, mandatory: true });
   if (focus.includes('ai') || levels.per.ai.est < tgt('ai')) moduleItems('glossary', { phase: 2, week: 7, full: true });
 
   // Phase 3: Broaden
@@ -239,7 +239,7 @@ export function buildPlan(u, ctx, { keepFocus = null } = {}) {
 
   // Phase 4: Prove it
   const lead = focus[0];
-  add({ key: 'mock', kind: 'one_to_one', phase: 4, week: 11, title: `Mock client call with Jack${lead ? `: ${short(lead)}` : ''}`, why: 'Jack plays the client. You set up the scenario, answer the hard questions and say when you would hand over.', owner: 'jack', minutes: 30, mandatory: true });
+  add({ key: 'mock', kind: 'one_to_one', phase: 4, week: 11, title: `Mock client call with your KUDO Trainer${lead ? `: ${short(lead)}` : ''}`, why: 'Your KUDO Trainer plays the client. You set up the scenario, answer the hard questions and say when you would hand over.', owner: 'jack', minutes: 30, mandatory: true });
   add({ key: 'survey', kind: 'survey', phase: 4, week: 12, title: 'Tell us how the programme worked for you', why: 'Ten questions. Your answers shape the next round of the Academy.', minutes: 5 });
   add({ key: 'retest', kind: 'milestone', phase: 4, week: 12, title: 'Retest: the January knowledge test', why: 'Same format as October, so your progress is measured like for like.', owner: 'jack', minutes: 45, mandatory: true });
 
@@ -258,7 +258,7 @@ export function buildPlan(u, ctx, { keepFocus = null } = {}) {
     items: kept, skipped: items.filter((i) => skip.has(i.key)).map((i) => ({ key: i.key, title: i.title })),
     rationale: [
       levels.hasPerScenarioTest ? 'Levels start from the October knowledge test, blended with the Self Assessment.' : 'No per-scenario test result: levels are estimated, and a baseline check is added in week 1.',
-      focusPinned ? 'Focus scenarios were chosen by Jack.' : `Focus: the ${focus.length} scenarios with the highest personal priority (gap to ${target}%, team priority, client demand, stated struggle, over-confidence).`,
+      focusPinned ? 'Focus scenarios were chosen by your KUDO Trainer.' : `Focus: the ${focus.length} scenarios with the highest personal priority (gap to ${target}%, team priority, client demand, stated struggle, over-confidence).`,
       pref ? `Learning preference "${pref}" shapes the order and format.` : 'No learning preference recorded.',
     ],
   };
@@ -332,9 +332,9 @@ export function liveState(u, planRow, ctx) {
     else if (it.kind === 'review') done = passed(it.module, it.key);
     else if (it.kind === 'baseline') done = attempts.some((a) => a.module_key === 'baseline');
     else if (it.kind === 'scenario') done = attempts.some((a) => a.module_key === it.module && a.kind === 'scenario');
-    else if (it.kind === 'explain') { const sb = subs.filter((x) => x.module_key === it.module && (x.kind || 'explain') === 'explain' && x.counts !== false)[0]; done = !!sb; const rt = sb?.status === 'reviewed' ? 'reviewed by Jack' : sb?.auto?.rating; how = sb ? (sb.status === 'processing' ? 'Being reviewed' : rt ? `Recorded result: ${rt}` : 'Waiting for review') : null; }
+    else if (it.kind === 'explain') { const sb = subs.filter((x) => x.module_key === it.module && (x.kind || 'explain') === 'explain' && x.counts !== false)[0]; done = !!sb; const rt = sb?.status === 'reviewed' ? 'reviewed by your KUDO Trainer' : sb?.auto?.rating; how = sb ? (sb.status === 'processing' ? 'Being reviewed' : rt ? `Recorded result: ${rt}` : 'Waiting for review') : null; }
     else if (it.kind === 'survey') done = !!ctx.surveys?.has(u.id);
-    else if (it.kind === 'one_to_one') { const inp = inputs.find((i) => i.item_key === it.key); done = !!inp || prog.has(it.key); how = inp ? `Logged by Jack on ${new Date(inp.happened_on).toISOString().slice(0, 10)}` : null; }
+    else if (it.kind === 'one_to_one') { const inp = inputs.find((i) => i.item_key === it.key); done = !!inp || prog.has(it.key); how = inp ? `Logged by your KUDO Trainer on ${new Date(inp.happened_on).toISOString().slice(0, 10)}` : null; }
     else if (it.kind === 'milestone') done = !!(latestLive && data.baseline_round && latestLive.id !== data.baseline_round) || prog.has(it.key);
     else done = prog.has(it.key);
     const p = prog.get(it.key);

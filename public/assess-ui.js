@@ -100,7 +100,7 @@ const toBase64 = (blob) => new Promise((ok, ko) => { const fr = new FileReader()
 function resultBox(s, rubric) {
   const chipCls = { 1: 'coral', 2: 'amber', 3: 'green' };
   const auto = s.auto || {};
-  const who = s.status === 'reviewed' ? 'Jack\'s review' : 'Automatic review';
+  const who = s.status === 'reviewed' ? 'Your KUDO Trainer\'s review' : 'Automatic review';
   return h('div', { class: 'review' },
     h('div', { class: 'row spread' }, h('b', null, who), auto.rating && s.status !== 'reviewed' ? h('span', { class: `chip ${{ solid: 'green', developing: 'amber', gap: 'coral' }[auto.rating]}` }, { solid: 'Solid', developing: 'Developing', gap: 'Gap' }[auto.rating]) : null),
     s.rubric ? h('div', { class: 'rub' }, rubric.map((c) => { const fbOnly = s.status !== 'reviewed' && (auto.feedbackOnly || []).includes(c.key);
@@ -109,8 +109,8 @@ function resultBox(s, rubric) {
     s.counts === false ? h('div', { class: 'practice-note' }, 'Practice attempt: your recorded result is the one from your first submission.') : s.counts ? h('div', { class: 'practice-note rec' }, 'First submission: this is your recorded result. Try again any time to practise.') : null,
     auto.points && s.status !== 'reviewed' ? h('ul', { class: 'pts' }, auto.points.map((p) => h('li', { class: p.covered ? 'yes' : 'no' }, p.covered ? '✓ ' : '✗ ', p.point))) : null,
     auto.missed?.length && s.status !== 'reviewed' ? h('details', null, h('summary', null, 'Where the missed points are in the lesson'), auto.missed.map((x) => h('div', { class: 'small', style: 'margin-top:4px' }, h('b', null, `${x.point}: `), x.lesson))) : null,
-    s.transcript ? h('details', null, h('summary', null, 'What the system heard'), h('div', { class: 'pre' }, s.transcript), h('div', { class: 'muted small' }, 'If the transcript is wrong (bad microphone, background noise), ask Jack to listen.')) : null,
-    s.status === 'auto' ? h('div', { class: 'muted small', style: 'margin-top:6px' }, s.human_requested ? 'You asked Jack to look at it.' : s.needs_human ? 'Jack will also look at this one.' : '') : null,
+    s.transcript ? h('details', null, h('summary', null, 'What the system heard'), h('div', { class: 'pre' }, s.transcript), h('div', { class: 'muted small' }, 'If the transcript is wrong (bad microphone, background noise), ask your KUDO Trainer to listen.')) : null,
+    s.status === 'auto' ? h('div', { class: 'muted small', style: 'margin-top:6px' }, s.human_requested ? 'You asked your KUDO Trainer to look at it.' : s.needs_human ? 'Your KUDO Trainer will also look at this one.' : '') : null,
     s.auto?.error ? h('div', { class: 'muted small' }, s.auto.error) : null);
 }
 
@@ -118,7 +118,7 @@ export function explainCard(moduleKey, ex, submissions, rubric, { onDone, kind =
   const box = h('div');
   const resultArea = h('div');
   const showResult = (s) => {
-    const ask = s.status === 'auto' && !s.human_requested ? h('button', { class: 'btn sm', style: 'margin-top:8px', on: { click: async () => { await api('POST', `/api/me/explain/${s.id}/ask-jack`); toast('Jack will listen to it'); s.human_requested = true; s.needs_human = true; showResult(s); } } }, s.kind === 'practice' || !s.transcript ? 'Ask Jack to look at it' : 'Ask Jack to listen') : null;
+    const ask = s.status === 'auto' && !s.human_requested ? h('button', { class: 'btn sm', style: 'margin-top:8px', on: { click: async () => { await api('POST', `/api/me/explain/${s.id}/ask-jack`); toast('Your KUDO Trainer will listen to it'); s.human_requested = true; s.needs_human = true; showResult(s); } } }, s.kind === 'practice' || !s.transcript ? 'Ask your KUDO Trainer to look at it' : 'Ask your KUDO Trainer to listen') : null;
     resultArea.replaceChildren(...[resultBox(s, rubric), ask].filter(Boolean));
   };
   const poll = async (id, tries = 0) => {
@@ -129,7 +129,7 @@ export function explainCard(moduleKey, ex, submissions, rubric, { onDone, kind =
     } catch (e) { resultArea.replaceChildren(h('div', { class: 'muted' }, e.message)); }
   };
   const last = submissions[0];
-  if (last) { if (last.status === 'processing') poll(last.id); else if (last.status === 'submitted') resultArea.append(h('div', { class: 'muted small' }, `Sent ${fmtDate(last.created_at)} · waiting for Jack's review.`)); else showResult(last); }
+  if (last) { if (last.status === 'processing') poll(last.id); else if (last.status === 'submitted') resultArea.append(h('div', { class: 'muted small' }, `Sent ${fmtDate(last.created_at)} · waiting for your KUDO Trainer's review.`)); else showResult(last); }
 
   let rec = null, chunks = [], blob = null, startedAt = 0, timer = null, secs = 0;
   const time = h('span', { class: 'rec-time' }, '0:00');
@@ -161,7 +161,7 @@ export function explainCard(moduleKey, ex, submissions, rubric, { onDone, kind =
       send.disabled = true;
       const r = await api('POST', `/api/me/explain/${moduleKey}`, body);
       blob = null; player.hidden = true; text.value = ''; time.textContent = '0:00';
-      if (r.status === 'processing') poll(r.id); else resultArea.replaceChildren(h('div', { class: 'ok' }, 'Sent to Jack for review'));
+      if (r.status === 'processing') poll(r.id); else resultArea.replaceChildren(h('div', { class: 'ok' }, 'Sent to your KUDO Trainer for review'));
     } catch (e) { toast(e.message, true); } finally { send.disabled = false; }
   });
   const hint = { speak: 'Talk as you would on a call, up to 3 minutes.', write: 'Write it as you would really send it.', steps: 'Do it in a test account first, then describe exactly what you did.' }[type];
@@ -178,7 +178,7 @@ export function feedbackCard(moduleKey, { onDone } = {}) {
   const v = { clear: null, relevant: null, confidence: null };
   const scale = (k, label) => h('div', { class: 'fb-row' }, h('span', null, label), h('div', { class: 'fb-scale' }, [1, 2, 3, 4, 5].map((n) => h('label', null, h('input', { type: 'radio', name: `fb-${k}`, on: { change: () => { v[k] = n; } } }), h('span', null, n)))));
   const comment = h('textarea', { rows: 2, placeholder: 'One thing that would make this module better (optional)' });
-  const box = h('div', { class: 'card fb-card' }, h('h2', null, 'How was this module?'), h('p', { class: 'sub' }, '20 seconds. It helps improve the Academy. Jack sees module results without names.'),
+  const box = h('div', { class: 'card fb-card' }, h('h2', null, 'How was this module?'), h('p', { class: 'sub' }, '20 seconds. It helps improve the Academy. Your KUDO Trainer sees module results without names.'),
     scale('clear', 'It was clear'), scale('relevant', 'It fits what my clients ask'), scale('confidence', 'I could do this with a client now'),
     h('div', { class: 'muted small', style: 'margin:2px 0 8px' }, '1 = not at all · 5 = completely'), comment,
     h('button', { class: 'btn primary', style: 'margin-top:8px', on: { click: async () => {

@@ -50,7 +50,7 @@ export async function buildBoard() {
     add({ key: `approve:${p.user_id}:${p.version}`, type: 'approval', person: u.name, userId: u.id, demo: u.is_demo, title: hasApproved ? 'Approve the changes to the plan' : 'Approve the new plan', detail: `Version ${p.version}, built ${iso(p.created_at)}`, minutes: MIN.approval, due: iso(today), urgency: hasApproved ? 'this_week' : 'now', link: `#person-${u.id}`, tab: 'programme' });
   }
 
-  // 2. Sessions with Jack, from approved plans, dated from each plan's start
+  // 2. Sessions with the KUDO Trainer, from approved plans, dated from each plan's start
   for (const p of plans.rows.filter((x) => x.status === 'approved')) {
     const u = users.get(p.user_id); if (!u) continue;
     const live = liveState(u, p, ctx);
@@ -84,7 +84,7 @@ export async function buildBoard() {
   }
 
   // Peer teach-back: in the Broaden phase (weeks 8 to 10), pair trainees who share a focus scenario. Explaining to a
-  // colleague consolidates learning and builds the team; Jack makes the introduction, so no one sees another's results.
+  // colleague consolidates learning and builds the team; the KUDO Trainer makes the introduction, so no one sees another's results.
   const broaden = [];
   for (const p of plans.rows.filter((x) => x.status === 'approved')) {
     const u = users.get(p.user_id); if (!u || u.is_demo) continue;
@@ -102,7 +102,7 @@ export async function buildBoard() {
     }
   }
 
-  // Sessions: questions from recordings that the Academy does not cover yet, waiting for Jack's decision.
+  // Sessions: questions from recordings that the Academy does not cover yet, waiting for the KUDO Trainer's decision.
   const sess = (await q("SELECT id,title,happened_on,findings FROM sessions WHERE status='ready'")).rows;
   for (const se of sess) {
     const open = (se.findings || []).filter((f) => f.status === 'open' && f.coverage !== 'covered');

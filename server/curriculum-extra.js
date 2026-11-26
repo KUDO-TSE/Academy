@@ -239,7 +239,7 @@ export const SURVEY = [
   { key: 'confident', type: 'scale5', q: 'How confident are you applying them with a client?' },
   { key: 'applied', type: 'choice', q: 'Have you used what you learned with a client yet?', o: ['Yes, several times', 'Yes, once', 'Not yet, but I will in the next month', 'Not yet, no opportunity'] },
   { key: 'impact', type: 'scale5', q: 'How much has the programme improved how you work with clients?' },
-  { key: 'jack', type: 'scale5', q: 'How useful were your sessions with Jack?' },
+  { key: 'jack', type: 'scale5', q: 'How useful were your KUDO Trainer sessions?' },
   { key: 'barrier', type: 'text', q: 'What gets in the way of applying what you learned?' },
   { key: 'nps', type: 'nps', q: 'How likely are you to recommend the Academy to a colleague? (0 to 10)' },
   { key: 'worked', type: 'text', q: 'What worked best for you?' },
@@ -248,7 +248,7 @@ export const SURVEY = [
 
 // Practice tasks the system reviews on its own. One per module; the trainee writes it (email, runsheet, briefing),
 // records it, or describes step by step what they did in a test account. Reviewed like explain-it: key points by
-// meaning plus keyword cues, clarity and hand-over. A pass signs the practice off automatically; Jack only spot-checks.
+// meaning plus keyword cues, clarity and hand-over. A pass signs the practice off automatically; the KUDO Trainer only spot-checks.
 // type: write | speak | steps. kw: keyword cues per point (any one counts).
 export const PRACTICE = {
   foundations: { type: 'speak', prompt: 'A colleague asks which AI type to offer for a board town hall, and which for a roundtable. Explain your choice and why, in under two minutes.',

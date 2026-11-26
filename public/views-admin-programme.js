@@ -39,7 +39,7 @@ export async function programmeOverview() {
           h('td', { class: 'num' }, r.week ?? '–'), h('td', { class: 'num' }, r.progress ? `${r.progress.pct}%` : '–'),
           h('td', null, r.readiness ? `${r.readiness.now}% → ${r.readiness.end}%` : '–'),
           h('td', { class: 'small' }, r.next || '–'), h('td', { class: 'num' }, r.awaiting || ''))))))),
-    jackItems.length ? h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Sessions to book'), h('p', { class: 'sub' }, 'The next open Jack items in approved plans. Log each one as an input on the person\'s page: that ticks it off.'),
+    jackItems.length ? h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Sessions to book'), h('p', { class: 'sub' }, 'The next open KUDO Trainer sessions in approved plans. Log each one as an input on the person\'s page: that ticks it off.'),
       jackItems.map((x) => h('div', { class: 'row spread', style: 'padding:7px 0;border-top:1px solid var(--border-soft)' }, h('span', null, h('b', null, x.who), ` · ${x.t}`), h('a', { href: `#person-${x.id}`, on: { click: () => sessionStorage.setItem('personTab', 'inputs') } }, 'Log it')))) : null);
 }
 function confirmBox(text) { return window.confirm(text); } // eslint-disable-line no-alert
@@ -247,11 +247,11 @@ function qualityCard(stats) {
 }
 function agreementCard(a) {
   if (!a) return null;
-  return h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Automatic review compared with Jack'),
-    h('p', { class: 'sub' }, `Every recording or practice that Jack also reviewed (${a.n} so far). ${a.enough ? 'Enough to judge: tune the automatic review where agreement is low.' : 'About 30 are needed before tuning anything.'} Clarity is a tip only and does not count towards levels until it agrees well.`),
+  return h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Automatic review compared with the KUDO Trainer'),
+    h('p', { class: 'sub' }, `Every recording or practice that the KUDO Trainer also reviewed (${a.n} so far). ${a.enough ? 'Enough to judge: tune the automatic review where agreement is low.' : 'About 30 are needed before tuning anything.'} Clarity is a tip only and does not count towards levels until it agrees well.`),
     a.n ? h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Rubric line', 'Compared', 'Same score', 'Within 1 point'].map((x, i) => h('th', { class: i ? 'num' : '' }, x)))),
       h('tbody', null, a.lines.map((l) => h('tr', null, h('td', null, l.label), h('td', { class: 'num' }, l.n), h('td', { class: 'num' }, l.exactPct == null ? '–' : `${l.exactPct}%`), h('td', { class: 'num' }, l.within1Pct == null ? '–' : `${l.within1Pct}%`))),
-        h('tr', null, h('td', null, h('b', null, 'Overall rating (Gap / Developing / Solid)')), h('td', { class: 'num' }, a.rating.n), h('td', { class: 'num' }, a.rating.samePct == null ? '–' : `${a.rating.samePct}%`), h('td', null, ''))))) : h('div', { class: 'muted' }, 'Appears once Jack has spot-checked a submission.'));
+        h('tr', null, h('td', null, h('b', null, 'Overall rating (Gap / Developing / Solid)')), h('td', { class: 'num' }, a.rating.n), h('td', { class: 'num' }, a.rating.samePct == null ? '–' : `${a.rating.samePct}%`), h('td', null, ''))))) : h('div', { class: 'muted' }, 'Appears once the KUDO Trainer has spot-checked a submission.'));
 }
 
 // ------------------------------------------------------------------ test trainees (Users & access)

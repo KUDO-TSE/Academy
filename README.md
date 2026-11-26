@@ -2,7 +2,7 @@
 
 Training tracker for KUDO's client-facing team. Two sides in one app:
 
-- **Admin** (Jack + backup owners): everyone's results, priorities, plans, targets, imports, users, audit log.
+- **Admin** (the KUDO Trainer + backup owners): everyone's results, priorities, plans, targets, imports, users, audit log.
 - **Trainee**: each person logs in and sees only their own test results, progress over time and 3-month training plan.
 
 Node 22 + Express, PostgreSQL, vanilla JS front end. No data or password is stored in this repository.
@@ -66,7 +66,7 @@ Each trainee gets a 12-week, self-paced programme in four phases (Warm-up, Build
 - the team priorities (Priority Weighting System v1),
 - the Academy team's inputs: 1:1 sessions, call or video reviews and observations, each with Gap / Developing / Solid ratings per scenario.
 
-Targets depend on depth: Set up scenarios 80%, Hand over scenarios 70% (Jack can change the base target on the Programme page).
+Targets depend on depth: Set up scenarios 80%, Hand over scenarios 70% (the KUDO Trainer can change the base target on the Programme page).
 The three scenarios with the highest personal priority become the focus. Every module has a lesson, practice, a graded check (pass 80%) and hand-over rules (`server/curriculum.js`, 17 modules, sourced from the CM Onboarding Guide V3, the explainer videos and the Help Center).
 
 Approval: a new plan, or a change to its structure, is saved as a draft. The trainee only sees approved plans. Admins approve on **Programme** (one by one or all at once).
@@ -85,12 +85,12 @@ Checks are no longer a fixed multiple-choice list. Each module has a pool of mix
 - **Pick all that fit**: the number of answers is shown ("Pick 3"), every wrong pick cancels a right one, and items have several wrong options, so ticking everything scores about 25%.
 - **Match**: credit per correct pair. **Order**: credit for each step directly followed by the right next step, so a random order scores close to nothing and one misplaced step keeps the rest of the sequence.
 - **No answer pattern**: options and walkthrough choices are shuffled every time they are shown. The order is sealed in an encrypted token (AES-GCM, keyed from `SESSION_SECRET`) that the browser sends back, so neither the screen nor the network traffic shows where the answer sits. Option lengths were evened out so the longest option is no longer a hint.
-- **Question bank**: 104 extra single-answer questions in `server/curriculum-bank.js`, written from the lessons only, each tagged with the objective it tests and its level (recall, apply, decide). 49 of them are parallel forms marked `reserve`: they are not drawn until a second knowledge test round exists, so the 3-month reassessment does not repeat what trainees have practised. Every module now has 10 to 15 questions. The Curriculum page shows objective coverage and marks the new questions "New: to check" until Jack has reviewed them.
+- **Question bank**: 104 extra single-answer questions in `server/curriculum-bank.js`, written from the lessons only, each tagged with the objective it tests and its level (recall, apply, decide). 49 of them are parallel forms marked `reserve`: they are not drawn until a second knowledge test round exists, so the 3-month reassessment does not repeat what trainees have practised. Every module now has 10 to 15 questions. The Curriculum page shows objective coverage and marks the new questions "New: to check" until the KUDO Trainer has reviewed them.
 - **Levels are shown as a range** (±10 points), and within one assessment cycle the plan's focus only changes when a level moves by 15 points or more (`STABLE_POINTS` in `server/engine.js`).
 
 Other formats in the plan:
 - **Decision walkthroughs** (`WALKTHROUGHS` in `server/curriculum-extra.js`): a realistic client situation, three or four decisions, feedback after each. Graded on the server.
-- **Explain it**: the trainee records up to 3 minutes of audio in the browser (or writes it), then ticks the key points they covered. Jack scores four criteria from 1 to 3 on the **Reviews** page; the average becomes a Gap / Developing / Solid input on their level.
+- **Explain it**: the trainee records up to 3 minutes of audio in the browser (or writes it), then ticks the key points they covered. The KUDO Trainer scores four criteria from 1 to 3 on the **Reviews** page; the average becomes a Gap / Developing / Solid input on their level.
 - **Weekly challenge**: four mixed questions from modules already started. Progress shows as "weeks active: 7 of 9", which never resets (a broken streak is a common reason self-paced trainees quit). It does not change levels.
 - **Feedback**: three ratings and a comment after each module check, and a ten-question end-of-programme survey (adapted from Coursecheck's templates, including NPS). Results and the most-missed questions are on the **Feedback** page.
 
@@ -111,14 +111,14 @@ and `all-MiniLM-L6-v2` checks which key points the explanation covers, confirmed
 Pace, filler words and whether the trainee says who they would involve give the clarity and hand-over scores.
 The trainee gets scores, covered and missed points, where each missed point is in the lesson, and the transcript, usually within a minute.
 
-Facts are never marked wrong automatically (embeddings cannot see negation). Jack spot-checks: flagged answers, every Gap, every "Ask Jack to listen", and a random share (`SPOTCHECK_SAMPLE`, default 0.2). His scores replace the automatic ones.
+Facts are never marked wrong automatically (embeddings cannot see negation). The KUDO Trainer spot-checks: flagged answers, every Gap, every "Ask your KUDO Trainer to listen", and a random share (`SPOTCHECK_SAMPLE`, default 0.2). His scores replace the automatic ones.
 Recordings are kept 60 days, then deleted; transcripts and scores stay.
 
-Deployment notes: set `ONNXRUNTIME_NODE_INSTALL_CUDA=skip` on the service (the GPU binaries are not needed). Models (about 120 MB) download from Hugging Face on first start into `MODEL_CACHE_DIR` (default `/tmp/academy-models`); the service needs about 1 GB of memory. Set `AUTO_REVIEW=off` to send every recording to Jack instead.
+Deployment notes: set `ONNXRUNTIME_NODE_INSTALL_CUDA=skip` on the service (the GPU binaries are not needed). Models (about 120 MB) download from Hugging Face on first start into `MODEL_CACHE_DIR` (default `/tmp/academy-models`); the service needs about 1 GB of memory. Set `AUTO_REVIEW=off` to send every recording to the KUDO Trainer instead.
 
 ## Test trainees
 
-Fictional trainees for the admin team to try the trainee side. Set `DEMO_TRAINEE_EMAILS` (comma-separated; `demo.jack@kudo.ai` becomes "Test Trainee (Jack)"), or create one under **Users & access › Test trainees**.
+Fictional trainees for the admin team to try the trainee side. Set `DEMO_TRAINEE_EMAILS` (comma-separated; `demo.jack@kudo.ai` becomes "Test Trainee (the KUDO Trainer)"), or create one under **Users & access › Test trainees**.
 Each starts with fictional October results and an approved plan two weeks in. They sign in with the generic password and must change it, so use one per tester.
 "Reset to start" deletes everything a test trainee did and recreates it with the generic password.
 Test trainees are excluded from team results, priorities, the team list, module feedback, item analysis and the board's schedule.
@@ -128,20 +128,20 @@ Test trainees are excluded from team results, priorities, the team list, module 
 Every module has one practice task the system reviews on its own (`PRACTICE` in `server/curriculum-extra.js`): written (an email, a runsheet, a briefing),
 spoken (a recording), or a step-by-step account of what the trainee did in a test account. The same reviewer as explain-it checks the key points,
 clarity and hand-over. A result that is not a Gap signs the practice off automatically; a Gap asks the trainee to try again.
-Trainees can no longer tick practice by hand. Jack only spot-checks (flagged, gaps, requests, random share) on the Reviews page and board.
+Trainees can no longer tick practice by hand. The KUDO Trainer only spot-checks (flagged, gaps, requests, random share) on the Reviews page and board.
 
 ## Results of record
 
 The first attempt in the current assessment cycle is the score of record, for module checks, spaced reviews, the baseline check, decision walkthroughs, explain-it recordings and practice tasks.
-Retakes and new submissions are practice: they get full feedback but never change levels, plans, reports, item statistics or sign-offs, and they are not sent to Jack unless the trainee asks.
+Retakes and new submissions are practice: they get full feedback but never change levels, plans, reports, item statistics or sign-offs, and they are not sent to the KUDO Trainer unless the trainee asks.
 A cycle starts with each knowledge test round (`rounds.kind = 'live'`): importing the 3-month retest starts a new cycle, levels restart from the new results and the first attempt in the new cycle becomes the new record.
 
 ## Learning design (v4)
 
 - **This week first**: the programme page opens on the steps due this week (with the time they take). Only the current phase is open; growth since the start shows on each level, and scenarios that reached their target are called out.
 - **Spaced review**: questions a trainee missed or guessed on come back after 1 week and again after 3 weeks (`/api/me/review`). Practice only.
-- **Trainee choice**: the trainee can swap the third focus area for one of the next two in priority. It becomes a draft that Jack approves. Jack's own focus override always wins.
-- **Teach-back pairs**: in weeks 8 to 10, the board suggests pairing trainees who share a focus scenario, with a message to copy. Jack makes the introduction, so no trainee sees another's results.
+- **Trainee choice**: the trainee can swap the third focus area for one of the next two in priority. It becomes a draft that the KUDO Trainer approves. The KUDO Trainer's own focus override always wins.
+- **Teach-back pairs**: in weeks 8 to 10, the board suggests pairing trainees who share a focus scenario, with a message to copy. The KUDO Trainer makes the introduction, so no trainee sees another's results.
 - **Warm-up**: before a first recorded check, three neutral questions show the formats. Marked in the browser, never stored.
 - **Worked example and common mistakes** per module (`CASES` in `server/curriculum-bank.js`). The examples are illustrative, built from the lesson facts; replace them with real cases when available.
 - **Videos in the page**: on the Curriculum page, paste each module's video link. A SharePoint embed link (Share, Embed, the link inside src) plays in the page; any other https link opens in a new tab. The CSP allows frames from *.sharepoint.com and youtube-nocookie.com only.
@@ -158,8 +158,8 @@ Admin menu, **Sessions** (`server/sessions.js`, `public/views-sessions.js`).
 
 - **Upload** a Teams transcript (.vtt, .docx; best: instant, knows who spoke) or a recording (.mp4, .m4a, .mp3, .wav, .webm, .mov, up to `SESSION_MAX_MB`, default 500). Files are streamed to disk; recordings are transcribed with the same free Whisper model, in 10-minute windows (about a third of real time on the current server), then deleted. The transcript is kept until the session is deleted.
 - **Analysis**: questions (with who asked and the answer that followed), mapped to a module with sentence embeddings plus module names, and compared with what the Academy already teaches and asks (lessons, objectives, check questions, published FAQ): covered, partly covered or not covered. Questions that came up in earlier sessions are marked. For a 1:1, level signals are suggested from what the trainee said, and can be added to their inputs in one click.
-- **Improve the content**: on each question, Jack can publish a lesson FAQ entry ("Asked in sessions", no names) or a new check question (four options, his wording). New questions join the module checks immediately (`registerItem`) and are marked "From a session" on the Curriculum page. Both can be withdrawn. The board shows a task per session with questions to review.
-- No language model writes content: the Academy finds and sorts; Jack decides and words it.
+- **Improve the content**: on each question, the KUDO Trainer can publish a lesson FAQ entry ("Asked in sessions", no names) or a new check question (four options, his wording). New questions join the module checks immediately (`registerItem`) and are marked "From a session" on the Curriculum page. Both can be withdrawn. The board shows a task per session with questions to review.
+- No language model writes content: the Academy finds and sorts; the KUDO Trainer decides and words it.
 
 ## Release notes: the Academy keeps up with the product
 
@@ -175,6 +175,8 @@ The admin edits and applies. Trainees then see a "New in KUDO" card on their pro
 ## Collectibles
 
 `server/collectibles.js`, `public/collectibles.js`. 29 cards in four sets: Journey (plan approved, each phase cleared, mock call, retest), Scenarios (one per scenario, earned at target level), Craft (first step, perfect walkthrough, Solid explanation, well-judged certainty, spaced-review comeback, teach-back, a session question added to the Academy) and Habit (3, 6, 10 active weeks, not necessarily in a row). Worked out from existing data each time the trainee opens the app, stored with the date earned, never taken back, never shown to anyone else, and they never change a score. New cards are revealed once with a card flip (no animation when the device asks for reduced motion). "My collection" in the trainee menu; a strip on the programme page. Card art is original, drawn in code: generic symbols, no product logos.
+
+The coaching role is called "your KUDO Trainer" everywhere trainees read it (plan items, lessons, reviews, tour), so the role can change hands without editing the content. Stored plans are rewritten once at start-up.
 
 ## Phones and laptops
 
