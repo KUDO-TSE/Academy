@@ -863,3 +863,15 @@ select.rl-add{max-width:180px}
 .k-stat{display:flex;flex-direction:column;gap:4px;min-height:170px}.k-chart{display:flex;justify-content:center;align-items:center;flex:1}
 .k-none{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:1;color:#1D1D1F}
 @media (max-width:900px){.k-report,.k-grid3,.k-tiles{grid-template-columns:1fr}}
+/* sandbox: date picker, booking, broadcast */
+.k-dt>div{position:relative}
+.k-cal{position:absolute;z-index:30;top:100%;left:0;background:#fff;border:1px solid #E2E2E2;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.1);padding:8px;width:230px;font-size:12px}
+.k-cal .k-rowsp button{border:none;background:none;font-size:16px;padding:0 6px}
+.k-calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-top:6px;text-align:center}.k-calgrid small{color:#888}
+.k-calgrid button{border:none;background:none;padding:4px 0;border-radius:4px;font-size:12px}.k-calgrid button:hover:not(:disabled){background:#E8EEF5}.k-calgrid button.on{background:#2C6E9B;color:#fff}.k-calgrid button:disabled{color:#C8C8C8}
+.k-terms{margin-top:10px;background:#EEF4FA;border-radius:8px;padding:8px 12px;font-size:12px;display:flex;align-items:center;gap:4px}
+.k-kv{display:grid;gap:3px;font-size:12.5px}.k-kv div{display:grid;grid-template-columns:110px 1fr}
+.k-book{margin-top:8px;border:none;border-radius:14px;padding:4px 12px;font-size:12px;background:#ECECEC;color:#9A9A9A;display:inline-flex;align-items:center;gap:4px}.k-book.on{background:#F9D9BF;color:#8A4A17;cursor:pointer}
+.k-red{color:#C2272F}.k-center{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:8px 0}
+.k-cal-ic{border:none;background:#E8EEF5;color:#2C6E9B;border-radius:4px;width:20px;height:20px;display:inline-grid;place-items:center;margin-left:4px;padding:0}
+.k-bstat{display:flex;flex-direction:column;align-items:center;gap:4px;max-width:260px}.k-bstat .k-bar{width:100%}.k-bstat.progress .k-bar i{background:#E2603B}.k-bstat.done .k-bar i{background:#14A88A}.k-bstat.progress small{color:#E2603B}.k-bstat.done small{color:#2C6E9B}
