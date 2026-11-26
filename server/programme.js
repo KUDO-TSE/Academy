@@ -11,7 +11,7 @@ async function videoLinks() { return (await q("SELECT value FROM app_settings WH
 import { enqueue } from './autoreview.js';
 import { DEMO_FILTER, resetDemo, createDemo } from './demo.js';
 const AUTO = () => process.env.AUTO_REVIEW !== 'off';
-import { loadContext, refreshPlan, refreshAll, approvePlan, diffPlans, liveState, buildPlan, getSettings, PASS, PHASES, computeLevels, personalPriority } from './engine.js';
+import { loadContext, refreshPlan, refreshAll, approvePlan, diffPlans, liveState, buildPlan, getSettings, PASS, PHASES, computeLevels, personalPriority, explainScore } from './engine.js';
 
 const bad = (res, msg) => res.status(400).json({ error: msg });
 const SELF_TICK = ['lesson', 'missed', 'teach']; // practice is reviewed by the system when submitted
@@ -78,8 +78,14 @@ meProgramme.get('/progress-live', async (req, res, next) => {
         effect: eff.length ? eff.reduce((t, e) => t + (e.v - e.from), 0) : null };
     });
     const feed = effects.sort((a, b) => new Date(b.at) - new Date(a.at)).map((e) => ({ at: e.at, kind: e.kind, reviewed: !!e.reviewed, module: e.module, moduleTitle: e.module === 'baseline' ? 'Baseline check' : MODULE_BY_KEY[e.module]?.title, scenario: e.scenario, short: e.short, score: e.score, from: e.from, to: e.v }));
+    // Every attempt, results of record and practice, for My results.
+    const subs = (await q("SELECT module_key,counts,status,rubric,created_at FROM submissions WHERE user_id=$1 AND COALESCE(kind,'explain')='explain' AND status IN ('auto','reviewed') AND rubric IS NOT NULL ORDER BY created_at", [uid])).rows;
+    const attempts = [
+      ...at.map((a) => ({ at: a.created_at, kind: a.kind, module: a.module_key, pct: pctOf(a), correct: a.correct, total: a.total, record: a.counts !== false })),
+      ...subs.map((x) => ({ at: x.created_at, kind: 'explain', module: x.module_key, pct: x.rubric ? Math.round(explainScore(x.rubric) ?? 0) : null, reviewed: x.status === 'reviewed', record: x.counts !== false })),
+    ].map((a) => ({ ...a, moduleTitle: MODULE_BY_KEY[a.module]?.title || a.module })).sort((a, b) => new Date(b.at) - new Date(a.at));
     const avg = (k) => Math.round(scen.reduce((t, s) => t + s[k], 0) / (scen.length || 1));
-    res.json({ overall: { start: avg('start'), now: avg('now') }, scenarios: scen, modules, feed, pass: PASS });
+    res.json({ overall: { start: avg('start'), now: avg('now') }, scenarios: scen, modules, feed, attempts, pass: PASS });
   } catch (e) { next(e); }
 });
 

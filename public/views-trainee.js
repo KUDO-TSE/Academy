@@ -66,8 +66,8 @@ export function resultsView(data, live = null) {
   drawQ();
   const lo = live?.map.overall;
   return h('div', { class: 'page' },
-    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My results'), h('p', null, showLive ? 'Your level in each scenario moves with the tests you take in the Academy. Your October results are where you started.' : live ? `${live.round.label}${lo?.total ? ` · ${lo.correct} of ${lo.total} correct` : ''}` : 'Your test results will show here once they are in.'))),
-    showLive ? liveProgress() : null,
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My results'), h('p', null, showLive ? 'Your scores on every test: the Academy\'s module tests, decision walkthroughs and explain-it recordings, then your October Self Assessment and knowledge test. How they move your level is on My progress.' : live ? `${live.round.label}${lo?.total ? ` · ${lo.correct} of ${lo.total} correct` : ''}` : 'Your test results will show here once they are in.'))),
+    showLive ? academyResults() : null,
     showLive ? h('div', { class: 'section-h' }, h('h2', null, 'Where you started: October'), h('p', null, live ? `Self Assessment and ${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}. These stay as your baseline record.` : 'Self Assessment and live test, your baseline record.')) : null,
     !self && !live ? empty('No results yet', 'Your Self Assessment and knowledge test results will appear here.') : h('div', { class: 'stack' },
       h('div', { class: 'card' }, h('h2', null, 'By scenario'), h('p', { class: 'sub' }, 'Self ratings are your 1 to 5 answers shown as a percentage, so they sit next to your test score.'), legend(), pairedBars(rows.map((r) => ({ ...r, label: r.short })))),
@@ -79,7 +79,8 @@ export function resultsView(data, live = null) {
         liveRounds.length > 1 ? h('select', { style: 'width:auto', 'aria-label': 'Test', on: { change: (e) => { qRound = Number(e.target.value); drawQ(); } } }, liveRounds.map((r) => h('option', { value: r.id, selected: r.id === qRound }, r.label))) : null), qBox)));
 }
 
-export function progressView(data) {
+export function progressView(data, live = null) {
+  const showLive = !!live;
   const sRounds = roundsOf(data, 'self'), lRounds = roundsOf(data, 'live');
   const all = [...sRounds, ...lRounds].sort((a, b) => a.sort - b.sort || a.id - b.id);
   const sel = h('select', { style: 'width:auto', 'aria-label': 'Scenario' }, h('option', { value: 'overall' }, 'Overall'), data.scenarios.map((s) => h('option', { value: s.key }, s.label)));
@@ -99,7 +100,9 @@ export function progressView(data) {
     h('tbody', null, data.targets.map((t) => { const cur = lat?.map[t.scenario]?.pct ?? null; const met = cur != null && cur >= t.target_pct; return h('tr', null, h('td', null, h('b', null, label(data, t.scenario))), h('td', { class: 'num' }, pct(cur)), h('td', { class: 'num' }, pct(t.target_pct)), h('td', null, fmtDate(t.due_date)), h('td', null, cur == null ? h('span', { class: 'muted' }, '–') : h('span', { class: `chip ${met ? 'green' : 'amber'}` }, met ? 'On target' : `${Math.round(t.target_pct - cur)} pts to go`))); })))) : h('div', { class: 'muted' }, 'Your personal targets will be set with your coach.'));
   draw();
   return h('div', { class: 'page' },
-    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My progress'), h('p', null, 'How your results move at each checkpoint: Self Assessment and a fresh knowledge test every quarter.'))),
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My progress'), h('p', null, showLive ? 'How your level in each scenario moves with every test you take, measured against where you started in October.' : 'How your results move at each checkpoint: Self Assessment and a fresh knowledge test every quarter.'))),
+    showLive ? progressLive() : null,
+    showLive ? h('div', { class: 'section-h' }, h('h2', null, 'Quarterly checkpoints'), h('p', null, 'Your Self Assessment and knowledge test, every three months. Each new test becomes your new starting point.')) : null,
     all.length ? h('div', { class: 'stack' }, h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('h2', null, 'Over time'), sel), chartBox,
       all.length < 3 ? h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'More points will appear after the next quarterly checkpoint.') : null),
       h('div', { class: 'card' }, h('h2', null, 'My targets'), h('p', { class: 'sub' }, 'Set with your coach. Latest uses your most recent test, or Self Assessment if no test yet.'), tgtBox)) : empty('Nothing to chart yet', 'Your progress appears after your first results are loaded.'));
@@ -135,45 +138,84 @@ void dateOnly;
 // ------------------------------------------------------------------ live progress from the Academy's tests
 const ago = (d) => { const days = Math.round((Date.now() - new Date(d)) / 864e5); return days <= 0 ? 'Today' : days === 1 ? 'Yesterday' : days < 7 ? `${days} days ago` : fmtDate(d); };
 const signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '±0');
-function liveProgress() {
-  const box = h('div', { class: 'stack lp-live' }, h('div', { class: 'card muted' }, 'Loading your progress…'));
-  api('GET', '/api/me/progress-live').then((d) => {
-    const sc = d.scenarios, tested = sc.filter((s) => s.tests);
-    const up = [...tested].sort((a, b) => b.delta - a.delta)[0], down = [...tested].sort((a, b) => a.delta - b.delta)[0];
-    const counted = d.modules.filter((m) => m.check || m.walk).length;
-    const dOverall = d.overall.now - d.overall.start;
-    const fact = (k, v, sub, cls = '') => h('div', { class: `jm-fact ${cls}` }, h('span', { class: 'jm-fk' }, k), h('b', null, v), sub ? h('span', { class: 'jm-fs' }, sub) : null);
+const KIND_LABEL = { check: 'Module test', scenario: 'Decision walkthrough', baseline: 'Baseline check', explain: 'Explain it' };
+const loadLive = () => api('GET', '/api/me/progress-live');
+const fact = (k, v, sub, cls = '') => h('div', { class: `jm-fact ${cls}` }, h('span', { class: 'jm-fk' }, k), h('b', null, v), sub ? h('span', { class: 'jm-fs' }, sub) : null);
+const loading = (what) => h('div', { class: 'card muted' }, `Loading ${what}…`);
+const failed = (e) => h('div', { class: 'card empty' }, h('b', null, 'This part could not load'), e.message);
+
+/** My results: the scores themselves, test by test. No level changes here: those are on My progress. */
+function academyResults() {
+  const box = h('div', { class: 'stack lp-live' }, loading('your Academy results'));
+  loadLive().then((d) => {
+    const taken = d.modules.filter((m) => m.check), passed = taken.filter((m) => m.check.passed);
+    const avg = taken.length ? Math.round(taken.reduce((t, m) => t + m.check.pct, 0) / taken.length) : null;
+    const ex = d.modules.filter((m) => m.explain);
     const head = h('div', { class: 'jm-head' },
-      fact('Readiness now', `${d.overall.now}%`, `${d.overall.start}% in October · ${signed(dOverall)} points`, dOverall > 0 ? 'good' : dOverall < 0 ? 'late' : ''),
-      fact('Tests that count', `${counted} of ${d.modules.length} modules`, 'Your first attempt at each module test'),
-      fact('Biggest gain', up && up.delta > 0 ? `${up.short} ${signed(up.delta)}` : 'Not yet', up && up.delta > 0 ? `${up.start}% → ${up.now}%` : 'Take a module test to move a level', up && up.delta > 0 ? 'good' : ''),
-      fact('To watch', down && down.delta < 0 ? `${down.short} ${signed(down.delta)}` : 'Nothing went down', down && down.delta < 0 ? `${down.start}% → ${down.now}%: retake the lesson, then practise` : 'No scenario is below October', down && down.delta < 0 ? 'late' : ''));
-    const rows = [...sc].sort((a, b) => b.delta - a.delta || b.tests - a.tests).map((s) => ({ ...s, label: s.short }));
-    const chart = h('div', { class: 'card' }, h('h2', null, 'Since October, scenario by scenario'),
-      h('p', { class: 'sub' }, 'Hollow dot: your October level. Full dot: where your tests put you now. Green: up. Coral: down. The tick is your target.'),
-      progressDumbbell(rows));
-    const kindLabel = { check: 'Module test', scenario: 'Decision walkthrough', baseline: 'Baseline check', explain: 'Explain it' };
-    const feed = h('div', { class: 'card' }, h('h2', null, 'Every test that counted'), h('p', { class: 'sub' }, 'Newest first, with what each one did to your level'),
-      d.feed.length ? h('ul', { class: 'lp-feed' }, d.feed.slice(0, 30).map((e) => { const ch = e.to - e.from; return h('li', null,
-        h('span', { class: 'muted small lp-when' }, ago(e.at)),
-        h('div', { class: 'lp-what' }, e.module !== 'baseline' ? h('a', { href: `#module-${e.module}` }, e.moduleTitle) : h('b', null, e.moduleTitle), h('span', { class: 'muted small' }, ` · ${kindLabel[e.kind] || 'Test'}${e.kind === 'explain' ? (e.reviewed ? ', reviewed by your KUDO Trainer' : ', automatic review') : ''} · you scored ${e.score}%`)),
-        h('div', { class: 'lp-eff' }, h('span', null, `${e.short} ${e.from}% → ${e.to}%`), h('span', { class: `lp-d ${ch > 0 ? 'up' : ch < 0 ? 'down' : ''}` }, signed(ch)))); }))
-        : h('p', { class: 'muted', style: 'margin:8px 0 0' }, 'No test yet. Open a module and take its test: your first attempt counts.'));
+      fact('Module tests taken', `${taken.length} of ${d.modules.length}`, 'Your first attempt is the result of record'),
+      fact('Passed', taken.length ? `${passed.length} of ${taken.length}` : '–', `Pass mark ${Math.round(d.pass * 100)}%`, taken.length && passed.length === taken.length ? 'good' : ''),
+      fact('Average score', avg != null ? `${avg}%` : '–', 'Across your module tests of record'),
+      fact('Explain-it recordings', String(ex.length), ex.length ? `${ex.filter((m) => m.explain.reviewed).length} reviewed by your KUDO Trainer` : 'None sent yet'));
     const mrows = d.modules.map((m) => h('tr', null,
-      h('td', null, h('a', { href: `#module-${m.key}` }, m.title), m.short ? h('div', { class: 'muted small' }, m.short) : h('div', { class: 'muted small' }, 'Cross-cutting topic')),
+      h('td', null, h('a', { href: `#module-${m.key}` }, m.title), h('div', { class: 'muted small' }, m.short || 'Cross-cutting topic')),
       h('td', { class: 'num' }, m.check ? h('span', null, `${m.check.pct}%`, h('span', { class: `chip ${m.check.passed ? 'green' : 'amber'}`, style: 'margin-left:8px' }, m.check.passed ? 'Passed' : 'Below pass')) : h('a', { class: 'small', href: `#module-${m.key}` }, 'Not taken')),
       h('td', { class: 'num' }, m.walk ? `${m.walk.pct}%` : '–'),
       h('td', { class: 'num' }, m.explain ? h('span', { title: m.explain.reviewed ? 'Reviewed by your KUDO Trainer' : 'Automatic review: your KUDO Trainer may change it' }, `${m.explain.pct}%`, h('span', { class: 'muted small' }, m.explain.reviewed ? ' reviewed' : ' auto')) : '–'),
-      h('td', { class: 'num' }, m.effect != null ? h('span', { class: `lp-d ${m.effect > 0 ? 'up' : m.effect < 0 ? 'down' : ''}` }, signed(m.effect)) : m.scenario ? '–' : h('span', { class: 'muted small' }, 'No scenario level')),
-      h('td', { class: 'num muted small' }, m.practice ? `${m.practice.n} · best ${m.practice.best}%` : '–')));
-    const table = h('div', { class: 'card' }, h('h2', null, 'By module'), h('p', { class: 'sub' }, `The test of record is your first attempt (pass mark ${Math.round(d.pass * 100)}%). Retakes are practice: they show here but never change your level`),
-      h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Module', 'Test of record', 'Walkthrough', 'Explain it', 'Effect on level', 'Practice retakes'].map((x, i) => h('th', { class: i ? 'num' : null }, x)))), h('tbody', null, mrows))));
+      h('td', { class: 'num muted small' }, m.practice ? `${m.practice.n} · best ${m.practice.best}%` : '–'),
+      h('td', { class: 'num muted small' }, m.check ? fmtDate(m.check.at) : '–')));
+    const table = h('div', { class: 'card' }, h('h2', null, 'Academy tests, module by module'), h('p', { class: 'sub' }, 'Your result of record is your first attempt. Retakes are practice: they show here and never replace it'),
+      h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Module', 'Module test', 'Walkthrough', 'Explain it', 'Practice retakes', 'Taken'].map((x, i) => h('th', { class: i ? 'num' : null }, x)))), h('tbody', null, mrows))));
+    const list = h('div', { class: 'card' }, h('h2', null, 'Every attempt'), h('p', { class: 'sub' }, 'Newest first. Results of record and practice'),
+      d.attempts.length ? h('ul', { class: 'lp-feed' }, d.attempts.slice(0, 40).map((a) => h('li', null,
+        h('span', { class: 'muted small lp-when' }, ago(a.at)),
+        h('div', { class: 'lp-what' }, h('a', { href: `#module-${a.module}` }, a.moduleTitle), h('span', { class: 'muted small' }, ` · ${KIND_LABEL[a.kind] || 'Test'}${a.kind === 'explain' ? (a.reviewed ? ', reviewed by your KUDO Trainer' : ', automatic review') : ''}`)),
+        h('div', { class: 'lp-eff' }, h('span', { class: `chip ${a.record ? 'blue' : 'grey'}` }, a.record ? 'Result of record' : 'Practice'), h('b', null, a.pct != null ? `${a.pct}%` : '–'))))) : h('p', { class: 'muted', style: 'margin:8px 0 0' }, 'No test yet. Open a module and take its test.'));
+    box.replaceChildren(head, table, list);
+  }).catch((e) => box.replaceChildren(failed(e)));
+  return box;
+}
+
+/** My progress: how the tests move each level, against October. */
+function progressLive() {
+  const box = h('div', { class: 'stack lp-live' }, loading('your progress'));
+  loadLive().then((d) => {
+    const sc = d.scenarios, tested = sc.filter((s) => s.tests);
+    const up = [...tested].sort((a, b) => b.delta - a.delta)[0], down = [...tested].sort((a, b) => a.delta - b.delta)[0];
+    const counted = d.feed.length;
+    const dOverall = d.overall.now - d.overall.start;
+    const head = h('div', { class: 'jm-head' },
+      fact('Readiness now', `${d.overall.now}%`, `${d.overall.start}% in October · ${signed(dOverall)} points`, dOverall > 0 ? 'good' : dOverall < 0 ? 'late' : ''),
+      fact('Tests that moved a level', String(counted), counted ? `Across ${tested.length} scenario${tested.length > 1 ? 's' : ''}` : 'Take a module test to start'),
+      fact('Biggest gain', up && up.delta > 0 ? `${up.short} ${signed(up.delta)}` : 'Not yet', up && up.delta > 0 ? `${up.start}% → ${up.now}%` : 'A good test result lifts a level', up && up.delta > 0 ? 'good' : ''),
+      fact('To watch', down && down.delta < 0 ? `${down.short} ${signed(down.delta)}` : 'Nothing went down', down && down.delta < 0 ? `${down.start}% → ${down.now}%: go back to the lesson, then practise` : 'No scenario is below October', down && down.delta < 0 ? 'late' : ''));
+    const rows = [...sc].sort((a, b) => b.delta - a.delta || b.tests - a.tests).map((s) => ({ ...s, label: s.short }));
+    const chart = h('div', { class: 'card' }, h('h2', null, 'Since October, scenario by scenario'),
+      h('p', { class: 'sub' }, 'Hollow dot: your October level. Full dot: where your tests put you now. Green: up. Coral: down. The tick is your target'),
+      progressDumbbell(rows));
+    // One scenario over time: October, then each test that moved it
+    const pick = h('select', { style: 'width:auto', 'aria-label': 'Scenario' }, [...sc].sort((a, b) => b.tests - a.tests).map((s) => h('option', { value: s.key }, `${s.short}${s.tests ? ` (${s.tests} test${s.tests > 1 ? 's' : ''})` : ''}`)));
+    const lineBox = h('div');
+    const drawLine = () => {
+      const s = sc.find((x) => x.key === pick.value);
+      const seen = {}; const lab = (dt) => { const k = new Date(dt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); seen[k] = (seen[k] || 0) + 1; return seen[k] > 1 ? `${k} (${seen[k]})` : k; };
+      const labels = ['October', ...s.history.map((x) => lab(x.at))];
+      const pts = [s.start, ...s.history.map((x) => x.v)];
+      lineBox.replaceChildren(s.history.length ? lineChart(labels, [{ name: 'Level', color: COLORS.live, points: labels.map((x, i) => ({ x, y: pts[i] })) }], { targetY: s.target }) : h('p', { class: 'muted', style: 'margin:12px 0 0' }, `No test has moved your ${s.short} level yet. It is ${s.now}%, from October.`));
+    };
+    pick.addEventListener('change', drawLine); drawLine();
+    const over = h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'One scenario over time'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, 'October, then each test that moved it. The dashed line is your target')), pick), lineBox);
+    const feed = h('div', { class: 'card' }, h('h2', null, 'What moved your level'), h('p', { class: 'sub' }, 'Newest first, with what each test did'),
+      d.feed.length ? h('ul', { class: 'lp-feed' }, d.feed.slice(0, 30).map((e) => { const ch = e.to - e.from; return h('li', null,
+        h('span', { class: 'muted small lp-when' }, ago(e.at)),
+        h('div', { class: 'lp-what' }, e.module !== 'baseline' ? h('a', { href: `#module-${e.module}` }, e.moduleTitle) : h('b', null, e.moduleTitle), h('span', { class: 'muted small' }, ` · ${KIND_LABEL[e.kind] || 'Test'}${e.kind === 'explain' ? (e.reviewed ? ', reviewed by your KUDO Trainer' : ', automatic review') : ''} · you scored ${e.score}%`)),
+        h('div', { class: 'lp-eff' }, h('span', null, `${e.short} ${e.from}% → ${e.to}%`), h('span', { class: `lp-d ${ch > 0 ? 'up' : ch < 0 ? 'down' : ''}` }, signed(ch)))); }))
+        : h('p', { class: 'muted', style: 'margin:8px 0 0' }, 'Nothing yet. Your first attempt at a module test moves your level.'));
     const rules = h('div', { class: 'card lp-rules' }, h('h2', null, 'What moves your level'),
       h('div', { class: 'grid g2' },
         h('div', null, h('b', { class: 'lp-yes' }, 'Counts'), h('ul', null, h('li', null, 'Your first attempt at each module test'), h('li', null, 'Your first decision walkthrough in each module'), h('li', null, 'Your first explain-it recording. If your KUDO Trainer reviews it, their score replaces the automatic one'), h('li', null, 'The baseline check'), h('li', null, 'The quarterly knowledge test, which resets your starting point'))),
         h('div', null, h('b', { class: 'lp-no' }, 'Does not count'), h('ul', null, h('li', null, 'Reading the lessons and watching the videos'), h('li', null, 'Practice tasks (feedback only)'), h('li', null, 'Retakes, the weekly challenge and spaced reviews'), h('li', null, 'Ticking steps off your plan')))),
       h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'Each test pulls your level most of the way towards its score: a good result lifts it, a poor one lowers it. Only your first attempt counts, so read the lesson and take the test when you feel ready'));
-    box.replaceChildren(head, chart, feed, table, rules);
-  }).catch((e) => box.replaceChildren(h('div', { class: 'card empty' }, h('b', null, 'Your live progress could not load'), e.message)));
+    box.replaceChildren(head, chart, over, feed, rules);
+  }).catch((e) => box.replaceChildren(failed(e)));
   return box;
 }

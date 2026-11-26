@@ -17,7 +17,8 @@ const TRAINEE = [
   { route: 'programme', sel: '.levels-card', title: 'Your level, scenario by scenario', text: 'Where you started, where you are now and your target for each scenario. Targets depend on your role: set it up yourself (80%) or hand it over (70%).' },
   { route: 'module-foundations', sel: '.lesson-card', title: 'Every module works the same way', text: 'Step 1, learn: the lesson, a worked example and the common mistakes. Then practise for real, and the system reviews your answer within a minute.' },
   { route: 'module-foundations', sel: '.check-card', title: 'Prove it', text: 'Your first attempt at a check is the score that counts for your learning curve. After that, retake it as often as you like: retakes are practice. Say honestly how sure you are: lucky guesses only count half.' },
-  { route: 'programme', sel: '.nav a[data-r="results"]', title: 'Your results', text: 'Your progress, live. Each module test you take moves your level in its scenario, up or down, and you see by how much. Only your first attempt counts: lessons, practice and retakes do not. Below: your October results, the baseline everything is measured against.' },
+  { route: 'programme', sel: '.nav a[data-r="results"]', title: 'Your results', text: 'Your score on every test: the module tests, decision walkthroughs and explain-it recordings you take here, then your October Self Assessment and knowledge test. Your first attempt is the result of record; retakes are practice.' },
+  { route: 'programme', sel: '.nav a[data-r="progress"]', title: 'Your progress, live', text: 'How each test moves your level, up or down, scenario by scenario, against where you started in October. Lessons and practice never move it: only test results do.' },
   { route: 'programme', sel: '.nav .tour-link', title: 'Need a refresher?', text: 'Open this tour again from here at any time. Good luck, and enjoy the programme.' },
 ];
 
