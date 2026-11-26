@@ -49,9 +49,31 @@ export const SCENARIOS = {
 
   'hls-1': {
     module: 'hls', num: 12, title: 'Broadcast to the client\'s web page (HLS)', apps: ['site'],
-    request: 'A client shows "Investor Day" today on its own website, to viewers who do not register. Create the AI speech translation meeting (English speaker language; French and German translation languages). Turn on HLS for a 3-hour stream and copy the widget code for the web page. Put it on the client\'s event page (the "Client website" tab: an embed element) and publish the page. Then start the meeting, start the HLS broadcast, and check on the published page that the broadcast plays.',
-    expert: ['Log in with the Client account', 'New meeting, AI speech translation: "Investor Day", English; French and German; Save', 'Settings, Broadcast: HLS Stream on, Stream Duration 3 hours', 'Viewer-Only, Copy widget code, Broadcasting', 'Client website: Enter code in the embed element, paste, Apply, Publish', 'KUDO: Overview, Start meeting, confirm', 'Settings, Broadcast, Start broadcast, Start HLS broadcast', 'Client website: View site, the player is live with the language selector'],
-    expertSeconds: 240,
+    request: 'Build what the client needs from your notes: the KUDO meeting "Investor Day" and the client\'s event page. Then start it and check on the published page that viewers get the event in their language.',
+    // The call: the brief starts incomplete. Seven questions decide the set-up; two do not. Only what was asked shows in the notes.
+    brief: {
+      who: 'Event manager at the client',
+      opening: 'Hi, thanks for taking this. Our "Investor Day" is today and we want it on our own website, in several languages. Can you set it up for us?',
+      questions: [
+        { id: 'aud', key: true, q: 'Who will watch, how many, and do they need to register?', a: 'About 2,000 investors and analysts. No registration: anyone who opens our event page should be able to watch.', note: 'About 2,000 viewers on the client\'s event page, no registration', why: 'A large audience with no registration points to a broadcast, not a link per person.' },
+        { id: 'lang', key: true, q: 'Which language do the speakers use, and which languages do viewers need?', a: 'Our speakers present in English. Viewers need French and German.', note: 'Speakers in English; viewers need French and German', why: 'Without it you cannot set the speaker and translation languages.' },
+        { id: 'talk', key: true, q: 'Do viewers need to speak, appear on camera or vote?', a: 'No, they only watch and listen. Questions come in by email.', note: 'Viewers only watch and listen', why: 'Watch-only viewers can use a broadcast; people who speak need to join the meeting.' },
+        { id: 'plat', key: true, q: 'Do you already stream the video somewhere, for example on YouTube?', a: 'No, we have no streaming platform and do not want one. Everything should be on our page.', note: 'No video platform: the stream has to play on the page itself', why: 'With no platform of their own, RTMP and the language widget next to their video are out.' },
+        { id: 'len', key: true, q: 'How long does it last?', a: 'It starts at 14:00 and should be over by 16:30.', note: 'From 14:00 to about 16:30', why: 'The HLS stream duration must cover the whole event.' },
+        { id: 'site', key: true, q: 'Who can change your event page, and can it take embed code?', a: 'Our site builder has an embed element. We gave you access: it is the "Client website" tab.', note: 'The page has an embed element; access in the "Client website" tab', why: 'The broadcast code goes on their page: you need to know who puts it there and how.' },
+        { id: 'ai', key: true, q: 'Interpreters, or AI speech translation?', a: 'AI speech translation: it is in our plan and fine for this audience.', note: 'AI speech translation', why: 'It decides the meeting type, and whether interpreters must be booked days ahead.' },
+        { id: 'budget', q: 'What is your budget for this event?', a: 'That is already agreed with our account manager.', why: 'Pricing is the account manager\'s: it does not change the set-up.' },
+        { id: 'brand', q: 'Should the player match your brand colours?', a: 'Not important today.', why: 'It does not change what you build.' },
+      ],
+      options: [
+        { id: 'iframe', label: 'The KUDO language widget next to their own video', why: 'The widget adds languages next to a video the client already streams. They have none.' },
+        { id: 'viewer', label: 'Send every viewer the Viewer-only link', why: 'Viewers would leave the client\'s page for the KUDO room, and the client wants it on their page.' },
+        { id: 'hls', ok: true, label: 'HLS broadcast: the KUDO broadcasting code on their page', why: 'Viewers watch on the page without registering, nobody speaks, and there is no video platform: HLS plays KUDO\'s own stream on the page.' },
+        { id: 'rtmp', label: 'Stream to a video platform (RTMP), then embed that player', why: 'They have no platform and do not want one; it adds a channel, keys and a second player.' },
+      ],
+    },
+    expert: ['Ask the client the seven questions that decide the set-up (audience and registration, languages, interaction, video platform, length, access to the page, AI or interpreters)', 'Choose HLS: viewers watch on the page, no registration, no platform', 'Log in with the Client account', 'New meeting, AI speech translation: "Investor Day", English; French and German; Save', 'Settings, Broadcast: HLS Stream on, Stream Duration 3 hours', 'Viewer-Only, Copy widget code, Broadcasting', 'Client website: Enter code in the embed element, paste, Apply, Publish', 'KUDO: Overview, Start meeting, confirm', 'Settings, Broadcast, Start broadcast, Start HLS broadcast', 'Client website: View site, the player is live with the language selector'],
+    expertSeconds: 330,
     screens: ['login', 'home', 'meetings', 'new-ai', 'meeting', 'broadcast'],
   },
 
@@ -103,6 +125,39 @@ export function sandboxView(key, { onExit } = {}) {
   const tick = setInterval(() => { if (!document.body.contains(root)) return clearInterval(tick); const s = Math.round((Date.now() - S.t0) / 1000); timer.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }, 1000);
   const replyPanel = h('div', { class: 'sbx-reply', hidden: true });
   const taskBox = h('div', { class: 'sbx-task' }, h('b', null, 'Your task'), h('p', null, sc.request));
+  // The client call (exercises with a brief): ask, choose the solution, then build from your notes.
+  S.call = sc.brief ? { asked: [], done: false, choice: null, stage: 'talk' } : null;
+  const callBox = h('div', { class: 'sbx-call' });
+  const callScore = () => {
+    if (!S.call) return null;
+    const qs = sc.brief.questions, keys = qs.filter((q) => q.key), askedKey = keys.filter((q) => S.call.asked.includes(q.id)).length, noise = qs.filter((q) => !q.key && S.call.asked.includes(q.id)).length;
+    const opt = sc.brief.options.find((o) => o.id === S.call.choice);
+    return { discovery: Math.max(0, Math.min(100, Math.round((100 * askedKey) / keys.length) - 10 * noise)), solution: opt?.ok ? 100 : 0, confidence: Math.max(0, Math.min(100, 50 + Math.round((50 * askedKey) / keys.length) - 10 * noise)), askedKey, keys: keys.length, noise };
+  };
+  function drawCall() {
+    const b = sc.brief, c = S.call, cs = callScore();
+    const meter = h('div', { class: 'sbx-meter' }, h('small', null, 'Client confidence'), h('i', { class: 'ph-bar' }, h('i', { style: `width:${cs.confidence}%` })), h('b', null, `${cs.confidence}%`));
+    const chat = h('div', { class: 'sbx-chat' }, h('div', { class: 'bub them' }, h('small', null, b.who), b.opening),
+      ...c.asked.flatMap((id) => { const q = b.questions.find((x) => x.id === id); return [h('div', { class: 'bub me' }, q.q), h('div', { class: 'bub them' }, q.a)]; }));
+    if (c.stage === 'talk') {
+      const left = b.questions.filter((q) => !c.asked.includes(q.id));
+      callBox.replaceChildren(h('div', { class: 'sbx-call-h' }, h('div', null, h('b', null, 'Client call'), h('p', { class: 'muted small' }, 'Ask what you need before you build anything. Each question you ask is noted; questions that do not change the set-up cost the client\'s confidence.')), meter), chat,
+        h('div', { class: 'sbx-asks' }, left.map((q) => h('button', { class: 'sbx-ask', type: 'button', on: { click: () => { c.asked.push(q.id); log('ask', `Asked: ${q.q}`); drawCall(); chat.scrollTop = chat.scrollHeight; } } }, q.q))),
+        h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:12px' }, h('button', { class: 'btn primary', type: 'button', on: { click: () => { c.stage = 'choose'; log('click', `Ended the call (${c.asked.length} question${c.asked.length === 1 ? '' : 's'})`); drawCall(); } } }, 'I have what I need: choose the solution')));
+      const ch = callBox.querySelector('.sbx-chat'); ch.scrollTop = ch.scrollHeight; return;
+    }
+    callBox.replaceChildren(h('div', { class: 'sbx-call-h' }, h('div', null, h('b', null, 'Which solution do you build?'), h('p', { class: 'muted small' }, 'You build what you choose. It cannot be changed once you start.')), meter),
+      h('div', { class: 'sbx-notes' }, h('b', null, 'Your notes'), notesList()),
+      h('div', { class: 'sbx-opts' }, b.options.map((o) => h('label', { class: `sbx-opt ${c.choice === o.id ? 'on' : ''}` }, h('input', { type: 'radio', name: 'sbx-opt', checked: c.choice === o.id, on: { change: () => { c.choice = o.id; drawCall(); } } }), o.label))),
+      h('div', { class: 'row', style: 'justify-content:space-between;margin-top:12px' }, h('button', { class: 'btn', type: 'button', on: { click: () => { c.stage = 'talk'; drawCall(); } } }, 'Back to the call'),
+        h('button', { class: 'btn primary', type: 'button', disabled: !c.choice, on: { click: () => { const o = b.options.find((x) => x.id === c.choice); log('choose', `Solution: ${o.label}`); c.done = true; startBuild(); } } }, 'Confirm and start building')));
+  }
+  const notesList = () => { const n = sc.brief.questions.filter((q) => q.note && S.call.asked.includes(q.id)); return n.length ? h('ul', null, h('li', null, 'Event: "Investor Day", today'), n.map((q) => h('li', null, q.note))) : h('p', { class: 'muted small' }, 'Nothing noted: you did not ask anything.'); };
+  function startBuild() {
+    const o = sc.brief.options.find((x) => x.id === S.call.choice);
+    taskBox.replaceChildren(h('b', null, 'Your task'), h('p', null, sc.request), h('div', { class: 'sbx-notes' }, h('b', null, `You chose: ${o.label}`), notesList()));
+    callBox.hidden = true; root.querySelector('.sbx-browser').hidden = false; taskBox.hidden = false; draw();
+  }
   const bar = h('div', { class: 'sbx-bar' },
     h('div', { class: 'sbx-bar-l' }, h('span', { class: 'sbx-pill' }, 'Sandbox'), h('b', null, `Scenario ${sc.num} · ${sc.title}`), timer),
     h('div', { class: 'sbx-bar-r' },
@@ -111,7 +166,7 @@ export function sandboxView(key, { onExit } = {}) {
       sc.reply ? h('button', { class: 'btn sm', type: 'button', on: { click: () => { replyPanel.hidden = !replyPanel.hidden; drawReply(); } } }, 'Reply to the client') : null,
       h('button', { class: 'btn sm primary', type: 'button', on: { click: () => finish() } }, 'I am done'),
       h('button', { class: 'btn sm', type: 'button', on: { click: () => { if (confirm('Leave the sandbox? This run is not saved.')) { clearInterval(tick); onExit?.(); } } } }, 'Leave')));
-  root.append(bar, taskBox, replyPanel, h('div', { class: 'sbx-browser' }, h('div', { class: 'sbx-tabs-wrap' }), h('div', { class: 'sbx-url' }, ic('lock', 13), h('span', { class: 'sbx-url-t' }), h('span', { class: 'sbx-note' }, 'Replica for training · test data only')), app));
+  root.append(bar, callBox, taskBox, replyPanel, h('div', { class: 'sbx-browser' }, h('div', { class: 'sbx-tabs-wrap' }), h('div', { class: 'sbx-url' }, ic('lock', 13), h('span', { class: 'sbx-url-t' }), h('span', { class: 'sbx-note' }, 'Replica for training · test data only')), app));
 
   // Navigation. Entering a screen the scenario does not need is a detour (silent).
   const go = (screen, what, extra = {}) => {
@@ -905,6 +960,7 @@ export function sandboxView(key, { onExit } = {}) {
   });
   const RULE = RULES[key];
   function nextStep() {
+    if (S.call && !S.call.done) return S.call.stage === 'talk' ? 'Ask what decides the set-up: who watches and how, the languages, whether viewers speak, where the video plays, how long it lasts, who can change the page, AI or interpreters.' : 'Pick the solution that fits your notes, then Confirm and start building.';
     if (S.screen === 'login') return 'Log in: the account is filled in for you.';
     return RULE.next() || 'All done: click "I am done".';
   }
@@ -918,9 +974,11 @@ export function sandboxView(key, { onExit } = {}) {
     const detours = S.events.filter((e) => e.type === 'detour').length;
     const path = Math.max(0, 100 - detours * 6 - traps.reduce((t, x) => t + x[1], 0) * 3 - S.hints * 8);
     const secs = Math.round((Date.now() - S.t0) / 1000);
-    const time = secs <= 300 ? 100 : secs >= 720 ? 0 : Math.round(100 - ((secs - 300) / 420) * 100);
-    const total = Math.round(outcome * 0.7 + path * 0.2 + time * 0.1);
-    return { total, outcome, path, time, secs, expert: sc.expertSeconds, checks: checks.map(([label, ok, w]) => ({ label, ok, w })), traps: traps.map(([label]) => label), detours, hints: S.hints, actions: S.events.filter((e) => ['click', 'pick', 'input', 'toggle', 'choose', 'save', 'remove', 'change'].includes(e.type)).length };
+    const extra = sc.brief ? 120 : 0; // the call takes time too
+    const time = secs <= 300 + extra ? 100 : secs >= 720 + extra ? 0 : Math.round(100 - ((secs - 300 - extra) / 420) * 100);
+    const cs = callScore();
+    const total = cs ? Math.round(outcome * 0.45 + cs.discovery * 0.2 + cs.solution * 0.15 + path * 0.1 + time * 0.1) : Math.round(outcome * 0.7 + path * 0.2 + time * 0.1);
+    return { total, outcome, path, time, secs, ...(cs ? { discovery: cs.discovery, solution: cs.solution, call: { asked: [...S.call.asked], choice: S.call.choice, confidence: cs.confidence } } : {}), expert: sc.expertSeconds, checks: checks.map(([label, ok, w]) => ({ label, ok, w })), traps: traps.map(([label]) => label), detours, hints: S.hints, actions: S.events.filter((e) => ['click', 'pick', 'input', 'toggle', 'choose', 'save', 'remove', 'change'].includes(e.type)).length };
   }
   async function finish() {
     if (S.finished) return;
@@ -1021,21 +1079,41 @@ export function sandboxView(key, { onExit } = {}) {
   if (sc.setup) { const own = sc.setup({ base: baseMeeting, TODAY }); S.own = own.list; S.mine = own.mine; S.screen = 'login'; }
   log('start', 'Sandbox opened');
   draw();
+  if (S.call) { taskBox.hidden = true; root.querySelector('.sbx-browser').hidden = true; drawCall(); } else callBox.hidden = true;
   return root;
 }
 
 
 const fmtS = (s) => `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`;
+/** The client call in the report: what was asked, what was missed and why it mattered, the solution and why. */
+function callReport(b, c) {
+  const asked = new Set(c.asked || []), opt = b.options.find((o) => o.id === c.choice), best = b.options.find((o) => o.ok);
+  const missed = b.questions.filter((q) => q.key && !asked.has(q.id)), noise = b.questions.filter((q) => !q.key && asked.has(q.id));
+  return h('div', { class: 'card', style: 'margin-top:16px' }, h('div', { class: 'row spread' }, h('h2', null, 'The client call'), h('span', { class: 'chip grey' }, `Client confidence ${c.confidence}%`)),
+    h('div', { class: 'grid g2' },
+      h('div', null, h('ul', { class: 'sbx-checks' }, b.questions.filter((q) => q.key).map((q) => h('li', { class: asked.has(q.id) ? 'yes' : 'no' }, h('span', null, asked.has(q.id) ? '✓' : '✗'), h('div', null, q.q, asked.has(q.id) ? null : h('div', { class: 'muted small' }, q.why))))),
+        noise.length ? h('div', { class: 'sbx-traps' }, h('b', null, 'Did not change the set-up'), h('ul', null, noise.map((q) => h('li', null, `${q.q} ${q.why}`)))) : null),
+      h('div', null, h('b', null, opt?.ok ? `✓ ${opt.label}` : `✗ ${opt?.label || 'No solution chosen'}`), h('p', { class: 'muted small' }, opt?.why || ''),
+        opt?.ok ? null : h('p', { class: 'small' }, h('b', null, 'Best fit: '), `${best.label}. ${best.why}`),
+        missed.length ? null : h('p', { class: 'ok small' }, 'You asked every question that decides the set-up.'))));
+}
 export function report(sc, r, events, saved, onExit) {
   const bar = (label, v, note) => h('div', { class: 'sbx-sc' }, h('div', { class: 'row spread' }, h('b', null, label), h('span', null, `${v}%`)), h('i', { class: 'ph-bar' }, h('i', { style: `width:${v}%` })), h('span', { class: 'muted small' }, note));
   const steps = events.filter((e) => !['start'].includes(e.type));
   return h('div', { class: 'page sbx-report' },
     h('div', { class: 'page-head' }, h('div', null, h('h1', null, `Your result: ${r.total}%`), h('p', null, `${sc.title}. ${r.total >= 80 ? 'Passed.' : 'Below the pass mark of 80%.'} ${saved?.record ? 'This first run is your result of record.' : saved ? 'This run is practice: your first run stays your result of record.' : ''}`)),
       h('div', { class: 'row' }, h('button', { class: 'btn', type: 'button', on: { click: () => onExit?.(true) } }, 'Try again'), h('a', { class: 'btn primary', href: `#module-${sc.module}` }, 'Back to the lesson'))),
-    h('div', { class: 'grid g3' },
+    r.discovery != null ? h('div', { class: 'grid sbx-bars5' },
+      bar('Outcome · 45%', r.outcome, 'Did it end up in the right state'),
+      bar('Client call · 20%', r.discovery, 'The questions that decide the set-up'),
+      bar('Solution · 15%', r.solution, r.solution ? 'The right fit' : 'Not the best fit'),
+      bar('Path · 10%', r.path, `${r.detours} detour${r.detours === 1 ? '' : 's'}, ${r.traps.length} mistake${r.traps.length === 1 ? '' : 's'}, ${r.hints} hint${r.hints === 1 ? '' : 's'}`),
+      bar('Time · 10%', r.time, `${fmtS(r.secs)}, full marks up to 7 min`))
+    : h('div', { class: 'grid g3' },
       bar('Outcome · 70%', r.outcome, 'Did the meeting end up in the right state'),
       bar('Path · 20%', r.path, `${r.detours} detour${r.detours === 1 ? '' : 's'}, ${r.traps.length} mistake${r.traps.length === 1 ? '' : 's'}, ${r.hints} hint${r.hints === 1 ? '' : 's'}`),
       bar('Time · 10%', r.time, `${fmtS(r.secs)}, full marks up to 5 min`)),
+    r.call && sc.brief ? callReport(sc.brief, r.call) : null,
     h('div', { class: 'grid g2', style: 'margin-top:16px' },
       h('div', { class: 'card' }, h('h2', null, 'What you achieved'), h('ul', { class: 'sbx-checks' }, r.checks.map((c) => h('li', { class: c.ok ? 'yes' : 'no' }, h('span', null, c.ok ? '✓' : '✗'), c.label))),
         r.traps.length ? h('div', { class: 'sbx-traps' }, h('b', null, 'Mistakes'), h('ul', null, r.traps.map((t) => h('li', null, t)))) : null),

@@ -641,4 +641,8 @@ test('sandbox: the first run is the result of record and a pass signs the practi
   const runs = (await d('GET', '/api/me/sandbox/platform-1')).json.runs;
   assert.equal(runs.length, 2); assert.equal(runs[0].score, 100, 'scores are clamped to 0-100');
   assert.equal((await client()('GET', '/api/me/sandbox/platform-1')).status, 401);
+  // A run with a client call keeps the call: questions asked, the solution chosen, the two sub-scores.
+  await d('POST', '/api/me/sandbox/hls-1', { result: { total: 72, outcome: 100, path: 100, time: 100, secs: 200, discovery: 33, solution: 0, call: { asked: ['lang', 'plat', 'budget', 'ai'], choice: 'iframe', confidence: 61 } } });
+  const hr = (await d('GET', '/api/me/sandbox/hls-1')).json.runs[0].result;
+  assert.equal(hr.discovery, 33); assert.equal(hr.solution, 0); assert.deepEqual(hr.call.asked, ['lang', 'plat', 'budget', 'ai']); assert.equal(hr.call.choice, 'iframe');
 });

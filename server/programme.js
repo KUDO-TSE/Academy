@@ -102,6 +102,8 @@ meProgramme.post('/sandbox/:key', async (req, res, next) => {
     const result = { total: score, outcome: num(r.outcome), path: num(r.path), time: num(r.time), secs: Math.max(0, Math.round(Number(r.secs) || 0)),
       checks: (Array.isArray(r.checks) ? r.checks : []).slice(0, 40).map((c) => ({ label: String(c.label || '').slice(0, 200), ok: !!c.ok, w: num(c.w) })),
       traps: (Array.isArray(r.traps) ? r.traps : []).slice(0, 20).map((t) => String(t).slice(0, 200)), expert: Math.max(0, Math.round(Number(r.expert) || 0)), detours: num(r.detours), hints: num(r.hints), actions: Math.round(Number(r.actions) || 0) };
+    if (r.discovery != null) Object.assign(result, { discovery: num(r.discovery), solution: num(r.solution),
+      call: { asked: (Array.isArray(r.call?.asked) ? r.call.asked : []).slice(0, 20).map((x) => String(x).slice(0, 20)), choice: String(r.call?.choice || '').slice(0, 20), confidence: num(r.call?.confidence) } });
     const uid = req.user.id;
     const first = (await q('SELECT 1 FROM sandbox_runs WHERE user_id=$1 AND scenario=$2 LIMIT 1', [uid, key])).rowCount === 0;
     const row = (await q('INSERT INTO sandbox_runs (user_id,scenario,score,result,events,record,seconds) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', [uid, key, score, result, JSON.stringify(ev), first, result.secs])).rows[0];

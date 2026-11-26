@@ -979,3 +979,26 @@ button.k-qrbox{border:none;cursor:pointer}
 .phases{align-items:start}
 @media (max-width:1100px){.journey.two{grid-template-columns:1fr}}
 .hero-goal{margin:-4px 0 12px;font-size:14.5px;line-height:1.45;color:var(--teal-100);max-width:640px}
+/* Sandbox: the client call before the build */
+.sbx-call{background:#fff;border:1px solid var(--border);border-radius:var(--radius-md,12px);padding:18px 20px;margin:12px 0;max-width:900px}
+.sbx-call-h{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
+.sbx-call-h p{margin:4px 0 0;max-width:520px}
+.sbx-meter{min-width:190px;display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center}
+.sbx-meter small{grid-column:1/-1;color:var(--ink-500)}
+.sbx-meter .ph-bar{height:8px}
+.sbx-chat{margin-top:14px;max-height:340px;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:12px;background:#F6F8FA;border-radius:10px}
+.sbx-chat .bub{max-width:78%;padding:9px 12px;border-radius:12px;font-size:14px;line-height:1.45}
+.sbx-chat .bub small{display:block;color:var(--ink-500);font-size:11.5px;margin-bottom:2px}
+.sbx-chat .them{background:#fff;border:1px solid var(--border-soft);align-self:flex-start}
+.sbx-chat .me{background:var(--primary);color:#fff;align-self:flex-end}
+.sbx-asks{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.sbx-ask{border:1px solid var(--primary);color:var(--primary);background:#fff;border-radius:18px;padding:7px 13px;font-size:13.5px;cursor:pointer;text-align:left}
+.sbx-ask:hover{background:var(--primary-100)}
+.sbx-notes{margin-top:12px;background:#F4F9FD;border-radius:10px;padding:10px 14px;font-size:13.5px}
+.sbx-notes ul{margin:6px 0 0;padding-left:18px}
+.sbx-opts{display:grid;gap:8px;margin-top:12px}
+.sbx-opt{display:flex;gap:10px;align-items:center;border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;font-size:14px}
+.sbx-opt.on{border-color:var(--primary);background:var(--primary-100)}
+.sbx-bars5{grid-template-columns:repeat(5,1fr)}
+@media (max-width:900px){.sbx-bars5{grid-template-columns:1fr 1fr}.sbx-call-h{flex-direction:column}}
+.sbx-browser[hidden],.sbx-call[hidden],.sbx-task[hidden]{display:none!important}
