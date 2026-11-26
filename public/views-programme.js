@@ -2,6 +2,7 @@ import { h, api, toast, fmtDate, svg, tipI } from './ui.js';
 import { trajectoryChart } from './charts.js';
 import { journeyMap } from './journey.js';
 import { SCENARIOS as SANDBOXES } from './sandbox.js';
+import { storyPlayer } from './story.js';
 import { collectionStrip } from './collectibles.js';
 import { checkForm, resultView, walkthroughCard, explainCard, feedbackCard, challengeCard, spacedCard } from './assess-ui.js';
 
@@ -193,6 +194,23 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
 
 const stat = (label, value, note, keep) => h('div', { class: 'card kpi' }, h('div', { class: 'label' }, label), h('div', { class: 'value' }, value), h('div', { class: keep ? 'note keep' : 'note' }, note));
 
+
+// Step 1 body: the story on slides when the module has one, with a switch to the one-page text (sections, worked
+// example, common mistakes); otherwise the one-page text. "Asked in sessions" stays visible under the story.
+function lessonBody(m, onePage) {
+  if (!m.story) return h('div', null, ...onePage());
+  const box = h('div');
+  let mode = (() => { try { return localStorage.getItem('academy.lessonView') || 'story'; } catch { return 'story'; } })();
+  const toPractice = () => document.querySelector('.practice-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const draw = () => {
+    const sw = h('div', { class: 'st-switch' }, h('button', { type: 'button', class: mode === 'story' ? 'on' : '', on: { click: () => set('story') } }, 'Slides'), h('button', { type: 'button', class: mode === 'page' ? 'on' : '', on: { click: () => set('page') } }, 'One page'));
+    box.replaceChildren(sw, ...(mode === 'story' ? [storyPlayer(m.key, m.story, { toPractice }), m.faq?.length ? h('div', { class: 'faq' }, h('h3', null, 'Asked in sessions'), m.faq.map((f) => h('details', null, h('summary', null, f.question), h('p', null, f.answer)))) : null] : onePage()).filter(Boolean).flat().filter(Boolean));
+  };
+  const set = (v) => { mode = v; try { localStorage.setItem('academy.lessonView', v); } catch { /* not kept */ } draw(); };
+  draw();
+  return box;
+}
+
 // ------------------------------------------------------------------ module / lesson page
 export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {}) {
   const admin = mode === 'admin';
@@ -258,10 +276,12 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
         h('div', { class: 'card lesson-card' }, h('div', { class: 'eyebrow dark' }, 'Step 1 · Learn'), h('h2', null, 'The lesson'),
           videoBlock(m, admin),
           updatesBlock(m.updates, Object.keys(m.updatedLines || {}).length),
+          lessonBody(m, () => [
           m.sections.map((s, si) => h('details', { class: 'les', open: si === 0 || s.points.some((_, pi) => m.updatedLines?.[`${si}.${pi}`]) }, h('summary', null, h('h3', null, s.title), h('span', { class: 'les-n' }, `${s.points.length}`)), h('ul', null, s.points.map((p, pi) => { const u = m.updatedLines?.[`${si}.${pi}`]; return h('li', { class: u ? 'upd' : null }, p, u ? h('span', { class: 'upd-tag', title: `Changed with ${u.release || 'a release'}` }, 'Updated') : null); })))),
           m.faq?.length ? h('div', { class: 'faq' }, h('h3', null, 'Asked in sessions'), m.faq.map((f) => h('details', null, h('summary', null, f.question), h('p', null, f.answer)))) : null,
           m.caseStudy ? h('div', { class: 'case' }, h('h3', null, 'Worked example'), h('p', null, m.caseStudy.example), h('div', { class: 'muted small' }, 'An illustrative case built from the lesson')) : null,
-          m.caseStudy?.mistakes?.length ? h('div', { class: 'mistakes' }, h('h3', null, 'Common mistakes'), h('ul', null, m.caseStudy.mistakes.map((x) => h('li', null, x)))) : null,
+          m.caseStudy?.mistakes?.length ? h('div', { class: 'mistakes' }, h('h3', null, 'Common mistakes'), h('ul', null, m.caseStudy.mistakes.map((x) => h('li', null, x)))) : null
+          ]),
           lessonItem ? markBtn(lessonItem, 'I have worked through the lesson') : null),
         (m.practiceTask || m.practiceFull) ? h('div', { class: 'card practice-card' }, h('div', { class: 'eyebrow dark' }, 'Step 2 · Practise'), h('h2', null, 'Do it for real'),
           practiceItem?.done ? h('div', { class: 'ok', style: 'margin-bottom:8px' }, practiceItem.signed_off ? 'Practice passed and signed off' : 'Practice done') : !practiceItem && !admin ? h('p', { class: 'muted small' }, 'Optional for you: not in your plan') : null,

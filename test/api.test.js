@@ -641,6 +641,10 @@ test('sandbox: the first run is the result of record and a pass signs the practi
   const runs = (await d('GET', '/api/me/sandbox/platform-1')).json.runs;
   assert.equal(runs.length, 2); assert.equal(runs[0].score, 100, 'scores are clamped to 0-100');
   assert.equal((await client()('GET', '/api/me/sandbox/platform-1')).status, 401);
+  // The Platform lesson carries its story on slides; a module without one does not.
+  const pm = (await d('GET', '/api/me/modules/platform')).json;
+  assert.ok(pm.story?.slides?.length >= 10, 'Platform has its story'); assert.ok(pm.story.slides.some((x) => x.kind === 'decide' && x.options.filter((o) => o.ok).length === 1), 'one right answer per decision');
+  assert.equal((await d('GET', '/api/me/modules/zoom')).json.story, null);
   // A run with a client call keeps the call: questions asked, the solution chosen, the two sub-scores.
   await d('POST', '/api/me/sandbox/hls-1', { result: { total: 72, outcome: 100, path: 100, time: 100, secs: 200, discovery: 33, solution: 0, call: { asked: ['lang', 'plat', 'budget', 'ai'], choice: 'iframe', confidence: 61 } } });
   const hr = (await d('GET', '/api/me/sandbox/hls-1')).json.runs[0].result;
