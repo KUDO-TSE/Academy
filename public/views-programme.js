@@ -1,5 +1,6 @@
 import { h, api, toast, fmtDate, svg } from './ui.js';
-import { roadmap, trajectoryChart } from './charts.js';
+import { trajectoryChart } from './charts.js';
+import { journeyMap } from './journey.js';
 import { collectionStrip } from './collectibles.js';
 import { checkForm, resultView, walkthroughCard, explainCard, feedbackCard, challengeCard, spacedCard } from './assess-ui.js';
 
@@ -134,11 +135,8 @@ export function programmeView(data, { readOnly = false, banner = null } = {}) {
         h('div', null, `${st.progress.done} of ${st.progress.total} steps done`), h('span', { class: `chip ${paceChip[0]}` }, paceChip[1]))),
 
     h('section', { class: 'card roadmap-card' },
-      h('div', { class: 'row spread' }, h('div', null, h('div', { class: 'jr-k' }, 'Your 12 weeks at a glance'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, 'Each square is a step in your plan. Click one to open it.')),
-        h('div', { class: 'chart-key' }, h('span', null, h('i', { class: 'k-sq done' }), 'Done'), h('span', null, h('i', { class: 'k-sq now' }), 'This week'), h('span', null, h('i', { class: 'k-sq due' }), 'Overdue'), h('span', null, h('i', { class: 'k-sq next' }), 'Coming up'), h('span', null, h('i', { class: 'k-flag' }), 'With Jack'))),
-      roadmap({ items: st.items, week: st.week, weeks: st.weeks, phases: data.phases, hrefFor: readOnly ? () => null : itemHref }),
-      h('div', { class: 'jr-phases' }, data.phases.map((p) => { const its = st.items.filter((i) => i.phase === p.n); const d = its.filter((i) => i.done).length;
-        return h('div', null, h('b', null, p.name), h('span', { class: 'muted small' }, p.aim), h('div', { class: 'ph-bar', title: `${d} of ${its.length} done` }, h('i', { style: `width:${its.length ? Math.round((d / its.length) * 100) : 0}%` })), h('span', { class: 'muted small' }, `${d} of ${its.length} done`)); }))),
+      h('div', null, h('h2', null, 'Your 12 weeks at a glance'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, 'Four phases, one stop per week. Each stop shows what the week covers, how much of it is done and when you meet Jack')),
+      journeyMap({ items: st.items, week: st.week, weeks: st.weeks, phases: data.phases, levels: st.levels, modules: data.modules, hrefFor: readOnly ? () => null : itemHref })),
     h('section', { class: 'journey' },
       h('div', { class: 'card jr' }, h('div', { class: 'jr-k' }, '1 · Where you are now'), h('div', { class: 'jr-big' }, `${st.readiness.now}%`), h('div', { class: 'muted' }, `Average readiness across the 12 scenarios. Ready on ${st.readiness.ready} of ${st.readiness.of}.`),
         st.readiness.now !== st.readiness.start ? h('div', { class: 'small', style: 'margin-top:6px' }, `You started at ${st.readiness.start}%.`) : null,

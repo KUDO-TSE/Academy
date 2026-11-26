@@ -53,58 +53,6 @@ export function lineChart(labels, series, { targetY = null } = {}) {
 // ------------------------------------------------------------------ programme visuals (v4)
 const P = { primary: '#1B5C84', deep: '#11374F', soft: '#E3F0F9', teal: '#48A1D8', coral: '#DB6539', coralSoft: '#F7D7B4', green: '#2F7A45', greenSoft: '#E4EFE5', grid: '#EEF1F2', ink: '#231F20', muted: '#5E6A72', faint: '#9CAAB3' };
 
-/**
- * The 12-week roadmap at a glance: phase bands, one square per step (done, due, coming), sessions with Jack and
- * milestones as flags, and a "you are here" marker. items = plan items with week, done, owner, kind, title.
- */
-export function roadmap({ items, week, weeks = 12, phases, hrefFor = () => null }) {
-  if (small()) return roadmapVertical({ items, week, weeks, phases, hrefFor });
-  const W = 1040, L = 6, R = 6, colW = (W - L - R) / weeks, sq = 15, gap = 5, perRow = Math.max(1, Math.floor((colW - 8) / (sq + gap)));
-  const mine = (w) => items.filter((i) => i.week === w && (i.owner || 'you') === 'you');
-  const rows = Math.max(1, ...Array.from({ length: weeks }, (_, k) => Math.ceil(mine(k + 1).length / perRow)));
-  const bandY = 0, bandH = 42, flagY = bandH + 8, flagH = 38, gridY = flagY + flagH + 6, gridH = rows * (sq + gap) + 6, axisY = gridY + gridH + 16, H = axisY + 34;
-  const x0 = (w) => L + (w - 1) * colW;
-  let g = '';
-  // Phase bands
-  for (const p of phases) {
-    const x = x0(p.weeks[0]) + 1, w = (p.weeks[1] - p.weeks[0] + 1) * colW - 2;
-    const state = week > p.weeks[1] ? 'past' : week >= p.weeks[0] ? 'now' : 'next';
-    const fill = state === 'now' ? P.primary : state === 'past' ? P.greenSoft : P.soft, txt = state === 'now' ? '#fff' : state === 'past' ? P.green : P.deep;
-    g += `<rect x="${x}" y="${bandY}" width="${w}" height="${bandH}" rx="9" fill="${fill}"/>`;
-    g += `<text x="${x + 10}" y="${bandY + 17}" font-size="13" font-weight="600" fill="${txt}">${esc(p.name)}</text>`;
-    g += `<text x="${x + 10}" y="${bandY + 32}" font-size="10.5" fill="${txt}" opacity=".85">${p.weeks[0] === p.weeks[1] ? `Week ${p.weeks[0]}` : `Weeks ${p.weeks[0]}–${p.weeks[1]}`}${state === 'past' ? ' · done' : ''}</text>`;
-  }
-  // Week columns: light stripe for the current week
-  g += `<rect x="${x0(week)}" y="${flagY - 4}" width="${colW}" height="${axisY - flagY + 10}" rx="8" fill="${P.soft}" opacity=".7"/>`;
-  // Flags: sessions with Jack and milestones
-  const perWeek = {};
-  for (const it of items.filter((i) => i.owner === 'jack')) {
-    const k = perWeek[it.week] = (perWeek[it.week] || 0) + 1; if (k > 2) continue;
-    const fy = flagY + (k - 1) * 19, fx = x0(it.week) + 5, fw = colW - 10;
-    const col = it.done ? P.green : it.kind === 'milestone' ? P.coral : P.primary;
-    const label = it.kind === 'milestone' ? 'Retest' : /mock/i.test(it.title) ? 'Mock call' : /mid/i.test(it.key) ? 'Mid-point' : /kick/i.test(it.key) ? 'Kick-off' : 'With Jack';
-    g += `<g><title>${esc(it.title)}${it.done ? ' (done)' : ''}</title><path d="M${fx},${fy} h${fw} l-6,8 l6,8 h-${fw} z" fill="${col}"/><text x="${fx + 6}" y="${fy + 12}" font-size="11" font-weight="600" fill="#fff">${it.done ? '✓ ' : ''}${esc(label)}</text></g>`;
-  }
-  // Steps
-  for (let w = 1; w <= weeks; w++) {
-    mine(w).forEach((it, k) => {
-      const cx = x0(w) + (colW - (perRow * (sq + gap) - gap)) / 2 + (k % perRow) * (sq + gap), cy = gridY + gridH - 6 - (Math.floor(k / perRow) + 1) * (sq + gap) + gap;
-      const due = !it.done && w < week, now = !it.done && w === week;
-      const fill = it.done ? P.deep : due ? P.coral : now ? '#fff' : '#fff', stroke = it.done ? P.deep : due ? P.coral : now ? P.primary : P.faint;
-      const href = hrefFor(it);
-      const shape = `<rect x="${cx}" y="${cy}" width="${sq}" height="${sq}" rx="3" fill="${fill}" stroke="${stroke}" stroke-width="${now ? 2 : 1.4}"><title>Week ${w}: ${esc(it.title)} · ${it.done ? 'done' : due ? 'overdue' : now ? 'this week' : 'coming up'}</title></rect>`;
-      g += href ? `<a href="${esc(href)}">${shape}</a>` : shape;
-    });
-  }
-  // Axis
-  for (let w = 1; w <= weeks; w++) g += `<text x="${x0(w) + colW / 2}" y="${axisY}" font-size="10.5" font-weight="${w === week ? 800 : 600}" fill="${w === week ? P.primary : P.muted}" text-anchor="middle">W${w}</text>`;
-  // You are here
-  const yx = x0(week) + colW / 2;
-  g += `<line x1="${yx}" x2="${yx}" y1="${flagY - 4}" y2="${axisY - 12}" stroke="${P.coral}" stroke-width="2" stroke-dasharray="3 3"/>`;
-  g += `<rect x="${yx - 38}" y="${axisY + 6}" width="76" height="20" rx="10" fill="${P.coral}"/><text x="${yx}" y="${axisY + 20}" font-size="11" font-weight="600" fill="#fff" text-anchor="middle">You: week ${week}</text>`;
-  return svg(`<svg class="chart roadmap" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Your 12-week roadmap, week ${week} of ${weeks}">${g}</svg>`);
-}
-
 /** Readiness over the 12 weeks: where you started, the path so far, and the projected path to where you will be. */
 export function trajectoryChart({ trajectory, start, now, end, target, week, weeks = 12 }) {
   const W = small() ? 400 : 520, H = 280, l = 40, r = 74, t = 24, b = 30, iw = W - l - r, ih = H - t - b;
@@ -134,35 +82,3 @@ export function donut(pct, { size = 64, label = null } = {}) {
   return svg(`<svg viewBox="0 0 64 64" width="${size}" height="${size}" role="img" aria-label="${pct}% done"><circle cx="32" cy="32" r="${r}" fill="none" stroke="${P.grid}" stroke-width="8"/><circle cx="32" cy="32" r="${r}" fill="none" stroke="${P.primary}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${d} ${c}" transform="rotate(-90 32 32)"/><text x="32" y="36" font-size="${label ? 12 : 14}" font-weight="600" fill="${P.deep}" text-anchor="middle">${label ?? `${pct}%`}</text></svg>`);
 }
 
-/** Phones: the same roadmap, one row per week, read top to bottom. */
-function roadmapVertical({ items, week, weeks, phases, hrefFor }) {
-  const W = 360, rowH = 34, lab = 44, top = 4, H = top + weeks * rowH + 8;
-  const phaseOf = (w) => phases.find((p) => w >= p.weeks[0] && w <= p.weeks[1]);
-  let g = '';
-  for (let w = 1; w <= weeks; w++) {
-    const y = top + (w - 1) * rowH, p = phaseOf(w), now = w === week;
-    const state = week > p.weeks[1] ? 'past' : week >= p.weeks[0] ? 'now' : 'next';
-    if (w === p.weeks[0]) g += `<rect x="0" y="${y + 2}" width="5" height="${(p.weeks[1] - p.weeks[0] + 1) * rowH - 4}" rx="2.5" fill="${state === 'now' ? P.primary : state === 'past' ? P.green : P.soft}"/><text x="${W - 4}" y="${y + 13}" font-size="10" font-weight="600" fill="${state === 'now' ? P.primary : P.muted}" text-anchor="end">${esc(p.name.toUpperCase())}</text>`;
-    if (now) g += `<rect x="9" y="${y + 1}" width="${W - 9}" height="${rowH - 2}" rx="8" fill="${P.soft}"/>`;
-    g += `<text x="14" y="${y + rowH / 2 + 4}" font-size="12" font-weight="${now ? 800 : 600}" fill="${now ? P.coral : P.muted}">W${w}</text>`;
-    let x = lab;
-    for (const it of items.filter((i) => i.week === w && i.owner === 'jack')) {
-      const col = it.done ? P.green : it.kind === 'milestone' ? P.coral : P.primary;
-      const label = it.kind === 'milestone' ? 'Retest' : /mock/i.test(it.title) ? 'Mock call' : /mid/i.test(it.key) ? 'Mid-point' : /kick/i.test(it.key) ? 'Kick-off' : 'Jack';
-      const fw = label.length * 6.2 + 14;
-      g += `<g><title>${esc(it.title)}</title><rect x="${x}" y="${y + 8}" width="${fw}" height="18" rx="5" fill="${col}"/><text x="${x + 7}" y="${y + 21}" font-size="10.5" font-weight="600" fill="#fff">${it.done ? '✓ ' : ''}${esc(label)}</text></g>`;
-      x += fw + 6;
-    }
-    for (const it of items.filter((i) => i.week === w && (i.owner || 'you') === 'you')) {
-      if (x > W - 84) { g += `<text x="${x}" y="${y + 21}" font-size="11" fill="${P.muted}">…</text>`; break; }
-      const due = !it.done && w < week, cur = !it.done && w === week;
-      const fill = it.done ? P.deep : due ? P.coral : '#fff', stroke = it.done ? P.deep : due ? P.coral : cur ? P.primary : P.faint;
-      const shape = `<rect x="${x}" y="${y + 9}" width="16" height="16" rx="3.5" fill="${fill}" stroke="${stroke}" stroke-width="${cur ? 2 : 1.4}"><title>Week ${w}: ${esc(it.title)}</title></rect>`;
-      const href = hrefFor(it);
-      g += href ? `<a href="${esc(href)}">${shape}</a>` : shape;
-      x += 21;
-    }
-    if (now) g += `<text x="${W - 4}" y="${y + rowH - 6}" font-size="10" font-weight="600" fill="${P.coral}" text-anchor="end">YOU ARE HERE</text>`;
-  }
-  return svg(`<svg class="chart roadmap" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Your 12-week roadmap, week ${week} of ${weeks}">${g}</svg>`);
-}
