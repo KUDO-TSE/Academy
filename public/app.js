@@ -14,8 +14,8 @@ import { sandboxView, SCENARIOS as SANDBOXES } from './sandbox.js';
 const root = document.getElementById('app');
 let me = null;
 
-const NAV_TRAINEE = [['programme', 'My programme', 'plan'], ['collection', 'My collection', 'star'], ['results', 'My results', 'chart'], ['progress', 'My progress', 'trend']];
-const NAV_ME = [['me-programme', 'My programme', 'plan'], ['me-collection', 'My collection', 'star'], ['me-results', 'My results', 'chart'], ['me-progress', 'My progress', 'trend']];
+const NAV_TRAINEE = [['programme', 'Home', 'home'], ['training', 'My training', 'plan'], ['results', 'My results', 'chart'], ['progress', 'My progress', 'trend'], ['collection', 'My collection', 'star']];
+const NAV_ME = [['me-programme', 'Home', 'home'], ['me-training', 'My training', 'plan'], ['me-results', 'My results', 'chart'], ['me-progress', 'My progress', 'trend'], ['me-collection', 'My collection', 'star']];
 const NAV_ADMIN = [['board', 'My board', 'flag'], ['overview', 'Overview', 'home'], ['team', 'Team', 'team'], ['priorities', 'Priorities', 'flag'], ['programme', 'Programme', 'plan'], ['reviews', 'Reviews', 'flag'], ['feedback', 'Feedback', 'chart'], ['curriculum', 'Curriculum', 'info'], ['try', 'Try as a trainee', 'user'], ['SEP', 'Admin'], ['imports', 'Imports', 'upload'], ['users', 'Users & access', 'key'], ['audit', 'Activity log', 'log'], ['logic', 'Logic notes', 'info']];
 
 async function boot() {
@@ -125,7 +125,7 @@ function shell() {
 }
 
 // ------------------------------------------------------------ Router
-const TRAINEE_ROUTES = { programme: null, collection: null, results: resultsView, progress: progressView };
+const TRAINEE_ROUTES = { programme: null, training: null, collection: null, results: resultsView, progress: progressView };
 const ADMIN_ROUTES = { try: () => P.tryView(me), board: boardView, overview: A.overviewView, team: A.teamView, priorities: A.prioritiesView, programme: P.programmeOverview, reviews: P.reviewsView, sessions: sessionsView, releases: releasesView, feedback: P.feedbackView, curriculum: () => P.curriculumView(), imports: A.importView, users: A.usersView, audit: A.auditView, logic: A.logicView };
 const isTraineeDyn = (r) => r.startsWith('module-') || r.startsWith('sandbox-') || r === 'missed' || r === 'survey';
 const isAdminDyn = (r) => r.startsWith('session-') || r.startsWith('release-') || r.startsWith('person-') || r.startsWith('preview') || r.startsWith('pview-') || r.startsWith('curriculum-');
@@ -145,7 +145,7 @@ async function route() {
   if (isAdmin && !meMode && !(r in ADMIN_ROUTES) && !isAdminDyn(r)) r = 'overview';
   const navKey = meMode ? `me-${r}` : r;
   document.body.classList.remove('nav-open'); document.querySelector('.nav-toggle')?.setAttribute('aria-expanded', 'false');
-  document.querySelectorAll('.nav a, .tabbar a').forEach((a) => a.classList.toggle('active', a.dataset.r === navKey || (r.startsWith('person-') && a.dataset.r === 'team') || (r.startsWith('curriculum-') && a.dataset.r === 'curriculum') || ((r === 'sessions' || r === 'releases' || r.startsWith('session-') || r.startsWith('release-')) && a.dataset.r === 'imports') || (isTraineeDyn(r) && a.dataset.r === (meMode ? 'me-programme' : 'programme'))));
+  document.querySelectorAll('.nav a, .tabbar a').forEach((a) => a.classList.toggle('active', a.dataset.r === navKey || (r.startsWith('person-') && a.dataset.r === 'team') || (r.startsWith('curriculum-') && a.dataset.r === 'curriculum') || ((r === 'sessions' || r === 'releases' || r.startsWith('session-') || r.startsWith('release-')) && a.dataset.r === 'imports') || (isTraineeDyn(r) && a.dataset.r === (meMode ? 'me-training' : 'training'))));
   main.replaceChildren(h('div', { class: 'page muted' }, 'Loading…'));
   try {
     let view;
@@ -159,11 +159,11 @@ async function route() {
       else view = await ADMIN_ROUTES[r]();
     } else if (r === 'collection') {
       view = await collectionView();
-    } else if (r === 'programme' || isTraineeDyn(r)) {
+    } else if (r === 'programme' || r === 'training' || isTraineeDyn(r)) {
       const prog = await api('GET', '/api/me/programme');
       const items = prog.state?.items || [];
       const rerender = () => route();
-      if (r === 'programme') view = programmeView(prog);
+      if (r === 'programme' || r === 'training') view = programmeView(prog, { part: r === 'training' ? 'training' : 'home' });
       else if (r === 'missed') view = await missedView({ rerender, planItems: items });
       else if (r === 'survey') view = await surveyView();
       else if (r.startsWith('sandbox-')) { const key = r.slice(8); view = sandboxView(key, { onExit: (again) => { if (again) route(); else location.hash = `${meMode ? 'me-' : ''}module-${SANDBOXES[key]?.module || 'platform'}`; } }); }

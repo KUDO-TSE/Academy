@@ -155,7 +155,7 @@ export function tabInputs(personId, reload) {
 export async function previewProgramme(id, draft) {
   const data = await api('GET', `/api/admin/trainees/${id}/preview${draft ? '?draft=1' : ''}`);
   const bar = h('div', { class: 'preview-bar' }, h('span', null, `Preview: ${draft ? 'the draft plan for' : 'what'} ${data.user?.name} ${draft ? '' : 'sees'}. Read only.`), h('div', { class: 'row' }, h('a', { class: 'btn sm', href: `#person-${id}`, on: { click: () => sessionStorage.setItem('personTab', 'programme') } }, 'Exit preview')));
-  return programmeView(data, { readOnly: true, banner: bar });
+  return programmeView(data, { readOnly: true, banner: bar, part: 'all' });
 }
 
 let CUR = null;

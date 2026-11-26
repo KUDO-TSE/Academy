@@ -141,7 +141,8 @@ A cycle starts with each knowledge test round (`rounds.kind = 'live'`): importin
 
 ## Learning design (v4)
 
-- **This week first**: the programme page opens on the steps due this week (with the time they take). Only the current phase is open; growth since the start shows on each level, and scenarios that reached their target are called out.
+- **Home and My training**: Home is the overview (goal and progress, four figures, the 12 weeks, readiness, levels, cards at the bottom) with one button, Continue my training. My training is where the work happens: this week's steps and weekly challenge, focus areas, review practice, and the plan week by week. Menu order: Home, My training, My results, My progress, My collection.
+- **This week first**: My training opens on the steps due this week (with the time they take). Only the current phase is open; growth since the start shows on each level, and scenarios that reached their target are called out.
 - **Spaced review**: questions a trainee missed or guessed on come back after 1 week and again after 3 weeks (`/api/me/review`). Practice only.
 - **Trainee choice**: the trainee can swap the third focus area for one of the next two in priority. It becomes a draft that the KUDO Trainer approves. The KUDO Trainer's own focus override always wins.
 - **Teach-back pairs**: in weeks 8 to 10, the board suggests pairing trainees who share a focus scenario, with a message to copy. The KUDO Trainer makes the introduction, so no trainee sees another's results.
@@ -153,7 +154,7 @@ A cycle starts with each knowledge test round (`rounds.kind = 'live'`): importin
 
 ## Guided tour
 
-`public/tour.js`. Two scripts: trainees (12 steps: the programme page, a module, results) and admins (11 steps: one per menu area). It opens automatically the first time someone signs in (after the password change), with Skip at every step; Done or Skip both record `users.tour_seen_at`. "Guided tour" at the bottom of the menu replays it at any time. Admins acting as a test trainee see the trainee tour. Keyboard: arrows to move, Esc to close. A step whose element is missing shows as a centred card, so the tour never gets stuck.
+`public/tour.js`. Two scripts: trainees (Home, My training, a module, results) and admins (11 steps: one per menu area). It opens automatically the first time someone signs in (after the password change), with Skip at every step; Done or Skip both record `users.tour_seen_at`. "Guided tour" at the bottom of the menu replays it at any time. Admins acting as a test trainee see the trainee tour. Keyboard: arrows to move, Esc to close. A step whose element is missing shows as a centred card, so the tour never gets stuck.
 
 ## Sessions: the Academy learns from 1:1 and group sessions
 
