@@ -43,6 +43,8 @@ export function sandboxView(key, { onExit } = {}) {
   const S = { screen: 'login', menu: null, modal: null, meeting: null, form: null, picker: null, t0: Date.now(), events: [], hints: 0, flags: {}, finished: false,
     glossaries: [['Default Glossary', 120, 14, 0, 0, 106, 0], ['Acme Launch', 64, 20, 10, 2, 30, 2], ['Board Meetings', 41, 12, 0, 4, 25, 0], ['Product Names', 88, 30, 8, 0, 50, 0], ['Medical Terms', 37, 37, 0, 0, 0, 0]].map(([name, terms, rec, tr, block, dnt, rep], i) => ({ name, terms, rec, tr, block, dnt, rep, def: i === 0 })) };
   const RELEVANT = new Set(sc.screens || []);
+  // Flags score the trainee's own meeting only; actions on the sample meetings go to a scratch object.
+  const F = () => (S.meeting && S.meeting === S.mine ? S.flags : (S.scratch = S.scratch || {}));
   const log = (type, what, extra = {}) => S.events.push({ t: Math.round((Date.now() - S.t0) / 1000), screen: S.screen, type, what, ...extra });
   const detour = (what) => { log('detour', what); S.flags.detours = (S.flags.detours || 0) + 1; };
   const root = h('div', { class: 'sbx' });
@@ -66,7 +68,7 @@ export function sandboxView(key, { onExit } = {}) {
     if (!RELEVANT.has(screen)) detour(what || screen);
     draw(); app.scrollTop = 0; app.querySelector('.k-main')?.scrollTo?.(0, 0);
   };
-  const URL = { login: 'users/sign_in', home: '', meetings: 'sessions', glossaries: 'glossaries', usage: 'usage', 'new-ai': 'sessions/new?ai_interpretation=true', 'new-hi': 'sessions/new', meeting: 'sessions/800212907037', users: 'sessions/800212907037/users', participants: 'sessions/800212907037/participants', operators: 'sessions/800212907037/operators', viewers: 'sessions/800212907037/viewers', edit: 'sessions/800212907037/edit', polls: 'sessions/800212907037/polls', 'poll-new': 'sessions/800212907037/polls/new', poll: 'sessions/800212907037/polls/2', files: 'sessions/800212907037/documents', messages: 'sessions/800212907037/messages', recordings: 'sessions/800212907037/recordings', av: 'sessions/800212907037/configurations', features: 'sessions/800212907037/security', mglossaries: 'sessions/800212907037/meeting_glossaries', stats: 'sessions/800212907037/statistics' };
+  const URL = { login: 'users/sign_in', home: '', meetings: 'sessions', glossaries: 'glossaries', usage: 'usage', 'new-ai': 'sessions/new?ai_interpretation=true', 'new-hi': 'sessions/new', meeting: 'sessions/800212907037', users: 'sessions/800212907037/users', participants: 'sessions/800212907037/participants', operators: 'sessions/800212907037/operators', viewers: 'sessions/800212907037/viewers', edit: 'sessions/800212907037/edit', polls: 'sessions/800212907037/polls', 'poll-new': 'sessions/800212907037/polls/new', poll: 'sessions/800212907037/polls/2', files: 'sessions/800212907037/documents', messages: 'sessions/800212907037/messages', recordings: 'sessions/800212907037/recordings', av: 'sessions/800212907037/configurations', features: 'sessions/800212907037/security', mglossaries: 'sessions/800212907037/meeting_glossaries', stats: 'sessions/800212907037/report' };
   const url = () => `live.kudoway.eu/${URL[S.screen] ?? ''}`;
 
   // ---------------------------------------------------------------- shared pieces
@@ -99,22 +101,59 @@ export function sandboxView(key, { onExit } = {}) {
       h('button', { class: 'k-yellow', type: 'button', on: { click: () => { go('home', 'Log in'); toastK('Logged in successfully.'); } } }, 'Log In'),
       h('p', { class: 'k-mini' }, 'Sandbox account: the Client role, filled in for you')));
   }
-  const otherMeetings = [{ name: 'Weekly Partner Sync', date: 'Fri, Nov 27, 2026', time: '10:00 – 10:30', langs: 'English, Italian', status: 'scheduled' }, { name: 'Q3 Board Review', date: 'Thu, Nov 19, 2026', time: '15:00 – 16:00', langs: 'English, French', status: 'finished' }];
-  const myMeetingCard = () => (S.meeting ? [{ name: S.meeting.name, date: 'Thu, Nov 26, 2026', time: '14:00 – 15:00', langs: [...S.meeting.speakers, ...S.meeting.translations].join(', '), status: S.meeting.status, mine: true }] : []);
-  const openMeeting = (m) => { if (m.mine) go('meeting', 'Open the meeting'); else { detour(`Open ${m.name}`); toastK('You do not have edit rights on this meeting in the sandbox'); } };
+  const baseMeeting = (o) => ({ kind: 'ai', type: 'speech', speakers: ['English'], translations: [], sign: [], recording: true, autoRecord: true, external: false, adv: advDefaults(), prep: '0 minutes', aiAssist: false,
+    participants: [{ email: 'speaker@client-demo.com', name: 'Speaker Demo', role: 'Host' }], operators: [], viewers: [], polls: [], files: [], glossary: null,
+    av: { res: 'Auto (adaptive)', fps: 'Auto (adaptive)', bitrate: 'Auto (adaptive)', stereo: false, level: 50, processing: true },
+    features: { lobby: false, lobbyP: false, lobbyV: false, users: true, docs: true, msg: true, polls: true, request: false, share: true }, ...o });
+  // Other meetings in the demo account, with generic names. Opening one is a detour; nothing done there counts.
+  const samples = () => (S.samples = S.samples || [
+    ['Weekly Partner Sync', 'Fri, Nov 27, 2026', '10:00 - 10:30', '30 minutes', ['English'], ['Italian'], 'ai', 'scheduled'],
+    ['Customer Advisory Board', 'Fri, Nov 20, 2026', '14:08 - 15:08', '1 hour', ['Chinese', 'English', 'French'], ['English (US)', 'French (France)', 'German', 'Spanish (Spain)', 'Japanese'], 'ai', 'finished'],
+    ['Q3 Board Review', 'Mon, Nov 16, 2026', '15:34 - 18:34', '3 hours', ['English', 'French', 'Spanish'], ['English (US)', 'French (France)', 'Spanish (Spain)'], 'ai', 'finished'],
+    ['Partner Webinar', 'Fri, Oct 30, 2026', '10:15 - 12:15', '2 hours', ['English'], ['English (UK)'], 'captions', 'finished'],
+    ['Medical Symposium', 'Thu, Oct 15, 2026', '07:00 - 11:55', '4 hours 55 minutes', ['Chinese', 'English', 'French', 'German'], [], 'hi', 'finished'],
+    ['Multilingual Town Hall', 'Wed, Oct 14, 2026', '17:00 - 18:00', '1 hour', ['Arabic', 'Chinese', 'English'], ['Arabic', 'English (US)', 'French (France)', 'German', 'Italian', 'Korean', 'Russian', 'Spanish (Spain)'], 'ai', 'finished'],
+    ['Interpreter Briefing', 'Mon, Oct 12, 2026', '15:59 - 16:59', '1 hour', ['Amharic', 'English'], [], 'hi', 'finished'],
+    ['Sales Kick-off', 'Mon, Oct 05, 2026', '10:35 - 11:35', '1 hour', ['English', 'French'], [], 'hi', 'finished'],
+    ['Product Day rehearsal', 'Mon, Oct 05, 2026', '10:31 - 11:31', '1 hour', ['English'], ['French (France)'], 'ai', 'finished'],
+    ['Press Briefing', 'Thu, Sep 24, 2026', '12:53 - 13:53', '1 hour', ['English', 'French'], [], 'hi', 'finished'],
+    ['Investor Call', 'Tue, Sep 22, 2026', '16:00 - 17:00', '1 hour', ['English'], ['German'], 'ai', 'canceled'],
+  ].map(([name, date, time, dur, speakers, translations, k, status]) => baseMeeting({ name, date, time, dur, speakers, translations, kind: k === 'hi' ? 'hi' : 'ai', type: k === 'hi' ? 'hi' : k === 'captions' ? 'captions' : 'speech', status, sample: true })));
+  const powered = (m) => (m.kind === 'hi' ? 'Human interpretation' : m.type === 'captions' ? 'AI captions only' : 'AI speech & captions');
+  const langsOf = (m) => { const all = [...new Set([...m.speakers, ...m.translations.map((l) => l.replace(/ \(.*\)$/, ''))])]; return all.length > 3 ? `${all.slice(0, 3).join(', ')} +${all.length - 3}` : all.join(', '); };
+  const mineRow = () => (S.mine ? [S.mine] : []);
+  const MINE_DATE = { date: 'Thu, Nov 26, 2026', time: '14:00 - 15:00', dur: '1 hour' };
+  const openMeeting = (m) => { S.meeting = m; S.ovAdv = false; if (m === S.mine) go('meeting', 'Open the meeting'); else { go('meeting', `Open ${m.name}`); detour(`Opened another meeting: ${m.name}`); } };
   function homeScreen() {
-    const card = (m) => h('button', { class: 'k-mcard', type: 'button', on: { click: () => openMeeting(m) } },
-      h('b', null, m.name, ' ›'), h('div', null, ic('cal', 14), m.date), h('div', null, ic('clock', 14), m.time, ' CET'), h('div', null, ic('lang', 14), m.langs), h('span', { class: `k-chip ${m.status}` }, m.status.toUpperCase()));
-    const list = [...myMeetingCard(), otherMeetings[0]];
-    return shell(h('h1', { class: 'k-h1' }, 'Welcome back, Demo'), h('h3', { class: 'k-h3' }, 'Upcoming meetings'), h('div', { class: 'k-cards' }, list.map(card), list.length < 3 ? h('div', { class: 'k-mcard empty' }, 'No more meetings scheduled') : null),
-      h('button', { class: 'k-link', type: 'button', on: { click: () => go('meetings', 'View all my meetings') } }, 'View all my meetings'),
-      h('div', { class: 'k-grid2' }, h('div', { class: 'k-panel' }, h('h3', null, 'Usage & analytics'), h('div', { class: 'k-big' }, '412.5', h('small', null, ' / 500 available'))), h('div', { class: 'k-panel' }, h('h3', null, 'Your productivity gain'), h('div', { class: 'k-big green' }, '41.2'))));
+    const card = (m) => { const d = m === S.mine ? MINE_DATE : m; return h('button', { class: 'k-mcard', type: 'button', on: { click: () => openMeeting(m) } },
+      h('b', null, m.name, ' ›'), h('div', null, ic('cal', 14), d.date), h('div', null, ic('clock', 14), d.time, ' CET'), h('div', null, ic('lang', 14), langsOf(m)), h('span', { class: `k-chip ${m.status}` }, m.status.toUpperCase())); };
+    const list = [...mineRow(), ...samples()].filter((m) => m.status === 'scheduled' || m.status === 'live').slice(0, 3);
+    const empty = (i) => h('div', { class: 'k-mcard empty' }, ic('help', 16), h('span', null, 'No more meetings scheduled'), i === 0 ? h('button', { class: 'k-btn soft', type: 'button', on: { click: (e) => { e.stopPropagation(); S.menu = 'new'; log('click', 'New meeting (home card)'); draw(); } } }, 'New meeting ▾') : null);
+    const stat = (k, v) => h('div', null, h('small', null, k), h('b', null, v));
+    return shell(h('h1', { class: 'k-h1' }, 'Welcome back, Demo'), h('h3', { class: 'k-h3' }, 'Upcoming meetings'), h('div', { class: 'k-cards' }, list.map(card), ...Array.from({ length: 3 - list.length }, (_, i) => empty(i))),
+      h('button', { class: 'k-link', type: 'button', on: { click: () => go('meetings', 'View all my meetings', { mtab: 'upcoming' }) } }, 'View all my meetings'),
+      h('div', { class: 'k-grid2' },
+        h('div', { class: 'k-panel' }, h('h3', null, 'Usage & analytics'), h('div', { class: 'k-rowsp' }, h('b', null, 'Platform hours'), h('div', { class: 'k-big' }, '412.5', h('small', null, ' / 500 available'))), h('div', { class: 'k-bar' }, h('i', { style: 'width:82%' })),
+          h('div', { class: 'k-stats' }, stat('Completed', '38'), stat('Upcoming', String(list.length)), stat('Booked', '52 h 30 m'), stat('Consumed', '41 h 10 m')),
+          h('div', { class: 'k-rowsp' }, h('button', { class: 'k-link', type: 'button', on: { click: () => go('usage', 'View all my data') } }, 'View all my data'), h('small', { class: 'k-mini' }, '214 days left this billing cycle'))),
+        h('div', { class: 'k-panel' }, h('h3', null, 'Your productivity gain'), h('div', { class: 'k-roi' }, h('small', null, 'Index ROI'), h('div', { class: 'k-big green' }, '41.2'), h('small', null, 'Of your KUDO plan')),
+          h('button', { class: 'k-link', type: 'button', on: { click: () => go('usage', 'View my ROI analysis') } }, 'View my ROI analysis'))));
   }
   function meetingsScreen() {
-    const list = [...myMeetingCard(), ...otherMeetings];
-    return shell(h('h1', { class: 'k-h1' }, 'My meetings'), h('section', { class: 'k-card' }, h('input', { class: 'k-in k-search', placeholder: 'Search' }),
-      h('table', { class: 'k-tbl' }, h('thead', null, h('tr', null, ['Meeting name', 'Date', 'Time', 'Languages', 'Status'].map((x) => h('th', null, x)))),
-        h('tbody', null, list.map((m) => h('tr', { class: 'k-click', on: { click: () => openMeeting(m) } }, h('td', null, h('b', null, m.name)), h('td', null, m.date), h('td', null, m.time), h('td', null, m.langs), h('td', null, h('span', { class: `k-chip ${m.status}` }, m.status.toUpperCase())))))), pager(list.length)));
+    const tab = S.mtab || 'upcoming';
+    const all = [...mineRow(), ...samples()];
+    const list = all.filter((m) => (tab === 'upcoming' ? ['scheduled', 'live'].includes(m.status) : tab === 'previous' ? m.status === 'finished' : m.status === 'canceled'));
+    const total = tab === 'previous' ? 602 : list.length;
+    const tabBtn = (k, l) => h('button', { class: `k-tab ${tab === k ? 'on' : ''}`, type: 'button', on: { click: () => { S.mtab = k; log('nav', `My meetings: ${l}`); if (k === 'canceled' || (k === 'previous' && S.mine?.status !== 'finished')) detour(`My meetings: ${l}`); draw(); } } }, l);
+    const statsBtn = (m) => h('button', { class: 'k-ic', type: 'button', title: 'Meeting statistics', 'aria-label': 'Meeting statistics', on: { click: (e) => { e.stopPropagation(); S.meeting = m; go('stats', `Meeting statistics: ${m.name}`); if (m !== S.mine) detour(`Opened another meeting: ${m.name}`); } } }, ic('doc', 14));
+    const row = (m) => { const d = m === S.mine ? MINE_DATE : m; return h('tr', { class: 'k-click', on: { click: () => openMeeting(m) } },
+      h('td', null, h('span', { class: `k-dot ${m.status}` }), m.status === 'finished' ? h('span', { class: 'k-chip finished k-hoverchip' }, 'FINISHED') : null, h('span', { class: 'k-link' }, m.name)), h('td', null, d.date), h('td', null, d.time, h('small', { class: 'k-mini' }, ' CET')), h('td', null, d.dur), h('td', null, langsOf(m)), h('td', null, powered(m)),
+      h('td', null, m.status === 'finished' && m.type !== 'captions' ? statsBtn(m) : null)); };
+    return shell(h('div', { class: 'k-rowsp' }, h('div', null, h('h1', { class: 'k-h1' }, 'My meetings'), h('nav', { class: 'k-tabs' }, tabBtn('upcoming', 'Upcoming'), tabBtn('previous', 'Previous'), tabBtn('canceled', 'Canceled'))), h('input', { class: 'k-in k-search', placeholder: 'Search' })),
+      h('section', { class: 'k-card' }, h('div', { class: 'k-row end' }, h('button', { class: 'k-ic', type: 'button', title: 'Columns', on: { click: () => { log('click', 'Columns'); toastK('Choose the columns to show'); } } }, ic('doc', 14))),
+        h('table', { class: 'k-tbl' }, h('thead', null, h('tr', null, ['Meeting name', 'Date', 'Time', 'Duration', 'Languages', 'Powered by', ''].map((x) => h('th', null, x)))),
+          h('tbody', null, list.length ? list.map(row) : h('tr', null, h('td', { colspan: 7, class: 'k-empty' }, 'No meetings to show')))),
+        h('div', { class: 'k-pager' }, h('span', { class: 'k-mini' }, `Showing ${list.length ? 1 : 0} to ${list.length} of ${total} meetings`), h('span', { class: 'k-mini' }, tab === 'previous' ? '‹  1  2  3  4  5  …  61  ›   10 per page ▾' : '‹  1  ›   10 per page ▾'))));
   }
   function glossaryTable(inMeeting) {
     const m = S.meeting;
@@ -214,6 +253,7 @@ export function sandboxView(key, { onExit } = {}) {
       participants: f.hosts.map((e) => ({ email: e, name: e.split('@')[0], role: 'Host', via: 'form' })), operators: [], viewers: [], polls: [], files: [], status: 'scheduled', glossary: null,
       av: { res: 'Auto (adaptive)', fps: 'Auto (adaptive)', bitrate: 'Auto (adaptive)', stereo: false, level: 50, processing: true },
       features: { lobby: false, lobbyP: false, lobbyV: false, users: true, docs: true, msg: true, polls: true, request: false, share: true } };
+    S.mine = S.meeting;
     log('save', 'Save: meeting created', { meeting: { kind: f.kind, name: S.meeting.name, speakers: S.meeting.speakers, translations: S.meeting.translations, autoRecord: f.autoRecord } });
     go('meeting', 'Meeting created'); toastK('Meeting scheduled successfully');
   }
@@ -222,9 +262,9 @@ export function sandboxView(key, { onExit } = {}) {
     const added = f.translations.filter((l) => !m.translations.includes(l)), removed = m.translations.filter((l) => !f.translations.includes(l));
     m.translations = [...f.translations]; m.name = f.name.trim() || m.name; Object.assign(m.adv, f.adv);
     if (m.status !== 'live') { m.speakers = [...f.speakers]; m.autoRecord = f.autoRecord; m.recording = f.recording; }
-    if (added.length && m.status === 'live') { m.pendingRestart = true; S.flags.liveAdded = [...(S.flags.liveAdded || []), ...added]; }
-    if (added.length && m.status === 'scheduled') S.flags.addedBeforeStart = [...(S.flags.addedBeforeStart || []), ...added];
-    if (removed.length) S.flags.removed = [...(S.flags.removed || []), ...removed];
+    if (added.length && m.status === 'live') { m.pendingRestart = true; F().liveAdded = [...(F().liveAdded || []), ...added]; }
+    if (added.length && m.status === 'scheduled') F().addedBeforeStart = [...(F().addedBeforeStart || []), ...added];
+    if (removed.length) F().removed = [...(F().removed || []), ...removed];
     log('save', `Update: ${added.length ? `added ${added.join(', ')}` : 'no new language'}${removed.length ? `, removed ${removed.join(', ')}` : ''}`);
     go('meeting', 'Meeting updated'); toastK('Meeting updated successfully');
   }
@@ -243,7 +283,7 @@ export function sandboxView(key, { onExit } = {}) {
         h('button', { class: `k-tab ${cur === 'glossaries' ? 'on' : ''}`, type: 'button', on: { click: () => go('mglossaries', 'My glossaries (meeting)') } }, 'My glossaries'),
         m.status === 'finished' ? h('button', { class: `k-tab ${cur === 'stats' ? 'on' : ''}`, type: 'button', on: { click: () => go('stats', 'Meeting statistics') } }, 'Meeting statistics') : null));
   };
-  const links = () => (S.meeting.status === 'finished' ? h('aside', { class: 'k-links' }, h('p', { class: 'k-mini' }, 'The meeting is finished. The invite links are not available.'))
+  const links = () => (['finished', 'canceled'].includes(S.meeting.status) ? h('aside', { class: 'k-links' }, h('p', { class: 'k-mini' }, 'The meeting is finished. The invite links are not available.'))
     : h('aside', { class: 'k-links' }, h('h4', null, ic('link'), ' KUDO meeting links ', h('small', { class: 'k-click', on: { click: () => { detour('Copy all links'); toastK('Links copied'); } } }, 'Copy all links')),
       ...['Participant/Speaker', 'Operator', 'Viewer-Only'].map((l) => h('div', { class: 'k-lbox' }, h('b', null, l), h('button', { class: 'k-copy', type: 'button', on: { click: () => { detour(`Copied the ${l} link`); toastK('Link copied'); } } }, 'https://live.kudoway.eu/k8/2402…'), h('span', { class: 'k-mini' }, 'Add to calendar:'))),
       h('h4', null, 'KUDO language access'), h('div', { class: 'k-lbox' }, h('b', null, 'iframe widget'), h('button', { class: 'k-copy', type: 'button', on: { click: () => { detour('Copied the iframe widget'); toastK('Code copied'); } } }, '<iframe name="KUDO Widget"…')),
@@ -252,16 +292,16 @@ export function sandboxView(key, { onExit } = {}) {
   const iconBtn = (icon, tip, fn, cls = '') => h('button', { class: `k-ic ${cls}`, type: 'button', title: tip, 'aria-label': tip, on: { click: fn } }, icon);
   function meetingScreen() {
     const m = S.meeting;
-    const actions = m.status === 'scheduled' ? [iconBtn(ic('play'), 'Start meeting', () => { m.status = 'live'; S.flags.started = true; log('click', 'Start meeting'); toastK('Meeting has been started'); draw(); }, 'go'), iconBtn(ic('edit'), 'Edit meeting', editForm), iconBtn(ic('x'), 'Cancel meeting', () => { log('trap', 'Cancel meeting clicked'); if (confirm('Cancel this meeting? Its links stop working.')) { log('trap', 'Meeting cancelled'); S.flags.cancelled = true; m.status = 'finished'; } draw(); }, 'stop')]
-      : m.status === 'live' ? [iconBtn(ic('restart'), 'Restart translation service', () => { log('click', 'Restart translation service'); if (m.pendingRestart) { m.pendingRestart = false; S.flags.restarted = true; } else S.flags.restartNoChange = (S.flags.restartNoChange || 0) + 1; toastK('Translation service restart in progress. Service should resume shortly'); draw(); }), iconBtn(ic('edit'), 'Edit meeting', editForm), iconBtn(ic('stop'), 'End meeting', () => { log('click', 'End meeting'); if (!confirm('End the meeting for everyone? An AI meeting cannot be restarted.')) return; m.status = 'finished'; S.flags.ended = true; S.flags.endedBeforeSpanish = !(S.flags.liveAdded || []).some(es); toastK('Meeting has been stopped'); draw(); }, 'stop')]
+    const actions = m.status === 'scheduled' ? [iconBtn(ic('play'), 'Start meeting', () => { m.status = 'live'; F().started = true; log('click', 'Start meeting'); toastK('Meeting has been started'); draw(); }, 'go'), iconBtn(ic('edit'), 'Edit meeting', editForm), iconBtn(ic('x'), 'Cancel meeting', () => { log('trap', 'Cancel meeting clicked'); if (confirm('Cancel this meeting? Its links stop working.')) { log('trap', 'Meeting cancelled'); F().cancelled = true; m.status = 'canceled'; } draw(); }, 'stop')]
+      : m.status === 'live' ? [iconBtn(ic('restart'), 'Restart translation service', () => { log('click', 'Restart translation service'); if (m.pendingRestart) { m.pendingRestart = false; F().restarted = true; } else F().restartNoChange = (F().restartNoChange || 0) + 1; toastK('Translation service restart in progress. Service should resume shortly'); draw(); }), iconBtn(ic('edit'), 'Edit meeting', editForm), iconBtn(ic('stop'), 'End meeting', () => { log('click', 'End meeting'); if (!confirm('End the meeting for everyone? An AI meeting cannot be restarted.')) return; m.status = 'finished'; F().ended = true; F().endedBeforeSpanish = !(F().liveAdded || []).some(es); toastK('Meeting has been stopped'); draw(); }, 'stop')]
         : [iconBtn(ic('edit'), 'Edit meeting', () => { detour('Edit a finished meeting'); toastK('The meeting is finished'); })];
     const a = m.adv;
     return page(h('div', { class: 'k-cardh' }, h('b', null, ic('doc'), ' Overview'), h('div', { class: 'k-acts' }, ...actions)),
-      h('div', { class: 'k-def' }, h('span', null, 'Date/time'), h('div', null, h('b', null, 'Thursday, Nov 26, 2026'), '  14:00 – 15:00', h('small', null, 'Brussels (UTC +01:00)'))),
+      h('div', { class: 'k-def' }, h('span', null, 'Date/time'), h('div', { class: 'k-dtv' }, h('div', null, h('small', null, 'Date'), h('b', null, (m === S.mine ? MINE_DATE : m).date)), h('div', null, h('small', null, 'Time'), h('b', null, (m === S.mine ? MINE_DATE : m).time)), h('div', { class: 'k-full' }, h('small', null, 'Timezone'), h('span', null, 'Brussels (UTC +01:00)')))),
       h('div', { class: 'k-def' }, h('span', null, 'Translation type'), h('div', { class: 'k-typebox' }, m.kind === 'hi' ? 'Human interpretation' : m.type === 'speech' ? 'AI speech and captions' : 'AI captions only')),
       h('div', { class: 'k-def' }, h('span', null, 'Languages'), h('div', null, h('small', null, m.kind === 'hi' ? 'Spoken languages' : 'Speaker languages'), h('div', null, m.speakers.map((l) => h('span', { class: 'k-lchip' }, l))), m.kind === 'hi' ? null : h('small', null, 'Translation languages'), m.kind === 'hi' ? null : h('div', null, m.translations.map((l) => h('span', { class: 'k-lchip' }, l))))),
       S.ovAdv ? h('div', { class: 'k-def' }, h('span', null, 'Advanced settings'), h('div', { class: 'k-mini k-advlist' }, ...[['Meeting type', a.size === 'large' ? 'Large' : 'Small'], ['Mobile link and iframe widget', a.widget ? 'On' : 'Off'], ['Auto-floor', a.autoFloor ? 'On' : 'Off'], ['Speaking mode', a.speaking === 'rts' ? 'Request-to-speak' : 'Open microphone'], ['Raise hand', a.raise ? 'On' : 'Off'], ['Invite method', a.invite === 'pre' ? 'Pre-approved users' : 'Shareable links and user invites'], ['PIN protection', a.pin ? 'On' : 'Off'], ['Audio manager', a.audioMgr ? 'On' : 'Off'], ['Recording', m.recording ? (m.autoRecord ? 'Automatic' : 'Manual') : 'Off']].map(([k, v]) => h('div', null, h('span', null, k), h('b', null, v))))) : null,
-      h('div', { class: 'k-cardf' }, h('button', { class: 'k-link', type: 'button', on: { click: () => { S.ovAdv = !S.ovAdv; log('click', 'Advanced settings (overview)'); if (S.ovAdv) detour('Advanced settings (overview)'); draw(); } } }, S.ovAdv ? 'Less settings ▴' : 'Advanced settings ▾'), h('span', { class: 'k-mini' }, 'Support ID: 800 212 907 037')));
+      h('div', { class: 'k-cardf' }, h('button', { class: 'k-link', type: 'button', on: { click: () => { S.ovAdv = !S.ovAdv; log('click', 'Advanced settings (overview)'); if (S.ovAdv) detour('Advanced settings (overview)'); draw(); } } }, S.ovAdv ? 'Less settings ▴' : 'Advanced settings ▾'), h('span', { class: 'k-mini' }, 'Support ID: ', h('button', { class: 'k-copy sm', type: 'button', on: { click: () => { log('click', 'Copy Support ID'); toastK('Support ID copied'); } } }, m === S.mine ? '800 212 907 037' : '800 214 597 772'))));
   }
   function editForm() {
     const m = S.meeting; log('click', 'Edit meeting');
@@ -345,12 +385,12 @@ export function sandboxView(key, { onExit } = {}) {
   }
   function messagesScreen() { return page(h('b', null, ic('doc'), ' Messages'), h('p', { class: 'k-mini' }, 'Messages exchanged in the meeting chat appear here.'), h('table', { class: 'k-tbl' }, h('thead', null, h('tr', null, ['From', 'Message', 'Time'].map((x) => h('th', null, x)))), h('tbody', null, h('tr', null, h('td', { colspan: 3, class: 'k-empty' }, 'No messages yet.'))))); }
   function recordingsScreen() {
-    const m = S.meeting; const done = m.status === 'finished' && m.recording && m.autoRecord && !S.flags.cancelled;
+    const m = S.meeting; const done = m.status === 'finished' && m.recording && m.autoRecord && m.kind !== 'hi' && !(m === S.mine && S.flags.cancelled);
     const files = done ? ['Original Audio', ...m.translations] : [];
     return shell(tabs(), h('div', { class: 'k-split' }, h('section', { class: 'k-card' }, h('b', null, ic('doc'), ' Recordings & Transcripts'),
       h('p', { class: 'k-mini' }, 'If you choose to record your meeting, your recording and transcripts will be stored in the KUDO cloud for 30 days before being automatically deleted. You can download them at any time during this period.'),
       h('table', { class: 'k-tbl' }, h('thead', null, h('tr', null, ['ID', 'Meeting Title', 'Start Date and Time', 'End Date and Time', 'Time Zone', 'Action'].map((x) => h('th', null, x)))),
-        h('tbody', null, done ? h('tr', null, h('td', null, '1'), h('td', null, m.name), h('td', null, '26 November 2026 02:00 PM'), h('td', null, '26 November 2026 03:00 PM'), h('td', null, 'Europe/Brussels'), h('td', null, h('button', { class: 'k-ic go', type: 'button', title: 'Download', on: { click: () => { S.modal = { kind: 'dl' }; S.flags.foundRecording = true; log('click', 'Download recordings'); draw(); } } }, ic('dl'))))
+        h('tbody', null, done ? h('tr', null, h('td', null, '1'), h('td', null, m.name), h('td', null, `${(m === S.mine ? MINE_DATE : m).date} ${(m === S.mine ? MINE_DATE : m).time.split(' - ')[0]}`), h('td', null, `${(m === S.mine ? MINE_DATE : m).date} ${(m === S.mine ? MINE_DATE : m).time.split(' - ')[1]}`), h('td', null, 'Europe/Brussels'), h('td', null, h('button', { class: 'k-ic go', type: 'button', title: 'Download', on: { click: () => { S.modal = { kind: 'dl' }; F().foundRecording = true; log('click', 'Download recordings'); draw(); } } }, ic('dl'))))
           : h('tr', null, h('td', { colspan: 6, class: 'k-empty' }, 'No recordings available of this meeting.')))),
       done ? h('p', { class: 'k-mini' }, 'Sandbox time is fast-forwarded: in reality recordings appear 15 to 20 minutes after the meeting ends.') : null), links()),
     S.modal?.kind === 'dl' ? h('div', { class: 'k-modal-bg' }, h('div', { class: 'k-modal' }, h('div', { class: 'k-modal-h' }, h('b', null, 'Download Recordings & Transcripts'), h('button', { type: 'button', on: { click: () => { S.modal = null; draw(); } } }, '×')),
@@ -381,11 +421,36 @@ export function sandboxView(key, { onExit } = {}) {
     return shell(tabs(), h('section', { class: 'k-card' }, ...glossaryTable(true)),
       g ? modal(g.def ? 'Confirm default glossary change' : 'Confirm glossary change', [h('p', null, g.def ? 'Set this as your default glossary for all meetings?' : 'Use this glossary for this meeting?')], [['Cancel', () => { S.modal = null; draw(); }, 'ghost'], ['OK', () => { if (g.def) { S.glossaries.forEach((x) => { x.def = x === g.g; }); log('change', `Default glossary: ${g.g.name}`); } else { S.meeting.glossary = g.g.name; log('change', `Glossary for this meeting: ${g.g.name}`); } S.modal = null; toastK('Glossary updated'); draw(); }]]) : null);
   }
-  function statsScreen() { return page(h('b', null, ic('doc'), ' Meeting statistics'), h('div', { class: 'k-stats' }, ...[['Duration', '1 h 00 m'], ['Peak attendees', '1'], ['Languages', String(S.meeting.translations.length)], ['Messages', '0']].map(([k, v]) => h('div', null, h('small', null, k), h('b', null, v))))); }
+  // Meeting statistics (finished meetings): the report, as in the client portal.
+  function statsScreen() {
+    const m = S.meeting, mine = m === S.mine;
+    const mins = mine ? Math.max(1, Math.round((Date.now() - S.t0) / 60000)) : ({ '30 minutes': 30, '1 hour': 58, '2 hours': 117, '3 hours': 176, '4 hours 55 minutes': 291 })[m.dur] || 60;
+    const langs = m.kind === 'hi' ? m.speakers : m.translations;
+    const users = m.participants.length + m.operators.length + m.viewers.length + 1;
+    const tile = (k, icn, v, sub) => h('div', { class: 'k-tile' }, h('small', null, k), h('div', null, h('span', { class: 'k-tile-ic' }, ic(icn, 15)), h('b', null, String(v)), sub ? h('small', { class: 'k-mini' }, ` ${sub}`) : null));
+    const bars = (labels) => h('div', { class: 'k-chart' }, svg(`<svg viewBox="0 0 220 120" width="100%" height="120"><g stroke="#E5E5E5">${[20, 45, 70, 95].map((y) => `<line x1="24" x2="215" y1="${y}" y2="${y}"/>`).join('')}</g>${labels.map((l, i, a) => { const w = 150 / a.length; const x = 40 + i * (180 / a.length); return `<rect x="${x}" y="${20 + (i * 17) % 40}" width="${w}" height="${75 - (i * 17) % 40}" fill="#14A88A"/><text x="${x + w / 2}" y="112" font-size="8" text-anchor="middle" fill="#555">${l}</text>`; }).join('')}</svg>`));
+    const pie = () => h('div', { class: 'k-chart' }, svg('<svg viewBox="0 0 120 120" width="120" height="120"><circle cx="60" cy="55" r="45" fill="#14A88A"/><line x1="60" y1="10" x2="60" y2="55" stroke="#fff"/><text x="60" y="115" font-size="9" text-anchor="middle" fill="#555">participant</text></svg>'));
+    const map = () => h('div', { class: 'k-chart k-map' }, svg('<svg viewBox="0 0 220 110" width="100%" height="110"><g fill="#E3E6EA"><ellipse cx="55" cy="40" rx="38" ry="22"/><ellipse cx="70" cy="82" rx="16" ry="22"/><ellipse cx="118" cy="38" rx="20" ry="16"/><ellipse cx="122" cy="76" rx="18" ry="24"/><ellipse cx="170" cy="42" rx="40" ry="24"/><ellipse cx="190" cy="90" rx="16" ry="10"/></g><circle cx="114" cy="36" r="3.5" fill="#2C6E9B"/></svg>'));
+    const panel = (t, d, body) => h('div', { class: 'k-panel k-stat' }, h('b', null, t), h('small', { class: 'k-mini' }, d), body);
+    const none = () => h('div', { class: 'k-none' }, ic('help', 18), h('b', null, 'No viewer data'));
+    const lang = S.rtab === 'languages';
+    return shell(tabs(), h('section', { class: 'k-card' },
+      h('div', { class: 'k-cardh' }, h('b', null, ic('doc'), ' Report'), iconBtn(ic('dl'), 'Print report', () => { log('click', 'Print report'); toastK("The browser's print window opens: save it as a PDF"); })),
+      h('div', { class: 'k-report' },
+        h('div', null, h('nav', { class: 'k-tabs' }, ...[['details', 'Details'], ['languages', 'Languages']].map(([k, l]) => h('button', { class: `k-tab ${(S.rtab || 'details') === k ? 'on' : ''}`, type: 'button', on: { click: () => { S.rtab = k; log('nav', `Report: ${l}`); draw(); } } }, l))),
+          lang ? h('div', { class: 'k-rdet' }, h('small', { class: 'k-mini' }, m.kind === 'hi' ? 'Human interpretation' : 'Powered by KUDO AI'), h('ol', null, langs.map((l) => h('li', null, l))))
+            : h('div', { class: 'k-rdet' }, ...[['Meeting Name', m.name], ['Description', '-'], ['Created By', 'Demo NDK'], ['Scheduled Date', (mine ? MINE_DATE : m).date], ['Timezone', 'Brussels']].map(([k, v]) => h('div', null, h('small', null, k), h('div', null, v))))),
+        h('div', { class: 'k-tiles' }, tile('Duration', 'clock', mins, 'minutes'), tile('Languages', 'lang', langs.length), tile('Users', 'users', users), tile('Polls', 'doc', m.polls.length), tile('Documents', 'doc', m.files.length), tile('Participants', 'user', m.participants.length))),
+      h('h4', { class: 'k-subh' }, 'Attendees Details'), h('small', { class: 'k-mini' }, 'This section provides insights into the users who actively participated in the meeting such as Participants and Hosts.'),
+      h('div', { class: 'k-grid3' }, panel('User Statistics', 'Overview of the Roles distribution.', pie()), panel('Browser Details', 'Web browser used by participants and hosts.', bars(['Chrome', 'Edge'])), panel('Operating Systems', 'Operating systems used by participants and hosts.', bars(['Windows', 'macOS']))),
+      h('div', { class: 'k-grid2' }, panel('Regional Statistics', 'Geographical distribution of the people connected to the meeting.', map()), panel('Language Statistics', 'Languages used by participants and hosts based on the number of individuals that selected each language. Note that a single user could have selected multiple languages.', bars(['Floor', ...langs.slice(0, 2).map((l) => l.replace(/ \(.*\)$/, ''))]))),
+      h('h4', { class: 'k-subh' }, 'Audience Details'), h('small', { class: 'k-mini' }, 'This section provides insights into the users who passively followed the meeting such as Viewers.'),
+      h('div', { class: 'k-grid2' }, panel('Browser Details', 'Web browser used by viewers.', none()), panel('Operating Systems', 'Operating systems used by viewers.', none()), panel('Regional Statistics', 'Geographical distribution of the people connected to the meeting.', none()), panel('Language Statistics', 'Languages used by viewers based on the number of individuals that selected each language. Note that a single user could have selected multiple languages.', none()))));
+  }
 
   // ---------------------------------------------------------------- hints, scoring, report
   function nextStep() {
-    const m = S.meeting, host = m?.participants.find((p) => p.email === HOST && p.role === 'Host');
+    const m = S.mine, host = m?.participants.find((p) => p.email === HOST && p.role === 'Host');
     if (S.screen === 'login') return 'Log in: the account is filled in for you.';
     if (!m) return 'Create the meeting: New meeting, then AI speech translation.';
     if (m.kind !== 'ai') return 'This meeting is not an AI speech translation meeting: the client wants AI Translation.';
@@ -401,12 +466,12 @@ export function sandboxView(key, { onExit } = {}) {
   function hint() { S.hints++; log('hint', nextStep()); toast(nextStep()); }
 
   function score() {
-    const m = S.meeting || { participants: [], translations: [], speakers: [] }, F = S.flags;
+    const m = S.mine || { participants: [], translations: [], speakers: [] }, F = S.flags;
     const host = m.participants.find((p) => p.email === HOST && p.role === 'Host');
     const extra = m.translations.filter((l) => !['English (US)', 'English (UK)'].includes(l) && !fr(l) && !de(l) && !es(l));
     const checks = [
-      ['AI speech & captions meeting created', !!S.meeting && m.kind === 'ai' && m.type === 'speech', 8],
-      [`Named "${NAME}"`, !!S.meeting && m.name.toLowerCase().includes('quarterly partner update'), 4],
+      ['AI speech & captions meeting created', !!S.mine && m.kind === 'ai' && m.type === 'speech', 8],
+      [`Named "${NAME}"`, !!S.mine && m.name.toLowerCase().includes('quarterly partner update'), 4],
       ['English as the only speaker language', m.speakers.length === 1 && m.speakers[0] === 'English', 8],
       ['French and German as translation languages, nothing extra', m.translations.some(fr) && m.translations.some(de) && !extra.length, 8],
       ['Automatic recording on before the start', !!m.autoRecord && !!m.recording, 10],
