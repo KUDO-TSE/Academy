@@ -82,3 +82,29 @@ export function donut(pct, { size = 64, label = null } = {}) {
   return svg(`<svg viewBox="0 0 64 64" width="${size}" height="${size}" role="img" aria-label="${pct}% done"><circle cx="32" cy="32" r="${r}" fill="none" stroke="${P.grid}" stroke-width="8"/><circle cx="32" cy="32" r="${r}" fill="none" stroke="${P.primary}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${d} ${c}" transform="rotate(-90 32 32)"/><text x="32" y="36" font-size="${label ? 12 : 14}" font-weight="600" fill="${P.deep}" text-anchor="middle">${label ?? `${pct}%`}</text></svg>`);
 }
 
+
+/**
+ * Progress since October, one row per scenario: a hollow dot where you started, a filled dot where your tests put you
+ * now, the line between them green (up) or coral (down), your target as a tick, and the change on the right.
+ */
+export function progressDumbbell(rows) {
+  const sm = small(); const rowH = sm ? 34 : 36, labelW = sm ? 96 : 150, w = sm ? 360 : 640, deltaW = sm ? 44 : 56, barW = w - labelW - deltaW - 12, top = 6;
+  const H = top + rows.length * rowH + 18;
+  const x = (v) => labelW + (Math.max(0, Math.min(100, v)) / 100) * barW;
+  let g = '';
+  [0, 25, 50, 75, 100].forEach((t) => { g += `<line x1="${x(t)}" x2="${x(t)}" y1="${top}" y2="${H - 18}" stroke="${COLORS.grid}"/><text x="${x(t)}" y="${H - 4}" font-size="10" fill="${COLORS.ink}" text-anchor="middle">${t}</text>`; });
+  rows.forEach((r, i) => {
+    const y = top + i * rowH + rowH / 2, d = r.now - r.start;
+    const col = d > 0 ? P.green : d < 0 ? P.coral : P.faint;
+    g += `<g><title>${esc(r.label)}: ${r.start}% in October, ${r.now}% now${r.tests ? ` after ${r.tests} test${r.tests > 1 ? 's' : ''}` : ', no test yet'}</title>`;
+    g += `<text x="${labelW - 10}" y="${y + 4}" font-size="${sm ? 11.5 : 12.5}" font-weight="${r.focus ? 600 : 500}" fill="${r.focus ? P.deep : '#231F20'}" text-anchor="end">${esc(r.label)}</text>`;
+    g += `<line x1="${labelW}" x2="${labelW + barW}" y1="${y}" y2="${y}" stroke="${P.grid}" stroke-width="6" stroke-linecap="round"/>`;
+    if (r.target != null) g += `<line x1="${x(r.target)}" x2="${x(r.target)}" y1="${y - 9}" y2="${y + 9}" stroke="${P.coral}" stroke-width="2" opacity=".55"/>`;
+    if (d !== 0) g += `<line x1="${x(r.start)}" x2="${x(r.now)}" y1="${y}" y2="${y}" stroke="${col}" stroke-width="6" stroke-linecap="round"/>`;
+    g += `<circle cx="${x(r.start)}" cy="${y}" r="5.5" fill="#fff" stroke="${P.faint}" stroke-width="2"/>`;
+    g += `<circle cx="${x(r.now)}" cy="${y}" r="7" fill="${d === 0 ? P.deep : col}" stroke="#fff" stroke-width="2"/>`;
+    const txt = d > 0 ? `+${d}` : d < 0 ? `−${-d}` : (r.tests ? '±0' : '–');
+    g += `<text x="${w - 4}" y="${y + 4}" font-size="13" font-weight="600" fill="${d > 0 ? P.green : d < 0 ? '#B44E28' : P.muted}" text-anchor="end">${txt}</text></g>`;
+  });
+  return svg(`<svg class="chart" viewBox="0 0 ${w} ${H}" width="100%" role="img" aria-label="Change in each scenario since October">${g}</svg>`);
+}

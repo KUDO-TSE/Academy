@@ -70,7 +70,9 @@ Targets depend on depth: Set up scenarios 80%, Hand over scenarios 70% (the KUDO
 The three scenarios with the highest personal priority become the focus. Every module has a lesson, practice, a graded check (pass 80%) and hand-over rules (`server/curriculum.js`, 17 modules, sourced from the CM Onboarding Guide V3, the explainer videos and the Help Center).
 
 Approval: a new plan, or a change to its structure, is saved as a draft. The trainee only sees approved plans. Admins approve on **Programme** (one by one or all at once).
-Trainees' own checks move their levels and progress live but never reshuffle the plan; assessments, the baseline check and admin inputs can.
+Trainees' own tests move their levels live but never reshuffle the plan; assessments, the baseline check and the KUDO Trainer's inputs can.
+
+**What moves a level (shown live on My results):** only test results. The first attempt at each module check (weight 0.6 towards the score, certainty-adjusted) and decision walkthrough (0.4), the baseline check, and each quarterly knowledge test (which resets the starting point). Lessons, practice and its sign-off, explain-it recordings, retakes, the weekly challenge, spaced reviews and the KUDO Trainer's 1:1 ratings do not move the level shown to the trainee; the 1:1 ratings still shape the plan. My results shows the overall readiness against October, a chart of each scenario's change since October, every test that counted with its effect, and a module-by-module table (test of record, walkthrough, effect, practice retakes). `GET /api/me/progress-live`.
 
 There is no plan import any more: plans come from the inputs.
 

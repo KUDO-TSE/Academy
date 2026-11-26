@@ -133,7 +133,7 @@ export function tabInputs(personId, reload) {
       } catch (e) { toast(e.message, true); }
     };
     box.replaceChildren(...[
-      h('div', { class: 'card' }, h('h2', null, 'Add an input'), h('p', { class: 'sub' }, 'A 1:1, a reviewed call or video, or something you observed. Ratings move this person\'s levels; the plan is rebuilt as a draft if it needs to change.'),
+      h('div', { class: 'card' }, h('h2', null, 'Add an input'), h('p', { class: 'sub' }, 'A 1:1, a reviewed call or video, or something you observed. Ratings shape this person\'s plan (it is rebuilt as a draft if it needs to change). Their levels move only with their test results.'),
         h('div', { class: 'grid g3' }, h('label', { class: 'f' }, h('span', { class: 'l' }, 'Type'), kind), h('label', { class: 'f' }, h('span', { class: 'l' }, 'Date'), date), h('label', { class: 'f' }, h('span', { class: 'l' }, 'Plan item'), item)),
         h('div', { class: 'grid g2' }, h('label', { class: 'f' }, h('span', { class: 'l' }, 'Title'), title), h('label', { class: 'f' }, h('span', { class: 'l' }, 'Recording link'), link)),
         h('label', { class: 'f' }, h('span', { class: 'l' }, 'Transcript or notes (private)'), body), h('div', { class: 'row' }, file, h('button', { class: 'btn', on: { click: suggest } }, 'Suggest ratings from the text')), hints,

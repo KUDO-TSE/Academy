@@ -552,3 +552,30 @@ test('an admin can delete a person who left; guarded against mistakes', async ()
   assert.ok((await q("SELECT 1 FROM audit_log WHERE action='user.delete' AND target='leaver@test.local'")).rowCount, 'the deletion is logged');
   assert.equal((await adm('DELETE', `/api/admin/users/${id}`, { confirm: 'leaver@test.local' })).status, 404);
 });
+
+test('live progress: only tests move a level; lessons, practice and retakes do not', async () => {
+  const d = client(); await d('POST', '/api/auth/login', { email: 'dana@test.local', password: 'Quiet-valley-pass-73' });
+  const before = (await d('GET', '/api/me/progress-live')).json;
+  const hb = before.scenarios.find((s) => s.key === 'hybrid');
+  // A lesson ticked off and a practice signed off: no change
+  const id = (await q("SELECT id FROM users WHERE email='dana@test.local'")).rows[0].id;
+  await q("INSERT INTO plan_progress (user_id,item_key,status,completed_at,signed_off_at) VALUES ($1,'hybrid.lesson','done',now(),NULL),($1,'hybrid.practice','done',now(),now()) ON CONFLICT DO NOTHING", [id]);
+  assert.equal((await d('GET', '/api/me/progress-live')).json.scenarios.find((s) => s.key === 'hybrid').now, hb.now, 'lessons and practice do not move the level');
+  // The first module test does, and it is listed with its effect
+  const set = (await d('GET', '/api/me/modules/hybrid')).json.check;
+  await d('POST', '/api/me/modules/hybrid/attempt', { answers: set.map(shownRight) });
+  const after = (await d('GET', '/api/me/progress-live')).json;
+  const ha = after.scenarios.find((s) => s.key === 'hybrid');
+  assert.ok(ha.now > hb.now, `a good first test lifts the level (${hb.now} → ${ha.now})`);
+  assert.equal(ha.start, hb.start, 'the October starting point does not move');
+  const m = after.modules.find((x) => x.key === 'hybrid');
+  assert.equal(m.check.pct, 100); assert.equal(m.effect, ha.now - hb.now);
+  assert.equal(after.feed[0].module, 'hybrid'); assert.equal(after.feed[0].to, ha.now);
+  // A retake is practice: listed, no effect
+  const set2 = (await d('GET', '/api/me/modules/hybrid')).json.check;
+  await d('POST', '/api/me/modules/hybrid/attempt', { answers: set2.map(shownWrong) });
+  const again = (await d('GET', '/api/me/progress-live')).json;
+  assert.equal(again.scenarios.find((s) => s.key === 'hybrid').now, ha.now, 'a retake never moves the level');
+  assert.equal(again.modules.find((x) => x.key === 'hybrid').practice.n, 1);
+  assert.equal((await client()('GET', '/api/me/progress-live')).status, 401);
+});

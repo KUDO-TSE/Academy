@@ -107,7 +107,6 @@ export function computeLevels(u, ctx, { forPlanning = false } = {}) {
   // Only results of record count: the first attempt in the cycle. Retakes are practice.
   for (const a of ctx.attempts.get(u.id) || []) if (after(a.created_at) && a.counts !== false) events.push({ at: a.created_at, type: 'attempt', a });
   for (const i of ctx.inputs.get(u.id) || []) if (after(i.happened_on)) events.push({ at: i.happened_on, type: 'input', i });
-  for (const p of ctx.progress.get(u.id) || []) if (p.signed_off_at && after(p.signed_off_at)) events.push({ at: p.signed_off_at, type: 'signoff', p });
   events.sort((x, y) => new Date(x.at) - new Date(y.at));
   for (const e of events) {
     if (e.type === 'attempt') {
@@ -117,7 +116,8 @@ export function computeLevels(u, ctx, { forPlanning = false } = {}) {
           const mine = (a.answers || []).filter((x) => x.scenario === s);
           if (!mine.length) continue;
           const sc = (mine.reduce((t, x) => t + (x.knowledge ?? (x.ok ? 1 : 0)), 0) / mine.length) * 100;
-          per[s].est = 0.65 * per[s].est + 0.35 * sc; per[s].history.push({ at: a.created_at, what: 'Baseline check', v: round(per[s].est) });
+          const from = per[s].est;
+          per[s].est = 0.65 * per[s].est + 0.35 * sc; per[s].history.push({ at: a.created_at, what: 'Baseline check', v: round(per[s].est), from: round(from), score: round(sc), module: 'baseline', kind: 'baseline' });
           if (per[s].source !== 'test') { per[s].source = 'check'; per[s].note = 'Updated by your baseline check'; }
         }
         continue;
@@ -126,18 +126,17 @@ export function computeLevels(u, ctx, { forPlanning = false } = {}) {
       // The level uses the certainty-adjusted score: a lucky low-certainty answer counts half.
       const sc = ((a.knowledge ?? a.correct) / a.total) * 100;
       const w = a.kind === 'scenario' ? 0.4 : 0.6;
+      const from = per[s].est;
       per[s].est = (1 - w) * per[s].est + w * sc; per[s].source = 'check';
       per[s].note = a.kind === 'scenario' ? `Updated by your ${short(s)} decision walkthrough` : `Updated by your ${MODULE_BY_KEY[a.module_key].title} check`;
-      per[s].history.push({ at: a.created_at, what: a.kind === 'scenario' ? 'Walkthrough' : 'Module check', v: round(per[s].est) });
-    } else if (e.type === 'input') {
+      per[s].history.push({ at: a.created_at, what: a.kind === 'scenario' ? 'Walkthrough' : 'Module check', v: round(per[s].est), from: round(from), score: round(sc), module: a.module_key, kind: a.kind });
+    } else if (e.type === 'input' && forPlanning) {
+      // The KUDO Trainer's 1:1 signals shape the plan; the level shown to the trainee moves only with test results.
       for (const sig of e.i.signals || []) {
         if (!per[sig.scenario] || !SIGNAL_EFFECT[sig.rating]) continue;
         per[sig.scenario].est = SIGNAL_EFFECT[sig.rating](per[sig.scenario].est); per[sig.scenario].source = 'coach';
         per[sig.scenario].note = `Updated after "${e.i.title}"`; per[sig.scenario].history.push({ at: e.i.happened_on, what: e.i.title, v: round(per[sig.scenario].est) });
       }
-    } else if (e.type === 'signoff' && !forPlanning) {
-      const m = MODULE_BY_KEY[e.p.item_key.split('.')[0]]; const s = m?.scenario;
-      if (s) { per[s].est = clamp(per[s].est + 5); per[s].history.push({ at: e.p.signed_off_at, what: 'Practice signed off', v: round(per[s].est) }); }
     }
   }
   for (const s of SCENARIO_KEYS) per[s].est = round(clamp(per[s].est));
@@ -203,7 +202,7 @@ export function buildPlan(u, ctx, { keepFocus = null } = {}) {
     const practice = { key: `${mkey}.practice`, kind: 'practice', module: mkey, scenario: s, phase, week, title: `Practise: ${m.title}`, why: practiceFirst && priBy[s]?.over ? 'Try it first: doing the task shows where the gaps are before you read.' : 'Do it, then submit it in the lesson (written or recorded). It is reviewed within a minute and signed off when it passes.', minutes: 30, mandatory: focusItem, signoff: focusItem };
     if (focusItem || m.depth === 'setup') { if (practiceFirst) add(practice), add(lesson); else add(lesson), add(practice); } else add(lesson);
     if (WALKTHROUGHS[mkey] && (focusItem || m.depth === 'setup')) add({ key: `${mkey}.scenario`, kind: 'scenario', module: mkey, scenario: s, phase, week, title: `Decide: ${WALKTHROUGHS[mkey].title}`, why: 'A realistic client situation. Your choices get feedback straight away.', minutes: 10, mandatory: focusItem });
-    if (EXPLAIN[mkey] && focusItem) add({ key: `${mkey}.explain`, kind: 'explain', module: mkey, scenario: s, phase, week, title: `Explain it: ${m.title}`, why: 'Record yourself (or write it) explaining this to a client. Your KUDO Trainer reviews it and it counts towards your level.', minutes: 15, mandatory: true });
+    if (EXPLAIN[mkey] && focusItem) add({ key: `${mkey}.explain`, kind: 'explain', module: mkey, scenario: s, phase, week, title: `Explain it: ${m.title}`, why: 'Record yourself (or write it) explaining this to a client. It is reviewed automatically and your KUDO Trainer spot-checks it.', minutes: 15, mandatory: true });
     add({ key: `${mkey}.check`, kind: 'check', module: mkey, scenario: s, phase, week, title: `Check: ${m.title}`, why: `Your first attempt is the score we keep (aim for ${Math.round(PASS * 100)}%). Retake it afterwards as often as you like to practise.`, minutes: 10, mandatory: focusItem });
   };
 

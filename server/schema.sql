@@ -327,3 +327,5 @@ UPDATE plans SET data = replace(replace(replace(replace(data::text, ' with Jack'
   WHERE data::text ~ '( with Jack|Jack plays the client|Jack reviews it|chosen by Jack)';
 UPDATE inputs SET title = replace(title, ' with Jack', ' with your KUDO Trainer') WHERE title LIKE '% with Jack%';
 UPDATE plan_items SET title = replace(title, ' with Jack', ' with your KUDO Trainer') WHERE title LIKE '% with Jack%';
+UPDATE plans SET data = replace(data::text, 'Your KUDO Trainer reviews it and it counts towards your level.', 'It is reviewed automatically and your KUDO Trainer spot-checks it.')::jsonb
+  WHERE data::text LIKE '%it counts towards your level%';

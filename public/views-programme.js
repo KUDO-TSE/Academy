@@ -175,7 +175,7 @@ export function programmeView(data, { readOnly = false, banner = null } = {}) {
     })),
 
     data.shared?.length ? h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Notes from your KUDO Trainer sessions'), data.shared.map((n) => h('div', { class: 'note-box' }, h('b', null, n.title), h('div', null, n.text), h('div', { class: 'when' }, fmtDate(n.on))))) : null,
-    h('p', { class: 'muted small', style: 'margin-top:18px' }, 'Your plan updates as you go: checks, practice and your KUDO Trainer sessions move your levels. When the plan itself needs to change, your KUDO Trainer reviews it first.'),
+    h('p', { class: 'muted small', style: 'margin-top:18px' }, 'Your plan updates as you go. Your levels move only with your test results (see My results). When the plan itself needs to change, your KUDO Trainer reviews it first.'),
   );
 }
 

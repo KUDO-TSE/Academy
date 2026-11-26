@@ -45,6 +45,43 @@ export const meProgramme = Router();
 
 meProgramme.get('/programme', async (req, res, next) => { try { res.json(await programmeFor(req.user.id)); } catch (e) { next(e); } });
 
+// Live progress: what the trainee's tests have done to their level, scenario by scenario and module by module.
+// Only tests move a level: the first attempt of each module check and decision walkthrough, and the baseline check.
+// Lessons, practice and retakes never do (retakes are practice and are shown as such).
+meProgramme.get('/progress-live', async (req, res, next) => {
+  try {
+    const uid = req.user.id;
+    const p = await programmeFor(uid);
+    let levels = p.state?.levels;
+    if (!levels) {
+      const ctx = await loadContext(uid); const u = ctx.users.find((x) => x.id === uid);
+      if (!u) return res.json({ scenarios: [], modules: [], feed: [] });
+      const L = computeLevels(u, ctx);
+      levels = SCENARIOS.map((sc) => ({ scenario: sc.key, label: sc.label, short: sc.short, now: L.per[sc.key].est, baseline: L.per[sc.key].baseline, target: 80, history: L.per[sc.key].history }));
+    }
+    const at = (await q("SELECT module_key,kind,correct::float AS correct,total,knowledge::float AS knowledge,counts,created_at FROM quiz_attempts WHERE user_id=$1 AND kind IN ('check','scenario') ORDER BY created_at", [uid])).rows;
+    const pctOf = (a) => (a.total ? Math.round((a.correct / a.total) * 100) : null);
+    const scen = levels.map((l) => ({ key: l.scenario, label: l.label, short: l.short, start: l.baseline, now: l.now, delta: l.now - l.baseline, target: l.target,
+      tests: (l.history || []).filter((h) => h.score != null).length, history: (l.history || []).filter((h) => h.score != null) }));
+    const effects = scen.flatMap((s) => s.history.map((h) => ({ ...h, scenario: s.key, short: s.short })));
+    const modules = MODULES.map((m) => {
+      const mine = at.filter((a) => a.module_key === m.key);
+      const rec = (kind) => mine.find((a) => a.kind === kind && a.counts !== false) || null;
+      const check = rec('check'), walk = rec('scenario');
+      const practice = mine.filter((a) => a.counts === false);
+      const eff = effects.filter((e) => e.module === m.key);
+      return { key: m.key, title: m.title, scenario: m.scenario, short: SCENARIOS.find((x) => x.key === m.scenario)?.short || null,
+        check: check ? { pct: pctOf(check), correct: check.correct, total: check.total, at: check.created_at, passed: check.correct / check.total >= PASS } : null,
+        walk: walk ? { pct: pctOf(walk), at: walk.created_at } : null,
+        practice: practice.length ? { n: practice.length, last: pctOf(practice[practice.length - 1]), best: Math.max(...practice.map(pctOf)) } : null,
+        effect: eff.length ? eff.reduce((t, e) => t + (e.v - e.from), 0) : null };
+    });
+    const feed = effects.sort((a, b) => new Date(b.at) - new Date(a.at)).map((e) => ({ at: e.at, kind: e.kind, module: e.module, moduleTitle: e.module === 'baseline' ? 'Baseline check' : MODULE_BY_KEY[e.module]?.title, scenario: e.scenario, short: e.short, score: e.score, from: e.from, to: e.v }));
+    const avg = (k) => Math.round(scen.reduce((t, s) => t + s[k], 0) / (scen.length || 1));
+    res.json({ overall: { start: avg('start'), now: avg('now') }, scenarios: scen, modules, feed, pass: PASS });
+  } catch (e) { next(e); }
+});
+
 meProgramme.get('/modules/:key', async (req, res, next) => {
   try {
     const key = req.params.key, uid = req.user.id;

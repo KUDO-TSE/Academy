@@ -670,3 +670,20 @@ select.rl-add{width:auto;height:26px;padding:0 8px;font-size:12px;border-radius:
 @media (max-width:700px){.wn-list li{grid-template-columns:1fr;gap:6px}.rl-bar{flex-direction:column;align-items:stretch}.rl-ih{flex-direction:column}}
 .rl-extra[hidden]{display:none}
 select.rl-add{max-width:180px}
+
+/* ---------- My results: live progress ---------- */
+.lp-live .jm-head{margin:0}
+.lp-feed{list-style:none;margin:12px 0 0;padding:0}
+.lp-feed li{display:grid;grid-template-columns:96px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--border-soft)}
+.lp-when{font-variant-numeric:tabular-nums}
+.lp-eff{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--ink-500);font-variant-numeric:tabular-nums;white-space:nowrap}
+.lp-d{display:inline-block;min-width:38px;text-align:center;padding:1px 6px;border-radius:6px;font-weight:600;font-size:12.5px;background:var(--border-soft);color:var(--ink-500);font-variant-numeric:tabular-nums}
+.lp-d.up{background:var(--green-100);color:var(--green)}
+.lp-d.down{background:#FCE7DD;color:#B44E28}
+.lp-rules ul{margin:6px 0 0;padding-left:18px;color:var(--ink-700)}
+.lp-rules li{margin:3px 0}
+.lp-yes{color:var(--green)}.lp-no{color:#B44E28}
+.section-h{margin:32px 0 12px}
+.section-h h2{font-size:19px}
+.section-h p{margin:4px 0 0;color:var(--ink-500)}
+@media (max-width:700px){.lp-feed li{grid-template-columns:1fr;gap:4px}}
