@@ -1,6 +1,6 @@
 // Sessions: upload 1:1 and group session recordings or transcripts; the Academy finds the questions asked and
 // the KUDO Trainer turns them into lesson FAQ entries or new check questions.
-import { h, api, toast, modal, fmtDate, svg } from './ui.js';
+import { h, api, toast, modal, fmtDate, svg, importsHead } from './ui.js';
 
 const KIND = { one_to_one: '1:1', group: 'Group session' };
 const COV = { covered: ['green', 'Covered'], partly: ['amber', 'Partly covered'], gap: ['coral', 'Not covered'] };
