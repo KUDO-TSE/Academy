@@ -187,3 +187,15 @@ The coaching role is called "your KUDO Trainer" everywhere trainees read it (pla
 ## Phones and laptops
 
 The app adapts below 860 px wide: the menu becomes a top bar with a menu button (drawer), trainees get a tab bar at the bottom (Programme, Collection, Results, Progress), grids stack, tables scroll sideways, and charts are redrawn for the screen (the 12-week route turns vertical, one stop per week, and the selected week opens in place; other charts get a narrower drawing so text stays readable). Charts redraw when the screen crosses the phone breakpoint. The guided tour docks its card at the top or bottom on phones and opens the menu drawer for menu steps. Checked at 390 px (iPhone size) and 1400 px.
+
+## Change checklist (every change)
+
+Before shipping any change, check what depends on it and update it in the same change:
+
+- **Guided tour** (`public/tour.js`): does any step describe what changed?
+- **Collection** (`server/collectibles.js`): do card rules, texts or counts depend on it (modules, sandbox exercises, tests, phases)?
+- **Lessons and tests** (`server/curriculum*.js`): do lesson steps, questions, practice tasks or worked examples still match?
+- **Sandbox** (`public/sandbox.js`): scenarios, hints, scoring, and the scripted expert run (must still reach 100%) for every exercise.
+- **My Results / My Progress** and the **admin views**: do new results show, and is anything counted twice?
+- **Scenario doc and handover pack**: the sandbox scenarios doc and the briefing for the KUDO Trainer.
+- **Automated tests** (`npm test`), then deploy and check the deployment.

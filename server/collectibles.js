@@ -35,7 +35,7 @@ export const CATALOG = [
   { key: 'sbx-pass', set: 'Hands-on', tier: 'silver', title: 'Clean run', earn: 'Pass a sandbox exercise (80% or more) on your first run.', glyph: 'check' },
   { key: 'sbx-pace', set: 'Hands-on', tier: 'silver', title: 'Expert pace', earn: 'Pass a sandbox exercise in the expert\'s time or faster.', glyph: 'stopwatch' },
   { key: 'sbx-flawless', set: 'Hands-on', tier: 'gold', title: 'Flawless', earn: 'Score 100% on a sandbox exercise on your first run: no hint, no mistake.', glyph: 'diamond' },
-  { key: 'sbx-all', set: 'Hands-on', tier: 'gold', title: 'Sandbox master', earn: `Pass every sandbox exercise in the Academy (${SANDBOX_N} today; new ones are added as they are built).`, glyph: 'grid' },
+  { key: 'sbx-all', set: 'Hands-on', tier: 'gold', title: 'Sandbox master', earn: `Pass every sandbox exercise in the Academy: the ${SANDBOX_N} live today and each new one as it is added. This card stays yours only while you have passed them all.`, glyph: 'grid', live: true },
   // Craft: work done well
   { key: 'sharp', set: 'Craft', tier: 'silver', title: 'Sharp', earn: 'Pass 5 module tests on your first attempt.', glyph: 'pencil' },
   { key: 'climber', set: 'Craft', tier: 'silver', title: 'Climber', earn: 'Raise one scenario 15 points or more above your October level through Academy tests.', glyph: 'trend' },
@@ -51,7 +51,9 @@ export const CATALOG = [
   { key: 'regular-10', set: 'Habit', tier: 'gold', title: 'Committed', earn: 'Be active 10 weeks. Weeks do not need to be in a row.', glyph: 'cal10' },
 ];
 const BY_KEY = new Map(CATALOG.map((c) => [c.key, c]));
-const RULES_VERSION = '_rules-v2'; // stored once per trainee when the revised rules are applied
+const RULES_VERSION = '_rules-v2';
+// Cards that follow the rule live (the only exception to "never taken back"): Sandbox master must cover every exercise.
+const LIVE_KEYS = CATALOG.filter((c) => c.live).map((c) => c.key); // stored once per trainee when the revised rules are applied
 
 /** Which cards the trainee has earned now, from the data we hold. */
 export async function earnedNow(uid) {
@@ -124,9 +126,12 @@ export async function syncCollection(uid) {
     await q('INSERT INTO collectibles (user_id,key,seen_at) VALUES ($1,$2,now()) ON CONFLICT DO NOTHING', [uid, RULES_VERSION]);
   }
   for (const k of now) await q('INSERT INTO collectibles (user_id,key) VALUES ($1,$2) ON CONFLICT DO NOTHING', [uid, k]);
+  const lapsed = LIVE_KEYS.filter((k) => !now.includes(k));
+  if (lapsed.length) await q('DELETE FROM collectibles WHERE user_id=$1 AND key = ANY($2)', [uid, lapsed]);
+  const passedSbx = (await q('SELECT count(DISTINCT scenario)::int n FROM sandbox_runs WHERE user_id=$1 AND score >= 80 AND scenario = ANY($2)', [uid, Object.keys(SANDBOX)])).rows[0].n;
   const rows = (await q('SELECT key,earned_at,seen_at FROM collectibles WHERE user_id=$1', [uid])).rows;
   const mine = new Map(rows.map((r) => [r.key, r]));
-  return CATALOG.map((c) => ({ ...c, earned: mine.has(c.key), earned_at: mine.get(c.key)?.earned_at || null, isNew: mine.has(c.key) && !mine.get(c.key).seen_at }));
+  return CATALOG.map((c) => ({ ...c, progress: c.key === 'sbx-all' ? `${passedSbx} of ${SANDBOX_N} passed` : null, earned: mine.has(c.key), earned_at: mine.get(c.key)?.earned_at || null, isNew: mine.has(c.key) && !mine.get(c.key).seen_at }));
 }
 
 export const collectiblesRouter = Router();

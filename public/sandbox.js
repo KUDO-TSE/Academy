@@ -40,19 +40,21 @@ export const SCENARIOS = {
     screens: ['login', 'home', 'meetings', 'new-hi', 'meeting', 'edit', 'interpreters'],
   },
   'rtmp-1': {
-    module: 'rtmp', num: 11, title: 'Stream a meeting to YouTube in two languages (RTMP)',
-    request: 'A client streams "Product Day" to YouTube today, in French and in German. Create the AI speech translation meeting (English speaker language; French and German translation languages). The client sent the server URL rtmp://a.rtmp.youtube.com/live2 and one stream key per language: French fr4k-29qx-7mbn-c0d1, German de8p-41zw-9hty-k2e5. Set up the streams, start the meeting, then start the broadcast.',
-    expert: ['Log in with the Client account', 'New meeting, AI speech translation', 'Name "Product Day"', 'Speaker language English; translation languages French and German', 'Save', 'Settings, Broadcast', 'RTMP Stream on', '+ Add RTMP stream: YouTube Live, server URL, French key, French; Save', '+ Add RTMP stream: YouTube Live, server URL, German key, German; Save', 'Overview, Start meeting, confirm', 'Settings, Broadcast, Start broadcast'],
-    expertSeconds: 200,
+    module: 'rtmp', num: 11, title: 'Stream a meeting to YouTube in two languages (RTMP)', apps: ['studio'],
+    request: 'A client streams "Product Day" to its YouTube channel today, in French and in German, one live stream per language. The client gave you access to its channel studio (the "Video studio" tab). Create the AI speech translation meeting (English speaker language; French and German translation languages). In the studio, create one stream key per language. In KUDO, add one RTMP stream per language with the studio\'s stream URL and the matching key. Start the meeting, start the broadcast, then check in the studio that both streams are live.',
+    expert: ['Log in with the Client account', 'New meeting, AI speech translation: "Product Day", English; French and German; Save', 'Video studio: create a stream key "French", copy the stream URL and the key', 'KUDO: Settings, Broadcast, RTMP Stream on, + Add RTMP stream: YouTube Live, paste URL and key, French; Save', 'Video studio: create "German", copy its key', 'KUDO: + Add RTMP stream for German; Save', 'Overview, Start meeting, confirm', 'Settings, Broadcast, Start broadcast', 'Video studio: each stream key shows Live'],
+    expertSeconds: 300,
     screens: ['login', 'home', 'meetings', 'new-ai', 'meeting', 'broadcast', 'rtmp'],
   },
+
   'hls-1': {
-    module: 'hls', num: 12, title: 'Broadcast to the client\'s web page (HLS)',
-    request: 'A client shows "Investor Day" today on its own website, to viewers who do not register. Create the AI speech translation meeting (English speaker language; French and German translation languages). Turn on HLS for a 3-hour stream and copy the widget code the client\'s web team must put on the page. Then start the meeting and start the HLS broadcast.',
-    expert: ['Log in with the Client account', 'New meeting, AI speech translation', 'Name "Investor Day"', 'Speaker language English; translation languages French and German', 'Save', 'Settings, Broadcast', 'HLS Stream on', 'Stream Duration: 3 hours', 'Viewer-Only, Copy widget code, Broadcasting', 'Overview, Start meeting, confirm', 'Settings, Broadcast, Start broadcast, Start HLS broadcast'],
-    expertSeconds: 150,
+    module: 'hls', num: 12, title: 'Broadcast to the client\'s web page (HLS)', apps: ['site'],
+    request: 'A client shows "Investor Day" today on its own website, to viewers who do not register. Create the AI speech translation meeting (English speaker language; French and German translation languages). Turn on HLS for a 3-hour stream and copy the widget code for the web page. Put it on the client\'s event page (the "Client website" tab: an embed element) and publish the page. Then start the meeting, start the HLS broadcast, and check on the published page that the broadcast plays.',
+    expert: ['Log in with the Client account', 'New meeting, AI speech translation: "Investor Day", English; French and German; Save', 'Settings, Broadcast: HLS Stream on, Stream Duration 3 hours', 'Viewer-Only, Copy widget code, Broadcasting', 'Client website: Enter code in the embed element, paste, Apply, Publish', 'KUDO: Overview, Start meeting, confirm', 'Settings, Broadcast, Start broadcast, Start HLS broadcast', 'Client website: View site, the player is live with the language selector'],
+    expertSeconds: 240,
     screens: ['login', 'home', 'meetings', 'new-ai', 'meeting', 'broadcast'],
   },
+
   'platform-2': {
     module: 'platform', num: 2, title: 'Send the right link to each person', links: true,
     request: 'The client runs "Partner Summit" tomorrow (already scheduled in the account). Give each person the right access: (1) the two speakers, who speak on camera; (2) the 300 attendees, who only watch and listen in their browser; (3) the client\'s event producer, who runs the polls and the recording; (4) the client\'s web team, who will put KUDO on their own event page; (5) the 80 people in the room, who listen on their phones. Copy what each one needs in the KUDO portal, then use "Reply to the client" to give it to them.',
@@ -63,12 +65,11 @@ export const SCENARIOS = {
     setup: ({ base }) => { const m = base({ name: 'Partner Summit', date: 'Fri, Nov 27, 2026', time: '10:00 - 12:00', dur: '2 hours', speakers: ['English'], translations: ['English (US)', 'French (France)', 'German'], status: 'scheduled' }); return { list: [m], mine: m }; },
   },
   'widget-1': {
-    module: 'widget', num: 10, title: 'Give the web team the KUDO widget for the right session', links: true,
-    request: 'The client streams its two-day "Global Summit" on its own event platform and wants KUDO next to the video. Each day is a separate KUDO session, both already in the account. Give the web team the KUDO widget for Day 2, using "Reply to the client".',
-    expert: ['Log in with the Client account', 'My meetings: open "Global Summit - Day 2"', 'KUDO language access: copy the iframe widget', 'Reply to the client: the iframe widget of Day 2'],
-    expertSeconds: 60,
+    module: 'widget', num: 10, title: 'Put the KUDO widget on the client\'s event page', links: true, apps: ['site'],
+    request: 'The client streams its two-day "Global Summit" on its own event page and wants KUDO next to the video. Each day is a separate KUDO session, both already in the account. Put the KUDO widget for Day 2 on the event page (the "Client website" tab: an embed element), publish it, and check on the published page that the widget shows.',
+    expert: ['Log in with the Client account', 'My meetings: open "Global Summit - Day 2"', 'KUDO language access: copy the iframe widget', 'Client website: Enter code in the embed element, paste, Apply', 'Publish, View site: the widget shows "Welcome! Global Summit - Day 2"'],
+    expertSeconds: 120,
     screens: ['login', 'home', 'meetings', 'meeting', 'preview'],
-    reply: [{ id: 'web', label: 'The web team' }],
     setup: ({ base }) => { const d1 = base({ name: 'Global Summit - Day 1', date: 'Thu, Nov 26, 2026', time: '09:00 - 17:00', dur: '8 hours', speakers: ['English'], translations: ['English (US)', 'Spanish (Spain)', 'Japanese'], status: 'scheduled' });
       const d2 = base({ name: 'Global Summit - Day 2', date: 'Fri, Nov 27, 2026', time: '09:00 - 17:00', dur: '8 hours', speakers: ['English'], translations: ['English (US)', 'Spanish (Spain)', 'Japanese'], status: 'scheduled' }); return { list: [d1, d2], mine: d2 }; },
   },
@@ -110,7 +111,7 @@ export function sandboxView(key, { onExit } = {}) {
       sc.reply ? h('button', { class: 'btn sm', type: 'button', on: { click: () => { replyPanel.hidden = !replyPanel.hidden; drawReply(); } } }, 'Reply to the client') : null,
       h('button', { class: 'btn sm primary', type: 'button', on: { click: () => finish() } }, 'I am done'),
       h('button', { class: 'btn sm', type: 'button', on: { click: () => { if (confirm('Leave the sandbox? This run is not saved.')) { clearInterval(tick); onExit?.(); } } } }, 'Leave')));
-  root.append(bar, taskBox, replyPanel, h('div', { class: 'sbx-browser' }, h('div', { class: 'sbx-url' }, ic('lock', 13), h('span', { class: 'sbx-url-t' }), h('span', { class: 'sbx-note' }, 'Replica for training · test data only')), app));
+  root.append(bar, taskBox, replyPanel, h('div', { class: 'sbx-browser' }, h('div', { class: 'sbx-tabs-wrap' }), h('div', { class: 'sbx-url' }, ic('lock', 13), h('span', { class: 'sbx-url-t' }), h('span', { class: 'sbx-note' }, 'Replica for training · test data only')), app));
 
   // Navigation. Entering a screen the scenario does not need is a detour (silent).
   const go = (screen, what, extra = {}) => {
@@ -532,7 +533,7 @@ export function sandboxView(key, { onExit } = {}) {
       if (f.idx != null) bc.streams[f.idx] = st; else bc.streams.push(st);
       log('save', `RTMP stream saved: ${st.medium}, ${st.lang}`); go('broadcast', 'Broadcast'); toastK('Broadcast settings saved successfully.');
     } } }, 'Save');
-    const inp = (k, ph) => h('input', { class: 'k-in', placeholder: ph, value: f[k], on: { input: (e) => { f[k] = e.target.value; saveBtn.disabled = !ok(); }, change: (e) => log('input', `${k === 'url' ? 'Server URL' : 'Stream Key'} entered`) } });
+    const inp = (k, ph) => h('div', { class: 'k-row' }, h('input', { class: 'k-in', placeholder: ph, value: f[k], on: { input: (e) => { f[k] = e.target.value; saveBtn.disabled = !ok(); }, change: (e) => log('input', `${k === 'url' ? 'Server URL' : 'Stream Key'} entered`) } }), pasteSel((t) => { f[k] = t; saveBtn.disabled = !ok(); log('input', `${k === 'url' ? 'Server URL' : 'Stream Key'} pasted`); draw(); }));
     const langs = ['Original audio', ...(m.kind === 'hi' ? m.speakers : m.translations)];
     return page(h('b', null, ic('speaker'), f.idx != null ? ` Edit RTMP Stream ${f.idx + 1}` : ' + Add RTMP Stream'),
       row('Casting Medium *', select(['YouTube Live', 'Facebook Live', 'IBM Video Streaming'], f.medium, (v) => { f.medium = v; log('change', `Casting Medium: ${v}`); })),
@@ -766,33 +767,37 @@ export function sandboxView(key, { onExit } = {}) {
     },
     'rtmp-1': {
       next() {
-        const m = S.mine, st = m?.bc?.streams || [];
+        const m = S.mine, st = m?.bc?.streams || [], keys = S.studio.keys.map((k) => k.key);
         if (!m || m.kind !== 'ai') return 'Create the meeting: New meeting, then AI speech translation.';
-        if (!m.bc?.rtmp) return 'Turn RTMP on: Settings, Broadcast, RTMP Stream.';
-        if (!st.some((x) => fr(x.lang))) return 'Add the French stream: + Add RTMP stream, YouTube Live, the server URL, the French key, French.';
-        if (!st.some((x) => de(x.lang))) return 'Add the German stream with its own key: + Add RTMP stream.';
+        if (S.studio.keys.length < 3) return 'In the Video studio tab, create one stream key per language (+ Create stream key): French, then German.';
+        if (!m.bc?.rtmp) return 'In KUDO, turn RTMP on: Settings, Broadcast, RTMP Stream.';
+        if (!st.some((x) => fr(x.lang) && keys.includes(x.key))) return 'Add the French stream: + Add RTMP stream, YouTube Live, paste the studio\'s stream URL and the French key, French.';
+        if (!st.some((x) => de(x.lang) && keys.includes(x.key))) return 'Add the German stream with the German key from the studio.';
         if (m.status !== 'live') return 'Start the meeting from the Overview first: the broadcast can only start once the meeting runs.';
         if (!m.bc.rlive) return 'Start the broadcast: Settings, Broadcast, Start broadcast (RTMP).';
+        if ((S.flags.studioSaw?.size || 0) < 2) return 'Check in the Video studio that each stream key shows LIVE (switch the stream key to see each one).';
         return null;
       },
       checks(m, F) {
-        const st = m.bc?.streams || [], URLOK = (x) => x.url.replace(/\/+$/, '') === 'rtmp://a.rtmp.youtube.com/live2' && x.medium === 'YouTube Live';
+        const st = m.bc?.streams || [], keys = S.studio.keys.slice(1).map((k) => k.key), URLOK = (x) => x.url.replace(/\/+$/, '') === S.studio.url && x.medium === 'YouTube Live';
         const frS = st.find((x) => fr(x.lang)), deS = st.find((x) => de(x.lang));
         return [
-          ['AI speech & captions meeting "Product Day"', !!S.mine && m.kind === 'ai' && m.type === 'speech' && named(S.mine, 'product day'), 8],
-          ['English speaker language; French and German translation', aiLangs(m), 8],
-          ['RTMP Stream on', !!m.bc?.rtmp, 8],
-          ['French stream: YouTube Live, right server URL, French key', !!frS && URLOK(frS) && frS.key === 'fr4k-29qx-7mbn-c0d1', 18],
-          ['German stream: YouTube Live, right server URL, German key', !!deS && URLOK(deS) && deS.key === 'de8p-41zw-9hty-k2e5', 18],
-          ['One stream per language, each with its own key', st.length === 2 && new Set(st.map((x) => x.key)).size === 2, 6],
-          ['Meeting started', !!F.started && !F.cancelled, 14],
-          ['RTMP broadcast started', !!F.rtmpStarted, 20],
+          ['AI speech & captions meeting "Product Day"', !!S.mine && m.kind === 'ai' && m.type === 'speech' && named(S.mine, 'product day'), 6],
+          ['English speaker language; French and German translation', aiLangs(m), 6],
+          ['A stream key created in the studio for each language', keys.length >= 2, 10],
+          ['RTMP Stream on', !!m.bc?.rtmp, 6],
+          ['French stream: YouTube Live, the studio URL and a studio key', !!frS && URLOK(frS) && S.studio.keys.some((k) => k.key === frS.key), 14],
+          ['German stream: YouTube Live, the studio URL and a studio key', !!deS && URLOK(deS) && S.studio.keys.some((k) => k.key === deS.key), 14],
+          ['One stream per language, each with its own key', st.length === 2 && new Set(st.map((x) => x.key)).size === 2, 8],
+          ['Meeting started', !!F.started && !F.cancelled, 10],
+          ['RTMP broadcast started', !!F.rtmpStarted, 14],
+          ['Checked in the studio that both streams are live', (F.studioSaw?.size || 0) >= 2, 12],
         ];
       },
       traps(m, F) {
         const t = [], st = m.bc?.streams || [];
-        if (st.some((x) => fr(x.lang) && x.key === 'de8p-41zw-9hty-k2e5') || st.some((x) => de(x.lang) && x.key === 'fr4k-29qx-7mbn-c0d1')) t.push(['Swapped the stream keys: viewers would hear the wrong language', 8]);
-        if (evd(/Same stream key/)) t.push(['Used one stream key for two streams: it interrupts the stream', 6]);
+        if (evd(/Same stream key/)) t.push(['Used one stream key for two streams: it interrupts both', 6]);
+        if (st.some((x) => !S.studio.keys.some((k) => k.key === x.key))) t.push(['Typed a stream key that does not exist in the studio', 5]);
         if (m.bc?.hls) t.push(['Turned HLS on: the client asked for YouTube (RTMP)', 3]);
         if (F.cancelled) t.push(['Cancelled the meeting', 10]);
         if (F.ended) t.push(['Ended the meeting', 8]);
@@ -801,30 +806,36 @@ export function sandboxView(key, { onExit } = {}) {
     },
     'hls-1': {
       next() {
-        const m = S.mine;
+        const m = S.mine, pub = readCode(S.site.published?.find((b) => b.type === 'embed')?.code);
         if (!m || m.kind !== 'ai') return 'Create the meeting: New meeting, then AI speech translation.';
         if (!m.bc?.hls) return 'Turn HLS on: Settings, Broadcast, HLS Stream.';
         if (m.bc.dur !== '3 hours') return 'Set the Stream Duration to 3 hours.';
-        if (!(S.flags.wcodes || []).includes('broadcasting')) return 'Copy the code for the web team: Viewer-Only, Copy widget code, Broadcasting.';
-        if (m.status !== 'live') return 'Start the meeting from the Overview.';
+        if (!(S.flags.wcodes || []).includes('broadcasting')) return 'Copy the code for the web page: Viewer-Only, Copy widget code, Broadcasting.';
+        if (!(pub?.kind === 'wcode-broadcasting' && pub.m === m)) return 'Client website tab: Enter code in the embed element, paste the Broadcasting code, Apply, then Publish.';
+        if (m.status !== 'live') return 'Back in KUDO, start the meeting from the Overview.';
         if (!m.bc.live) return 'Start the HLS broadcast: Settings, Broadcast, Start broadcast.';
+        if (!S.flags.sawHls) return 'Client website tab: View site (or Reload) and check the player is live.';
         return null;
       },
       checks(m, F) {
+        const pub = readCode(S.site.published?.find((b) => b.type === 'embed')?.code);
         return [
-          ['AI speech & captions meeting "Investor Day"', !!S.mine && m.kind === 'ai' && m.type === 'speech' && named(S.mine, 'investor day'), 8],
-          ['English speaker language; French and German translation', aiLangs(m), 8],
-          ['HLS Stream on', !!m.bc?.hls, 14],
-          ['Stream Duration 3 hours', m.bc?.dur === '3 hours', 10],
-          ['Broadcasting widget code copied for the web team', (F.wcodes || []).includes('broadcasting'), 20],
+          ['AI speech & captions meeting "Investor Day"', !!S.mine && m.kind === 'ai' && m.type === 'speech' && named(S.mine, 'investor day'), 6],
+          ['English speaker language; French and German translation', aiLangs(m), 6],
+          ['HLS Stream on', !!m.bc?.hls, 10],
+          ['Stream Duration 3 hours', m.bc?.dur === '3 hours', 8],
+          ['Broadcasting widget code copied', (F.wcodes || []).includes('broadcasting'), 8],
+          ['The Broadcasting code of this meeting published on the client\'s page', pub?.kind === 'wcode-broadcasting' && pub.m === m, 20],
           ['Meeting started', !!F.started && !F.cancelled, 10],
-          ['HLS broadcast started', !!F.hlsStarted, 20],
-          ['Only HLS used (RTMP left off)', !m.bc?.rtmp, 10],
+          ['HLS broadcast started', !!F.hlsStarted, 14],
+          ['Checked the live player on the published page', !!F.sawHls, 13],
+          ['Only HLS used (RTMP left off)', !m.bc?.rtmp, 5],
         ];
       },
       traps(m, F) {
-        const t = [];
-        if ((F.wcodes || []).includes('real time')) t.push(['Copied the Real time stream code: the page would not show the broadcast', 6]);
+        const t = [], pub = readCode(S.site.published?.find((b) => b.type === 'embed')?.code);
+        if ((F.wcodes || []).includes('real time') || pub?.kind === 'wcode-real time') t.push(['Used the Real time stream code: the page would not show the broadcast', 6]);
+        if (pub && pub.kind !== 'wcode-broadcasting' && pub.kind !== 'wcode-real time') t.push(['Put the wrong code on the page (a link or the iframe widget instead of the Broadcasting code)', 6]);
         if (F.cancelled) t.push(['Cancelled the meeting', 10]);
         if (F.ended) t.push(['Ended the meeting', 8]);
         return t;
@@ -855,18 +866,23 @@ export function sandboxView(key, { onExit } = {}) {
     },
     'widget-1': {
       next() {
+        const pub = readCode(S.site.published?.find((b) => b.type === 'embed')?.code), draft = readCode(S.site.blocks.find((b) => b.type === 'embed')?.code);
         if (!S.clip.some((c) => c.kind === 'iframe' && c.meeting === S.mine)) return 'Open "Global Summit - Day 2" (Day 2, not Day 1) and copy the iframe widget under KUDO language access.';
-        if (!isK('web', ['iframe'])) return 'Open "Reply to the client" and give the web team the iframe widget of Day 2.';
+        if (!(draft?.kind === 'iframe' && draft.m === S.mine)) return 'Client website tab: Enter code in the embed element, paste the Day 2 iframe widget, Apply.';
+        if (!(pub?.kind === 'iframe' && pub.m === S.mine)) return 'Publish the page.';
+        if (!S.flags.sawWidget) return 'View site: check the widget shows "Welcome! Global Summit - Day 2".';
         return null;
       },
-      checks() { return [
-        ['Opened the Day 2 session', S.events.some((e) => /Open Global Summit - Day 2/.test(e.what)), 20],
-        ['Web team: an iframe widget code', !!R('web') && R('web').kind === 'iframe', 40],
-        ['The widget of Day 2, not Day 1', !!R('web') && R('web').meeting === S.mine, 40],
+      checks() { const pub = readCode(S.site.published?.find((b) => b.type === 'embed')?.code); return [
+        ['Opened the Day 2 session', S.events.some((e) => /Open Global Summit - Day 2/.test(e.what)), 15],
+        ['An iframe widget code on the page', pub?.kind === 'iframe', 25],
+        ['The widget of Day 2, not Day 1', pub?.kind === 'iframe' && pub.m === S.mine, 25],
+        ['Page published', !!S.site.published, 15],
+        ['Checked the widget on the published page', !!S.flags.sawWidget, 20],
       ]; },
-      traps() { const t = [], c = R('web');
-        if (c && c.meeting !== S.mine) t.push(['Gave the Day 1 widget: each session has its own, and it stops working when that session ends', 8]);
-        if (c && c.kind !== 'iframe') t.push([`Gave the web team ${WRONG[c.kind]} instead of the iframe widget`, 6]);
+      traps() { const t = [], pub = readCode(S.site.published?.find((b) => b.type === 'embed')?.code);
+        if (pub?.m && pub.m !== S.mine) t.push(['Put the Day 1 widget on the page: each session has its own, and it stops working when that session ends', 8]);
+        if (pub && pub.kind !== 'iframe') t.push([`Put ${WRONG[pub.kind] || 'something else'} on the page instead of the iframe widget`, 6]);
         return t; },
     },
     'ringcentral-1': {
@@ -916,9 +932,85 @@ export function sandboxView(key, { onExit } = {}) {
     root.replaceChildren(report(sc, r, S.events, saved, onExit));
   }
 
+  // ---------------------------------------------------------------- third-party look-alikes
+  // Generic replicas of the client's own tools (no brand, no logo): a website builder (Wix-like) and a video
+  // platform studio (YouTube-like). The trainee does the client's side too, so they can show a client how.
+  const APPS = { site: 'Client website', studio: 'Video studio' };
+  const viewLog = (what) => { if (!S.events.some((e) => e.type === 'view' && e.what === what)) log('view', what); };
+  S.tab = 'kudo';
+  S.site = { blocks: [{ type: 'video' }, { type: 'embed', code: '' }], published: null, mode: 'editor', dlg: null };
+  const keyGen = (n) => { const a = 'abcdefghjkmnpqrstuvwxyz23456789'; let x = 7 + n * 131, out = ''; for (let i = 0; i < 16; i++) { x = (x * 1103515245 + 12345) % 2147483648; out += a[x % a.length]; if (i % 4 === 3 && i < 15) out += '-'; } return out; };
+  S.studio = { keys: [{ name: 'Default stream key', key: keyGen(0) }], sel: 0, show: false, naming: null, url: 'rtmp://a.rtmp.youtube.com/live2' };
+  const tabTo = (t) => { if (S.tab === t) return; S.tab = t; S.menu = null; S.modal = null; log('nav', `Tab: ${t === 'kudo' ? 'KUDO portal' : APPS[t]}`); draw(); };
+  const tabStrip = h('div', { class: 'sbx-tabs' });
+  const drawTabs = () => tabStrip.replaceChildren(...(sc.apps ? [['kudo', 'KUDO portal'], ...sc.apps.map((a) => [a, APPS[a]])] : []).map(([k, l]) => h('button', { class: S.tab === k ? 'on' : '', type: 'button', on: { click: () => tabTo(k) } }, l)));
+  const clipItem = (kind, text, label) => { S.clip = [{ kind, text, label, meeting: null }, ...S.clip.filter((c) => c.text !== text)].slice(0, 14); try { navigator.clipboard?.writeText(text).catch(() => {}); } catch { /* list below */ } log('copy', `Copied ${label}`); toastK('Copied to the clipboard'); };
+  // A paste helper for fields: the sandbox clipboard (keyboard paste works too).
+  const pasteSel = (onPick) => h('select', { class: 'k-paste', title: 'Paste what you copied', on: { change: (e) => { const c = S.clip[Number(e.target.value)]; e.target.value = ''; if (c) { log('paste', `Pasted ${c.label}`); onPick(c.text); } } } }, h('option', { value: '' }, 'Paste ▾'), ...S.clip.map((c, i) => h('option', { value: i }, c.label)));
+  // What a piece of code shows on a web page.
+  const allMeetings = () => [...(S.own || (S.mine ? [S.mine] : [])), ...samples()];
+  const readCode = (code) => {
+    const t = String(code || '').replace(/\s+/g, ' ');
+    if (!t.trim()) return null;
+    for (const m of allMeetings()) { const v = idsOf(m).v;
+      if (t.includes('<iframe') && t.includes(`audio-widget.kudoway.com/${v}`)) return { kind: 'iframe', m };
+      if (t.includes(`window.mid = "${v}"`) && t.includes('hls/main.js')) return { kind: 'wcode-broadcasting', m };
+      if (t.includes(`window.mid = "${v}"`) && t.includes('live/main.js')) return { kind: 'wcode-real time', m };
+      if (t.includes(`audio-widget.kudoway.com/${v}`)) return { kind: 'mobile', m };
+      for (const [k, id] of [['participant', idsOf(m).p], ['operator', idsOf(m).o], ['viewer', v]]) if (t.includes(`live.kudoway.eu/k8/${id}`)) return { kind: k, m }; }
+    return { kind: 'other' };
+  };
+  const embedView = (code, live) => {
+    const r = readCode(code);
+    if (!r) return h('div', { class: 'ws-empty' }, live ? '' : 'Empty embed: click "Edit code"');
+    if (r.kind === 'iframe') return h('div', { class: 'ws-widget' }, h('h3', null, 'Welcome!'), h('p', null, r.m.name), select(['Please select your language', ...r.m.translations], 'Please select your language', () => {}), h('button', { class: 'k-btn', type: 'button', on: { click: () => log('click', 'Site: widget Join') } }, 'Join'), h('small', { class: 'k-mini' }, 'Powered by KUDO'));
+    if (r.kind === 'wcode-broadcasting') return r.m.bc?.live
+      ? h('div', { class: 'ws-player' }, h('div', { class: 'ws-video' }, 'LIVE'), h('div', { class: 'ws-pbar' }, h('small', null, 'Select Language:'), select(['Floor', ...r.m.translations], 'Floor', (v) => log('change', `Site player language: ${v}`)), h('span', null, '■  🔊  ● LIVE'), h('small', null, 'Powered by KUDO')))
+      : h('div', { class: 'ws-player off' }, h('p', null, 'Broadcasting has not started yet, please reload after some time'), h('button', { class: 'k-btn', type: 'button', on: { click: () => { log('click', 'Site: Reload'); draw(); } } }, 'Reload'));
+    if (r.kind === 'wcode-real time') return h('div', { class: 'ws-widget' }, h('h3', null, 'Welcome!'), h('p', null, r.m.name), h('small', { class: 'k-mini' }, 'Real time stream widget: viewers join the meeting in real time'), h('button', { class: 'k-btn', type: 'button' }, 'Join'));
+    return h('div', { class: 'ws-empty err' }, 'This content cannot be displayed here. Check the code you pasted.');
+  };
+  function siteScreen() {
+    const st = S.site;
+    if (st.mode === 'live') {
+      const r = readCode(st.published?.find((b) => b.type === 'embed')?.code);
+      viewLog(`Site: viewed the published page (${r ? (r.kind === 'wcode-broadcasting' ? (r.m.bc?.live ? 'HLS player live' : 'HLS not started') : r.kind) : 'empty'})`);
+      if (r?.kind === 'wcode-broadcasting' && r.m.bc?.live && r.m === S.mine) S.flags.sawHls = true;
+      if (r?.kind === 'iframe' && r.m === S.mine) S.flags.sawWidget = true;
+      return h('div', { class: 'ws-live' }, h('div', { class: 'ws-livebar' }, h('span', null, 'client-events.example.com/live'), h('button', { class: 'k-link small', type: 'button', on: { click: () => { st.mode = 'editor'; log('click', 'Site: back to the editor'); draw(); } } }, 'Back to the editor')),
+        h('h1', null, 'Client Event'), h('div', { class: 'ws-row' }, ...(st.published || []).map((b) => (b.type === 'video' ? h('div', { class: 'ws-video own' }, 'Event video') : h('div', { class: 'ws-embedbox' }, embedView(b.code, true))))));
+    }
+    const dlg = st.dlg != null ? (() => { const b = st.blocks[st.dlg]; const ta = h('textarea', { class: 'k-in ws-code', placeholder: '<iframe … or <script …', on: { input: (e) => { b.draft = e.target.value; } } }, b.draft ?? b.code);
+      return h('div', { class: 'k-modal-bg' }, h('div', { class: 'k-modal ws-dlg' }, h('div', { class: 'k-modal-h' }, h('b', null, 'Embed settings'), h('button', { type: 'button', on: { click: () => { st.dlg = null; draw(); } } }, '×')),
+        h('small', null, 'What do you want to add?'), radio('wsk', [['url', 'Website address'], ['code', 'Code']], 'code', () => {}),
+        h('div', { class: 'k-rowsp' }, h('small', null, 'Add your code here (HTTPS only):'), pasteSel((t) => { ta.value = t; b.draft = t; })), ta,
+        h('div', { class: 'k-row end' }, h('button', { class: 'k-btn', type: 'button', on: { click: () => { b.code = (b.draft ?? b.code).trim(); delete b.draft; st.dlg = null; const r = readCode(b.code); log('save', `Site: embed code applied (${r ? r.kind : 'empty'}${r?.m ? `, ${r.m.name}` : ''})`); draw(); } } }, 'Apply')))); })() : null;
+    return h('div', { class: 'ws' }, h('div', { class: 'ws-top' }, h('b', null, 'Site editor'), h('span', { class: 'k-mini' }, 'Page: Home'), h('span', { class: 'pv-gap' }),
+        h('span', { class: 'k-rel' }, h('button', { class: 'k-btn ghost', type: 'button', on: { click: () => { S.menu = S.menu === 'wsadd' ? null : 'wsadd'; draw(); } } }, '+ Add element'),
+          S.menu === 'wsadd' ? h('div', { class: 'k-menu right' }, ...[['Embed code', 'embed'], ['Video', 'video']].map(([l, t]) => h('button', { type: 'button', on: { click: () => { st.blocks.push({ type: t, code: '' }); S.menu = null; log('click', `Site: add ${l}`); draw(); } } }, l))) : null),
+        h('button', { class: 'k-btn', type: 'button', on: { click: () => { st.published = st.blocks.map((b) => ({ ...b })); log('save', 'Site: published'); S.modal = { kind: 'wspub' }; draw(); } } }, 'Publish')),
+      h('div', { class: 'ws-canvas' }, h('h1', null, 'Client Event'), h('div', { class: 'ws-row' }, ...st.blocks.map((b, i) => (b.type === 'video' ? h('div', { class: 'ws-video own' }, 'Event video')
+        : h('div', { class: 'ws-embedbox edit' }, h('div', { class: 'ws-tool' }, h('button', { class: 'k-btn soft', type: 'button', on: { click: () => { st.dlg = i; log('click', 'Site: edit embed code'); draw(); } } }, b.code ? 'Edit code' : 'Enter code'), h('button', { class: 'k-link small', type: 'button', on: { click: () => { st.blocks.splice(i, 1); draw(); } } }, 'Remove')), embedView(b.code, false)))))),
+      dlg, S.modal?.kind === 'wspub' ? modal('Congratulations', [h('p', null, 'Your site is published and visible online.'), h('code', { class: 'sbx-rtext' }, 'https://client-events.example.com/live')], [['Done', () => { S.modal = null; draw(); }, 'ghost'], ['View site', () => { S.modal = null; st.mode = 'live'; log('click', 'Site: view site'); draw(); }]]) : null);
+  }
+  const keyLive = (key) => { const m = S.mine; const s = m?.bc?.streams?.find((x) => x.key === key); return s && m.bc.rlive ? s : null; };
+  function studioScreen() {
+    const st = S.studio, k = st.keys[st.sel], live = keyLive(k.key);
+    if (live && S.mine?.bc?.streams?.length) { S.flags.studioSaw = new Set([...(S.flags.studioSaw || []), k.key]); viewLog(`Studio: ${k.name} is live (${live.lang})`); }
+    const field = (label, val, kind, hide) => h('div', { class: 'yt-field' }, h('small', null, label), h('div', { class: 'k-rowsp' }, h('code', null, hide && !st.show ? '••••••••••••••••••••' : val), hide ? h('button', { class: 'yt-btn ghost', type: 'button', on: { click: () => { st.show = !st.show; draw(); } } }, st.show ? 'Hide' : 'Show') : null, h('button', { class: 'yt-btn', type: 'button', on: { click: () => clipItem(kind, val, `${label}${hide ? ` · ${k.name}` : ''}`) } }, 'Copy')));
+    return h('div', { class: 'yt' }, h('div', { class: 'yt-top' }, h('b', null, '▶ Studio'), h('span', { class: 'k-mini' }, 'Client channel'), h('span', { class: 'pv-gap' }), live ? h('span', { class: 'yt-live' }, 'LIVE') : null),
+      h('div', { class: 'yt-preview' }, h('span', { class: `yt-status ${live ? 'ok' : ''}` }, live ? '● Excellent' : '● No data'), live ? h('div', null, h('b', null, 'You are live'), h('p', null, `Receiving the ${live.lang.replace(/ \(.*\)$/, '')} stream from KUDO`)) : h('div', null, h('b', null, 'Connect your encoder to go live'), h('p', null, 'Copy a stream key into your streaming software (here: KUDO) to start sending your video'))),
+      h('div', { class: 'yt-card' }, h('div', { class: 'k-rowsp' }, h('b', null, 'Stream settings'), h('div', { class: 'k-row' }, h('small', null, 'Stream key'), select(st.keys.map((x, i) => [i, `${x.name}${keyLive(x.key) ? ' · live' : ''}`]), st.sel, (v) => { st.sel = Number(v); st.show = false; log('change', `Studio: stream key ${st.keys[st.sel].name}`); draw(); }),
+          st.naming == null ? h('button', { class: 'yt-btn ghost', type: 'button', on: { click: () => { st.naming = ''; draw(); } } }, '+ Create stream key')
+            : h('span', { class: 'k-row' }, h('input', { class: 'k-in sm', placeholder: 'Name, e.g. French', on: { input: (e) => { st.naming = e.target.value; } } }), h('button', { class: 'yt-btn', type: 'button', on: { click: () => { const n = (st.naming || '').trim() || `Stream key ${st.keys.length + 1}`; st.keys.push({ name: n, key: keyGen(st.keys.length) }); st.sel = st.keys.length - 1; st.naming = null; st.show = false; log('save', `Studio: created stream key "${n}"`); draw(); } } }, 'Create')))),
+        field('Stream URL', st.url, 'yt-url'), field('Backup server URL', `${st.url.replace('//a.', '//b.')}?backup=1`, 'yt-url2'), field('Stream key (paste in encoder)', k.key, 'yt-key', true),
+        h('small', { class: 'k-mini' }, 'One stream key per stream: a key used by two streams interrupts both.')));
+  }
   const SCREENS = { preview: previewScreen, rtmp: rtmpScreen, interpreters: interpretersScreen, broadcast: broadcastScreen, login: loginScreen, home: homeScreen, meetings: meetingsScreen, glossaries: glossariesScreen, usage: usageScreen, 'new-ai': () => formScreen('new'), 'new-hi': () => formScreen('new'), edit: () => formScreen('edit'), meeting: meetingScreen,
     users: () => usersScreen('all'), participants: () => usersScreen('participants'), operators: () => usersScreen('operators'), viewers: () => usersScreen('viewers'), polls: pollsScreen, 'poll-new': pollNewScreen, poll: pollScreen, files: filesScreen, messages: messagesScreen, recordings: recordingsScreen, av: avScreen, features: featuresScreen, mglossaries: mGlossariesScreen, stats: statsScreen };
   function draw() {
+    drawTabs(); const tw = root.querySelector('.sbx-tabs-wrap'); if (tw && !tw.contains(tabStrip)) tw.append(tabStrip);
+    if (S.tab !== 'kudo') { root.querySelector('.sbx-url-t').textContent = S.tab === 'site' ? (S.site.mode === 'live' ? 'client-events.example.com/live' : 'editor.sitebuilder.example/client-events') : 'studio.videoplatform.example/livestreaming'; app.replaceChildren(S.tab === 'site' ? siteScreen() : studioScreen()); return; }
     root.querySelector('.sbx-url-t').textContent = S.screen === 'preview' ? (S.pv.role === 'mobile' ? LINK.mobile(S.pv.m).replace('https://', '') : `${LINK[S.pv.role](S.pv.m).replace('https://', '')}/join`) : url();
     app.replaceChildren(SCREENS[S.screen]());
   }

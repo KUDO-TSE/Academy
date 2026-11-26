@@ -86,7 +86,7 @@ export async function collectionView() {
       h('div', { class: 'muted small' }, `${d.cards.filter((c) => c.set === 'Scenarios' && c.earned).length} of 12 scenario cards`)),
     sets.map((s) => h('section', { class: 'coll-set' }, h('h2', null, s), h('p', { class: 'sub' }, intro[s]),
       h('div', { class: 'coll-grid' }, d.cards.filter((c) => c.set === s).map((c) => h('div', { class: `coll-card ${c.earned ? 'earned' : 'locked'}`, tabindex: 0 },
-        cardArt(c), h('div', { class: 'coll-meta' }, c.earned ? h('span', { class: 'muted small' }, `Earned ${fmt(c.earned_at)}`) : h('span', { class: 'small' }, h('b', null, 'How to earn: '), c.earn))))))));
+        cardArt(c), h('div', { class: 'coll-meta' }, c.earned ? h('span', { class: 'muted small' }, `Earned ${fmt(c.earned_at)}`, c.live ? ' · kept while every new exercise is passed' : '') : h('span', { class: 'small' }, h('b', null, 'How to earn: '), c.earn, c.progress ? h('div', { class: 'muted small' }, c.progress) : null))))))));
   if (d.cards.some((c) => c.isNew)) api('POST', '/api/me/collectibles/seen').catch(() => {});
   return page;
 }
