@@ -65,9 +65,9 @@ function videoBlock(m, admin) {
 // Warm-up before a recorded check: the formats on neutral content, marked in the browser, never stored.
 function warmUp() {
   const items = [
-    { t: 'mcq', q: 'How long is the Academy programme?', o: ['6 weeks', '12 weeks', '6 months', 'One year'], a: 1, why: 'Twelve weeks in four phases.' },
-    { t: 'multi', q: 'Which of these are phases of your plan?', pick: 2, o: ['Warm-up', 'Prove it', 'Holiday', 'Onboarding'], a: [0, 1], why: 'Warm-up, Build, Broaden and Prove it.' },
-    { t: 'order', q: 'Put the four phases in order.', steps: ['Warm-up', 'Build', 'Broaden', 'Prove it'], why: 'From the basics to proving it with Jack.' },
+    { t: 'mcq', q: 'How long is the Academy programme?', o: ['6 weeks', '12 weeks', '6 months', 'One year'], a: 1, why: 'Twelve weeks in four phases' },
+    { t: 'multi', q: 'Which of these are phases of your plan?', pick: 2, o: ['Warm-up', 'Prove it', 'Holiday', 'Onboarding'], a: [0, 1], why: 'Warm-up, Build, Broaden and Prove it' },
+    { t: 'order', q: 'Put the four phases in order', steps: ['Warm-up', 'Build', 'Broaden', 'Prove it'], why: 'From the basics to proving it with Jack' },
   ];
   const shuffle = (a) => a.map((x) => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map((p) => p[1]);
   const box = h('div');
@@ -111,7 +111,7 @@ function focusChoice() {
 export function programmeView(data, { readOnly = false, banner = null } = {}) {
   if (data.status === 'pending' || data.status === 'none') {
     return h('div', { class: 'page' }, banner,
-      h('div', { class: 'page-head' }, h('div', null, h('h1', null, `Welcome, ${first(data.user?.name)}`), h('p', null, 'Your personal Academy programme.'))),
+      h('div', { class: 'page-head' }, h('div', null, h('h1', null, `Welcome, ${first(data.user?.name)}`), h('p', null, 'Your personal Academy programme'))),
       h('div', { class: 'card empty' }, h('b', null, 'Your programme is being finalised'), 'Jack is reviewing the plan built from your October results. It will appear here as soon as it is approved. Meanwhile, your results are under My results.'));
   }
   const { plan, state: st, settings } = data;
@@ -155,7 +155,7 @@ export function programmeView(data, { readOnly = false, banner = null } = {}) {
           h('span', { class: 'muted small' }, thisWeek.length ? `${thisWeek.length} step${thisWeek.length > 1 ? 's' : ''} · about ${fmtMin(thisWeek.reduce((t, i) => t + (i.minutes || 0), 0))}` : 'You are ahead of your plan')),
         thisWeek.length ? thisWeek.map((it) => itemRow(it, { readOnly })) : st.next.length ? st.next.map((it) => itemRow(it, { readOnly })) : h('div', { class: 'ok', style: 'margin-top:10px' }, 'Everything on your side is done. Well done.'),
         st.jackNext.length ? h('div', { class: 'jack-next' }, h('b', null, 'Coming up with Jack: '), st.jackNext.map((i) => i.title).join(' · ')) : null),
-      h('div', { class: 'card focus-card' }, h('h2', null, 'Why these three focus areas'), h('p', { class: 'sub' }, plan.focusPinned ? 'Chosen with Jack.' : 'Picked from your results, your clients and the team priorities.'),
+      h('div', { class: 'card focus-card' }, h('h2', null, 'Why these three focus areas'), h('p', { class: 'sub' }, plan.focusPinned ? 'Chosen with Jack' : 'Picked from your results, your clients and the team priorities'),
         plan.focus.length ? plan.focus.map((s) => { const l = st.levels.find((x) => x.scenario === s); return h('div', { class: 'focus-why' }, h('div', { class: 'row spread' }, h('b', null, l.label), h('span', { class: `chip ${BAND_CHIP[l.band.key]}` }, `${l.now}% → ${l.target}%`)), h('div', { class: 'muted small' }, `Because ${plan.focusReasons[s]}.`)); }) : h('div', { class: 'muted' }, 'You are already at target on every scenario: your plan keeps it sharp and proves it.'),
         plan.tip ? h('div', { class: 'tip' }, h('b', null, 'How you like to learn: '), plan.tip) : null,
         readOnly ? null : focusChoice())),
@@ -246,16 +246,16 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
           videoBlock(m, admin),
           m.sections.map((s) => h('div', { class: 'les' }, h('h3', null, s.title), h('ul', null, s.points.map((p) => h('li', null, p))))),
           m.faq?.length ? h('div', { class: 'faq' }, h('h3', null, 'Asked in sessions'), m.faq.map((f) => h('details', null, h('summary', null, f.question), h('p', null, f.answer)))) : null,
-          m.caseStudy ? h('div', { class: 'case' }, h('h3', null, 'Worked example'), h('p', null, m.caseStudy.example), h('div', { class: 'muted small' }, 'An illustrative case built from the lesson.')) : null,
+          m.caseStudy ? h('div', { class: 'case' }, h('h3', null, 'Worked example'), h('p', null, m.caseStudy.example), h('div', { class: 'muted small' }, 'An illustrative case built from the lesson')) : null,
           m.caseStudy?.mistakes?.length ? h('div', { class: 'mistakes' }, h('h3', null, 'Common mistakes'), h('ul', null, m.caseStudy.mistakes.map((x) => h('li', null, x)))) : null,
           lessonItem ? markBtn(lessonItem, 'I have worked through the lesson') : null),
         (m.practiceTask || m.practiceFull) ? h('div', { class: 'card practice-card' }, h('div', { class: 'eyebrow dark' }, 'Step 2 · Practise'), h('h2', null, 'Do it for real'),
-          practiceItem?.done ? h('div', { class: 'ok', style: 'margin-bottom:8px' }, practiceItem.signed_off ? 'Practice passed and signed off.' : 'Practice done.') : !practiceItem && !admin ? h('p', { class: 'muted small' }, 'Optional for you: not in your plan.') : null,
+          practiceItem?.done ? h('div', { class: 'ok', style: 'margin-bottom:8px' }, practiceItem.signed_off ? 'Practice passed and signed off' : 'Practice done') : !practiceItem && !admin ? h('p', { class: 'muted small' }, 'Optional for you: not in your plan') : null,
           admin ? h('div', null, h('div', { class: 'explain-prompt' }, m.practiceFull.prompt), h('div', { class: 'muted small' }, `Format: ${{ write: 'written', speak: 'spoken', steps: 'step-by-step account' }[m.practiceFull.type]}. Reviewed automatically.`), h('b', null, 'Key points'), h('ul', null, m.practiceFull.points.map((p) => h('li', null, p))))
             : explainCard(m.key, m.practiceTask, m.practiceSubmissions || [], m.rubric || [], { onDone, kind: 'practice', type: m.practiceTask.type }),
           m.practice?.length ? h('details', { style: 'margin-top:12px' }, h('summary', null, 'More ways to practise (optional)'), h('ol', { class: 'obj' }, m.practice.map((p) => h('li', null, p)))) : null) : null),
       h('div', { class: 'stack' },
-        h('div', { class: 'card' }, h('h2', null, 'Go deeper'), h('p', { class: 'sub' }, 'Videos, the CM Onboarding Guide and the Help Center.'),
+        h('div', { class: 'card' }, h('h2', null, 'Go deeper'), h('p', { class: 'sub' }, 'Videos, the CM Onboarding Guide and the Help Center'),
           m.learn.map((r) => h('a', { class: 'res', href: r.url, target: '_blank', rel: 'noopener noreferrer' }, h('span', { class: `chip ${r.type === 'video' ? 'coral' : r.type === 'guide' ? 'amber' : 'blue'}` }, { video: 'Video', guide: 'Guide', article: 'Help Center' }[r.type]), h('span', null, r.title, r.note ? h('span', { class: 'muted small' }, ` · ${r.note}`) : null)))),
         h('div', { class: 'card' }, h('h2', null, 'When to hand over'), h('ul', { class: 'esc' }, m.escalate.map((e) => h('li', null, e)))))),
     h('div', { class: 'card check-card', style: 'margin-top:16px' }, h('div', { class: 'eyebrow dark' }, m.key === 'baseline' ? 'Baseline' : 'Step 3 · Check'), h('div', { class: 'row spread' }, h('h2', null, m.key === 'baseline' ? 'One question per scenario' : 'Prove it'), last ? h('span', { class: 'chip blue' }, `Recorded score ${Math.round((last.correct / last.total) * 100)}% · ${fmtDate(last.created_at)}`) : null),
@@ -277,5 +277,5 @@ export async function missedView({ readOnly = false, rerender, planItems = [] })
   return h('div', { class: 'page lesson' }, h('a', { href: '#programme', class: 'muted' }, '← My programme'),
     h('div', { class: 'page-head', style: 'margin-top:8px' }, h('div', null, h('h1', null, 'The questions you missed in October'), h('p', null, 'Say your answer out loud first, then reveal. Retrieval is what makes it stick.'))),
     h('div', { class: 'card' }, list.length ? list.map((x) => { const a = h('div', { class: 'a', hidden: true }, 'Answer: ', x.answer || '–'); return h('div', { class: 'q-item' }, h('b', null, `Q${x.qnum}. ${x.question}`), h('div', null, h('button', { class: 'btn sm', style: 'margin-top:6px', on: { click: (e) => { a.hidden = false; e.target.remove(); } } }, 'Reveal answer')), a); }) : h('div', { class: 'ok' }, 'No missed questions on record.'),
-      it && !readOnly ? h('div', { style: 'margin-top:14px' }, it.done ? h('span', { class: 'chip green' }, 'Done') : h('button', { class: 'btn primary', on: { click: async () => { await api('POST', '/api/me/items/missed/done', {}); toast('Ticked off.'); rerender(); } } }, 'I have gone through them all')) : null));
+      it && !readOnly ? h('div', { style: 'margin-top:14px' }, it.done ? h('span', { class: 'chip green' }, 'Done') : h('button', { class: 'btn primary', on: { click: async () => { await api('POST', '/api/me/items/missed/done', {}); toast('Ticked off'); rerender(); } } }, 'I have gone through them all')) : null));
 }

@@ -1,7 +1,7 @@
 import { h, api, toast, fmtDate, modal } from './ui.js';
 
 const TYPE = { approval: ['amber', 'Approve'], session: ['coral', 'Session'], milestone: ['coral', 'Milestone'], review: ['blue', 'Review'], signoff: ['green', 'Sign-off'], nudge: ['grey', 'Nudge'], pairing: ['green', 'Teach-back'], learning: ['blue', 'Sessions'], content: ['blue', 'Content'] };
-const GROUPS = [['overdue', 'Overdue', 'Sessions that should have happened already.'], ['now', 'Do first', 'Waiting on you and blocking a trainee.'], ['this_week', 'This week', ''], ['next_week', 'Next week', 'Book these now.'], ['later_ok', 'When you can', '']];
+const GROUPS = [['overdue', 'Overdue', 'Sessions that should have happened already'], ['now', 'Do first', 'Waiting on you and blocking a trainee'], ['this_week', 'This week', ''], ['next_week', 'Next week', 'Book these now'], ['later_ok', 'When you can', '']];
 const hrs = (m) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? `${m % 60} min` : ''}`.trim() : `${m} min`);
 
 export async function boardView() {

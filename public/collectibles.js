@@ -66,7 +66,7 @@ const fmt = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', mon
 export async function collectionView() {
   const d = await api('GET', '/api/me/collectibles');
   const sets = ['Journey', 'Scenarios', 'Craft', 'Habit'];
-  const intro = { Journey: 'Milestones of your 12 weeks.', Scenarios: 'One card per client scenario, earned when you reach your target level on it.', Craft: 'Work done well: decisions, explanations, honest judgement.', Habit: 'Weeks you showed up. They never need to be in a row.' };
+  const intro = { Journey: 'Milestones of your 12 weeks', Scenarios: 'One card per client scenario, earned when you reach your target level on it.', Craft: 'Work done well: decisions, explanations, honest judgement', Habit: 'Weeks you showed up. They never need to be in a row.' };
   const pct = Math.round((d.earned / d.total) * 100);
   const page = h('div', { class: 'page' },
     h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My collection'), h('p', null, 'Cards you earn at real milestones of your programme. They are yours to keep: none can be lost, and nobody else sees your collection.'))),

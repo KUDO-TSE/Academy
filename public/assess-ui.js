@@ -55,7 +55,7 @@ export function resultView(r, items, { pass = 0.8, baseline = false, onRetry } =
   };
   return h('div', null,
     h('div', { class: `result ${passed ? 'pass' : 'fail'}` }, h('div', { class: 'big' }, `${acc}%`),
-      h('div', null, h('b', null, baseline ? (r.counts === false ? 'Practice round.' : 'Baseline recorded. Your plan uses it from now on.') : passed ? 'Passed.' : `Below ${Math.round(pass * 100)}%: worth practising.`),
+      h('div', null, h('b', null, baseline ? (r.counts === false ? 'Practice round' : 'Baseline recorded. Your plan uses it from now on.') : passed ? 'Passed' : `Below ${Math.round(pass * 100)}%: worth practising.`),
         r.counts === false && r.record ? h('div', { class: 'practice-note' }, `Practice round: your recorded score stays ${Math.round((r.record.correct / r.record.total) * 100)}% from your first attempt.`) : r.counts ? h('div', { class: 'practice-note rec' }, 'This is your recorded score. Retake it any time to practise; it will not change.') : null,
         certMsg ? h('div', { class: 'muted' }, certMsg) : null,
         r.confidentWrong ? h('div', { class: 'small', style: 'color:var(--danger);margin-top:4px' }, `${r.confidentWrong} answer${r.confidentWrong > 1 ? 's' : ''} you were certain of ${r.confidentWrong > 1 ? 'were' : 'was'} wrong: worth a second look.`) : null)),
@@ -161,7 +161,7 @@ export function explainCard(moduleKey, ex, submissions, rubric, { onDone, kind =
       send.disabled = true;
       const r = await api('POST', `/api/me/explain/${moduleKey}`, body);
       blob = null; player.hidden = true; text.value = ''; time.textContent = '0:00';
-      if (r.status === 'processing') poll(r.id); else resultArea.replaceChildren(h('div', { class: 'ok' }, 'Sent to Jack for review.'));
+      if (r.status === 'processing') poll(r.id); else resultArea.replaceChildren(h('div', { class: 'ok' }, 'Sent to Jack for review'));
     } catch (e) { toast(e.message, true); } finally { send.disabled = false; }
   });
   const hint = { speak: 'Talk as you would on a call, up to 3 minutes.', write: 'Write it as you would really send it.', steps: 'Do it in a test account first, then describe exactly what you did.' }[type];

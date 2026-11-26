@@ -28,14 +28,14 @@ export async function overviewView() {
       kpi('Average test score', pct(d.avgLive), d.avgSelf != null && d.avgLive != null ? `${d.avgLive - d.avgSelf >= 0 ? '+' : ''}${Math.round(d.avgLive - d.avgSelf)} pts vs self rating` : 'Latest test'),
       kpi('Plan completion', d.planTotals.total ? pct((d.planTotals.done / d.planTotals.total) * 100) : '–', d.planTotals.total ? `${d.planTotals.done} of ${d.planTotals.total} items` : 'No plans loaded yet')),
     h('div', { class: 'grid g-8-4', style: 'margin-top:16px' },
-      h('div', { class: 'card' }, h('h2', null, 'Team by scenario'), h('p', { class: 'sub' }, 'Average self rating next to average test score.'), legend(), pairedBars(rows)),
+      h('div', { class: 'card' }, h('h2', null, 'Team by scenario'), h('p', { class: 'sub' }, 'Average self rating next to average test score'), legend(), pairedBars(rows)),
       h('div', { class: 'stack' },
         h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('h2', null, 'Top training priorities'), h('a', { href: '#priorities' }, 'See all')),
           d.topPriorities.map((p) => h('div', { class: 'row spread', style: 'padding:9px 0;border-top:1px solid var(--border-soft)' }, h('b', null, scShort(p.scenario)), h('span', { class: 'row' }, p.safetyNet ? h('span', { class: 'chip amber' }, 'Safety net') : null, h('span', { class: `chip ${p.tier === 1 ? 'coral' : p.tier === 2 ? 'amber' : 'grey'}` }, `${p.priority} · Tier ${p.tier}`))))),
         h('div', { class: 'card' }, h('h2', null, 'Regions'),
           h('table', { class: 'tbl', style: 'margin-top:8px' }, h('thead', null, h('tr', null, ['Region', 'Self', 'Test'].map((x, i) => h('th', { class: i ? 'num' : '' }, x)))),
             h('tbody', null, d.byRegion.map((r) => h('tr', null, h('td', null, h('b', null, r.region), h('span', { class: 'muted small' }, ` · ${r.liveDone}/${r.people} tested`)), h('td', { class: 'num' }, pct(r.self)), h('td', { class: 'num' }, pct(r.live))))))),
-        d.pendingLive.length ? h('div', { class: 'card' }, h('h2', null, 'Test not taken yet'), h('p', { class: 'sub' }, 'CMs & Sales without a live test result.'), d.pendingLive.map((p) => h('div', { class: 'row spread', style: 'padding:6px 0' }, h('a', { href: `#person-${p.id}` }, p.name), h('span', { class: 'chip grey' }, p.region || '–')))) : null)));
+        d.pendingLive.length ? h('div', { class: 'card' }, h('h2', null, 'Test not taken yet'), h('p', { class: 'sub' }, 'CMs & Sales without a live test result'), d.pendingLive.map((p) => h('div', { class: 'row spread', style: 'padding:6px 0' }, h('a', { href: `#person-${p.id}` }, p.name), h('span', { class: 'chip grey' }, p.region || '–')))) : null)));
 }
 
 // ---------------------------------------------------------------- Team
@@ -152,8 +152,8 @@ function tabCoaching(d, reload) {
   const body = h('textarea', { placeholder: 'Session review, coaching focus, next step…', maxlength: 4000 }), shared = h('input', { type: 'checkbox', style: 'width:auto' });
   const u = d.user;
   return h('div', { class: 'stack' },
-    h('div', { class: 'card' }, h('h2', null, 'Dreaded question'), h('p', { class: 'sub' }, 'From the Self Assessment (visible to admins only).'),
-      h('div', null, u.struggle_text || h('span', { class: 'muted' }, 'Not recorded.')),
+    h('div', { class: 'card' }, h('h2', null, 'Dreaded question'), h('p', { class: 'sub' }, 'From the Self Assessment (visible to admins only)'),
+      h('div', null, u.struggle_text || h('span', { class: 'muted' }, 'Not recorded')),
       h('div', { class: 'row', style: 'margin-top:10px' }, u.demand_scenario ? h('span', { class: 'chip blue' }, `Clients bring most: ${scShort(u.demand_scenario)}`) : null, (u.struggle_scenarios || []).map((s) => h('span', { class: 'chip coral' }, `Struggle: ${scShort(s)}`)), u.profile?.learning_pref ? h('span', { class: 'chip grey' }, `Prefers: ${u.profile.learning_pref}`) : null)),
     h('div', { class: 'card' }, h('h2', null, 'Add a note'), h('p', { class: 'sub' }, 'Private notes are visible to admins only. Shared notes also appear on the trainee’s Home.'), body,
       h('div', { class: 'row spread', style: 'margin-top:10px' }, h('label', { class: 'row', style: 'font-weight:600' }, shared, 'Share with trainee'), h('button', { class: 'btn primary', on: { click: async () => { try { await api('POST', `/api/admin/trainees/${u.id}/notes`, { body: body.value, shared: shared.checked }); toast('Note added'); reload(); } catch (e) { toast(e.message, true); } } } }, 'Add note'))),
@@ -202,7 +202,7 @@ export async function prioritiesView() {
         h('p', { class: 'muted small', style: 'margin:12px 0 0' }, 'Safety net: half the team at level 2 or lower gets a resource regardless of demand.')),
       h('div', { class: 'card' }, h('h2', null, 'Delivery theme: Human Interpretation vs AI Translation'), h('p', { class: 'sub' }, 'Ranked separately, as the Guide workflows differ. Every training and 1:1 covers both.'),
         d.scenarios.filter((p) => THEME.includes(p.scenario)).map((p) => h('div', { class: 'row spread', style: 'padding:9px 0;border-top:1px solid var(--border-soft)' }, h('b', null, scLabel(p.scenario)), h('span', { class: 'row' }, h('span', { class: 'muted small' }, `Weakness ${p.weakness} · Struggle ${p.struggle} · Reach ${p.reach}`), h('span', { class: `chip ${p.tier === 1 ? 'coral' : p.tier === 2 ? 'amber' : 'grey'}` }, `${p.priority} · Tier ${p.tier}`))))),
-      h('div', { class: 'card' }, h('h2', null, '1:1 coaching flags'), h('p', { class: 'sub' }, 'CMs & Sales scoring 55 or more on any scenario.'),
+      h('div', { class: 'card' }, h('h2', null, '1:1 coaching flags'), h('p', { class: 'sub' }, 'CMs & Sales scoring 55 or more on any scenario'),
         flagged.length ? h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Person', 'Region', 'Top scenarios', 'Score'].map((x, i) => h('th', { class: i === 3 ? 'num' : '' }, x)))), h('tbody', null, flagged.map((x) => h('tr', { class: 'click', on: { click: () => { location.hash = `person-${x.user_id}`; } } }, h('td', null, h('b', null, x.name)), h('td', null, x.region || '–'), h('td', null, x.scenarios.map((s) => scShort(s.scenario)).join(', ')), h('td', { class: 'num' }, h('span', { class: 'chip coral' }, x.top.score))))))) : h('div', { class: 'muted' }, 'No one is above the flag right now.'),
         d.oneToOne.length ? h('p', { class: 'muted small', style: 'margin:12px 0 0' }, `Next highest: ${d.oneToOne.filter((x) => !x.flagged).slice(0, 3).map((x) => `${x.name} (${x.top.score})`).join(', ') || '–'}`) : null),
       h('div', { class: 'card' }, h('h2', null, 'Risk inputs'), h('p', { class: 'sub' }, 'Critical steps in the CM Onboarding Guide for each scenario (platform steps counted in each scenario that uses them). Update when the Guide changes.'), crit,
@@ -240,7 +240,7 @@ const IMPORTS = {
   self: { label: 'Self Assessment results', tpl: 'self_assessment.csv', round: true, note: 'Ratings 1 to 5. Use scenario "overall" for the overall average.' },
   live: { label: 'Knowledge test scores', tpl: 'live_scores.csv', round: true, note: 'Correct and total per scenario. Use scenario "overall" for the whole test.' },
   questions: { label: 'Test question bank', tpl: 'questions.csv', round: true, note: 'Question text and correct answer, so trainees can review what they missed.' },
-  question_results: { label: 'Per-question results', tpl: 'question_results.csv', round: true, note: 'One row per person per question: correct = 1 or 0.' },
+  question_results: { label: 'Per-question results', tpl: 'question_results.csv', round: true, note: 'One row per person per question: correct = 1 or 0' },
 };
 export async function importView() {
   await meta();
@@ -273,7 +273,7 @@ export async function usersView() {
 // ---------------------------------------------------------------- Activity
 export async function auditView() {
   const rows = await api('GET', '/api/admin/audit');
-  return h('div', { class: 'page' }, h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Activity log'), h('p', null, 'The last 200 sign-ins and changes.'))),
+  return h('div', { class: 'page' }, h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Activity log'), h('p', null, 'The last 200 sign-ins and changes'))),
     h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['When', 'Who', 'Action', 'Target', 'Detail'].map((x) => h('th', null, x)))), h('tbody', null, rows.map((r) => h('tr', null, h('td', null, new Date(r.at).toLocaleString('en-GB')), h('td', null, r.actor_email || '–'), h('td', null, h('span', { class: 'chip grey' }, r.action)), h('td', null, r.target || ''), h('td', { class: 'muted small' }, (r.detail || '').slice(0, 120))))))));
 }
 
