@@ -652,3 +652,23 @@ test('sandbox: the first run is the result of record and a pass signs the practi
   const hr = (await d('GET', '/api/me/sandbox/hls-1')).json.runs[0].result;
   assert.equal(hr.discovery, 33); assert.equal(hr.solution, 0); assert.deepEqual(hr.call.asked, ['lang', 'plat', 'budget', 'ai']); assert.equal(hr.call.choice, 'iframe');
 });
+
+test('virtual coach: answers from the trainee\'s own data; group sessions come from the KUDO Trainer', async () => {
+  const d = client(); await d('POST', '/api/auth/login', { email: 'dana@test.local', password: 'Quiet-valley-pass-73' });
+  const adm = client(); await adm('POST', '/api/auth/login', { email: 'boss@test.local', password: 'Quiet-harbor-pass-55' });
+  assert.equal((await d('POST', '/api/me/coach', { message: '' })).status, 400);
+  const sc = (await d('POST', '/api/me/coach', { message: 'How is my score evaluated?' })).json;
+  assert.equal(sc.mode, 'built-in', 'no API key in tests: built-in answers'); assert.match(sc.text, /80%/); assert.match(sc.text, /first attempt/);
+  // Group sessions: admin only, https links only, then visible to the trainee and the coach.
+  assert.equal((await d('POST', '/api/admin/group-sessions', { title: 'x', starts_at: new Date(Date.now() + 864e5).toISOString() })).status, 403);
+  assert.equal((await adm('POST', '/api/admin/group-sessions', { title: 'x', starts_at: new Date(Date.now() + 864e5).toISOString(), link: 'http://insecure.example' })).status, 400);
+  const g = await adm('POST', '/api/admin/group-sessions', { title: 'Group kick-off', topic: 'How the Academy works', starts_at: new Date(Date.now() + 2 * 864e5).toISOString(), minutes: 45 });
+  assert.equal(g.status, 200);
+  assert.equal((await d('GET', '/api/me/group-sessions')).json.sessions[0].title, 'Group kick-off');
+  const ga = (await d('POST', '/api/me/coach', { message: 'When is the next group meeting and what is the topic?' })).json;
+  assert.match(ga.text, /Group kick-off/); assert.match(ga.text, /How the Academy works/);
+  const pr = (await d('POST', '/api/me/coach', { message: 'What was my progression from July to August?' })).json;
+  assert.ok(pr.text.length > 20);
+  await adm('DELETE', `/api/admin/group-sessions/${g.json.id}`);
+  assert.equal((await client()('POST', '/api/me/coach', { message: 'hi' })).status, 401);
+});

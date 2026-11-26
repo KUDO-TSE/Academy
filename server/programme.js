@@ -50,14 +50,14 @@ meProgramme.get('/programme', async (req, res, next) => { try { res.json(await p
 // Live progress: what the trainee's tests have done to their level, scenario by scenario and module by module.
 // Only tests move a level: the first attempt of each module check, decision walkthrough and explain-it recording
 // (the KUDO Trainer's review replaces the automatic score), and the baseline check. Lessons, practice and retakes never do.
-meProgramme.get('/progress-live', async (req, res, next) => {
-  try {
-    const uid = req.user.id;
+meProgramme.get('/progress-live', async (req, res, next) => { try { res.json(await progressFor(req.user.id)); } catch (e) { next(e); } });
+export async function progressFor(uid) {
+  {
     const p = await programmeFor(uid);
     let levels = p.state?.levels;
     if (!levels) {
       const ctx = await loadContext(uid); const u = ctx.users.find((x) => x.id === uid);
-      if (!u) return res.json({ scenarios: [], modules: [], feed: [] });
+      if (!u) return { scenarios: [], modules: [], feed: [], attempts: [] };
       const L = computeLevels(u, ctx);
       levels = SCENARIOS.map((sc) => ({ scenario: sc.key, label: sc.label, short: sc.short, now: L.per[sc.key].est, baseline: L.per[sc.key].baseline, target: 80, history: L.per[sc.key].history }));
     }
@@ -87,9 +87,9 @@ meProgramme.get('/progress-live', async (req, res, next) => {
       ...subs.map((x) => ({ at: x.created_at, kind: 'explain', module: x.module_key, pct: x.rubric ? Math.round(explainScore(x.rubric) ?? 0) : null, reviewed: x.status === 'reviewed', record: x.counts !== false })),
     ].map((a) => ({ ...a, moduleTitle: MODULE_BY_KEY[a.module]?.title || a.module })).sort((a, b) => new Date(b.at) - new Date(a.at));
     const avg = (k) => Math.round(scen.reduce((t, s) => t + s[k], 0) / (scen.length || 1));
-    res.json({ overall: { start: avg('start'), now: avg('now') }, scenarios: scen, modules, feed, attempts, pass: PASS });
-  } catch (e) { next(e); }
-});
+    return { overall: { start: avg('start'), now: avg('now') }, scenarios: scen, modules, feed, attempts, pass: PASS };
+  }
+}
 
 // ------------------------------------------------------------------ sandbox practice
 // Runs on the replica of the KUDO screens. The first run is the result of record; passing it (80%) signs the

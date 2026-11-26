@@ -29,6 +29,7 @@ export async function programmeOverview() {
     h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Programme goal'), h('p', { class: 'sub' }, 'Shown at the top of every trainee\'s page. The target is the readiness score on Set up scenarios; Hand over scenarios use 10 points less.'),
       h('div', { class: 'row', style: 'align-items:flex-end;gap:12px;flex-wrap:wrap' }, h('label', { class: 'f', style: 'flex:1;min-width:280px;margin:0' }, h('span', { class: 'l' }, 'Goal'), goal), h('label', { class: 'f', style: 'margin:0' }, h('span', { class: 'l' }, 'Target %'), target),
         h('button', { class: 'btn', on: { click: async () => { try { await api('PUT', '/api/admin/programme/settings', { goal: goal.value, target: Number(target.value) }); toast('Saved. Plans recalculated.'); } catch (e) { toast(e.message, true); } } } }, 'Save'))),
+    groupSessionsCard(),
     h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Trainees'),
       h('div', { class: 'tbl-wrap', style: 'margin-top:10px' }, h('table', { class: 'tbl' },
         h('thead', null, h('tr', null, ['Name', 'Plan', 'Focus', 'Week', 'Done', 'Readiness', 'Next step', 'Sign-off'].map((x, i) => h('th', { class: [3, 4, 7].includes(i) ? 'num' : '' }, x)))),
@@ -43,6 +44,26 @@ export async function programmeOverview() {
       jackItems.map((x) => h('div', { class: 'row spread', style: 'padding:7px 0;border-top:1px solid var(--border-soft)' }, h('span', null, h('b', null, x.who), ` · ${x.t}`), h('a', { href: `#person-${x.id}`, on: { click: () => sessionStorage.setItem('personTab', 'inputs') } }, 'Log it')))) : null);
 }
 function confirmBox(text) { return window.confirm(text); } // eslint-disable-line no-alert
+
+// Group sessions: date, time, topic and link. Trainees see the next one on My training, and the virtual coach answers from it.
+function groupSessionsCard() {
+  const list = h('div');
+  const f = { title: h('input', { placeholder: 'Title, e.g. Group kick-off', maxlength: 120 }), when: h('input', { type: 'datetime-local' }), minutes: h('input', { type: 'number', min: 5, max: 480, value: 60, style: 'width:90px' }), topic: h('input', { placeholder: 'Topic (optional)', maxlength: 500 }), link: h('input', { placeholder: 'https:// join link (optional)', maxlength: 500 }) };
+  const load = async () => {
+    const { sessions } = await api('GET', '/api/admin/group-sessions');
+    const now = Date.now(); const up = sessions.filter((x) => new Date(x.starts_at) >= now - 3600e3).reverse();
+    list.replaceChildren(up.length ? h('div', null, up.map((x) => h('div', { class: 'row spread', style: 'padding:8px 0;border-top:1px solid var(--border-soft)' },
+      h('span', null, h('b', null, x.title), ` · ${new Date(x.starts_at).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · ${x.minutes} min`, x.topic ? h('div', { class: 'muted small' }, x.topic) : null),
+      h('button', { class: 'btn sm', on: { click: async () => { if (!confirmBox(`Remove "${x.title}"?`)) return; await api('DELETE', `/api/admin/group-sessions/${x.id}`); load(); } } }, 'Remove')))) : h('div', { class: 'muted small', style: 'padding:6px 0' }, 'None scheduled.'));
+  };
+  load().catch(() => {});
+  return h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Group sessions'), h('p', { class: 'sub keep' }, 'Trainees see the next one on My training, and the virtual coach answers from this list.'), list,
+    h('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:10px' },
+      h('label', { class: 'f', style: 'margin:0;flex:1;min-width:180px' }, h('span', { class: 'l' }, 'Title'), f.title), h('label', { class: 'f', style: 'margin:0' }, h('span', { class: 'l' }, 'Date and time'), f.when),
+      h('label', { class: 'f', style: 'margin:0' }, h('span', { class: 'l' }, 'Minutes'), f.minutes), h('label', { class: 'f', style: 'margin:0;flex:1;min-width:200px' }, h('span', { class: 'l' }, 'Topic'), f.topic),
+      h('label', { class: 'f', style: 'margin:0;flex:1;min-width:200px' }, h('span', { class: 'l' }, 'Link'), f.link),
+      h('button', { class: 'btn primary', on: { click: async () => { try { await api('POST', '/api/admin/group-sessions', { title: f.title.value, starts_at: f.when.value ? new Date(f.when.value).toISOString() : '', minutes: Number(f.minutes.value), topic: f.topic.value, link: f.link.value }); toast('Group session added'); f.title.value = ''; f.topic.value = ''; f.link.value = ''; load(); } catch (e) { toast(e.message, true); } } } }, 'Add')));
+}
 
 // ------------------------------------------------------------------ person: programme tab
 export function tabProgramme(personId, reload) {

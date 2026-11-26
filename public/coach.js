@@ -1,0 +1,61 @@
+// The virtual coach: a chat panel on every trainee page. Answers come from the trainee's own data (server/coach.js).
+// The conversation lives in this page only: it is not stored anywhere.
+import { h, api } from './ui.js';
+
+const SUGGEST = ['What\'s next in my programme?', 'When is my next 1:1 with my KUDO Trainer?', 'When is the next group session, and what is the topic?', 'How is my score evaluated?', 'How have I progressed this month?', 'Where are my biggest gaps?'];
+
+// A small, safe renderer: lines, "- " bullets, **bold**, and links to pages in the app ("#...") or https links.
+function rich(text) {
+  const inline = (s) => {
+    const out = []; const re = /\*\*(.+?)\*\*|\[([^\]]+)\]\(((?:#|https:\/\/)[^)\s]+)\)/g; let last = 0, m;
+    while ((m = re.exec(s))) { if (m.index > last) out.push(s.slice(last, m.index)); out.push(m[1] ? h('b', null, m[1]) : h('a', { href: m[3], ...(m[3].startsWith('https') ? { target: '_blank', rel: 'noopener' } : {}) }, m[2])); last = re.lastIndex; }
+    if (last < s.length) out.push(s.slice(last)); return out;
+  };
+  const blocks = []; let list = null;
+  for (const line of String(text).split('\n')) {
+    if (/^\s*[-•]\s+/.test(line)) { if (!list) { list = h('ul'); blocks.push(list); } list.append(h('li', null, ...inline(line.replace(/^\s*[-•]\s+/, '')))); continue; }
+    list = null; if (line.trim()) blocks.push(h('p', null, ...inline(line)));
+  }
+  return blocks;
+}
+
+export function coachWidget() {
+  const history = [];
+  let open = false, busy = false, ai = false;
+  api('GET', '/api/me/coach').then((r) => { ai = !!r.ai; }).catch(() => {});
+  const log = h('div', { class: 'co-log', 'aria-live': 'polite' });
+  const input = h('textarea', { rows: 1, placeholder: 'Ask about your programme, results or the Academy', maxlength: 500, 'aria-label': 'Your question',
+    on: { keydown: (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input.value); } } } });
+  const chips = h('div', { class: 'co-chips' }, SUGGEST.map((s) => h('button', { type: 'button', on: { click: () => send(s) } }, s)));
+  const bubble = (role, text, links = []) => {
+    const b = h('div', { class: `co-msg ${role}` }, ...(role === 'coach' ? rich(text) : [h('p', null, text)]),
+      links.length ? h('div', { class: 'co-links' }, links.map((l) => h('a', { href: l.href, ...(l.href.startsWith('https') ? { target: '_blank', rel: 'noopener' } : {}), on: { click: () => { if (l.href.startsWith('#') && window.innerWidth < 760) toggle(false); } } }, `${l.label} →`))) : null);
+    log.append(b); log.scrollTop = log.scrollHeight; return b;
+  };
+  async function send(q) {
+    q = String(q || '').trim(); if (!q || busy) return;
+    busy = true; input.value = ''; chips.hidden = true;
+    bubble('me', q);
+    const wait = h('div', { class: 'co-msg coach wait' }, h('i'), h('i'), h('i')); log.append(wait); log.scrollTop = log.scrollHeight;
+    try {
+      const r = await api('POST', '/api/me/coach', { message: q, history });
+      wait.remove(); bubble('coach', r.text, r.links || []);
+      history.push({ role: 'me', text: q }, { role: 'coach', text: r.text });
+    } catch (e) { wait.remove(); bubble('coach', e.message || 'Something went wrong. Try again in a moment.'); }
+    busy = false; input.focus();
+  }
+  const panel = h('section', { class: 'co-panel', hidden: true, role: 'dialog', 'aria-label': 'Virtual coach' },
+    h('header', null, h('div', null, h('b', null, 'Virtual coach'), h('small', null, 'Answers from your own programme and results')),
+      h('button', { type: 'button', class: 'co-x', 'aria-label': 'Close', on: { click: () => toggle(false) } }, '×')),
+    log, chips,
+    h('form', { class: 'co-in', on: { submit: (e) => { e.preventDefault(); send(input.value); } } }, input, h('button', { class: 'btn primary sm', type: 'submit' }, 'Ask')),
+    h('div', { class: 'co-foot' }, 'Not sure about an answer? Ask your KUDO Trainer.'));
+  const fab = h('button', { class: 'co-fab', type: 'button', 'aria-label': 'Open the virtual coach', on: { click: () => toggle() } }, h('span', { class: 'co-dot' }), 'Ask your coach');
+  function toggle(v = !open) {
+    open = v; panel.hidden = !open; fab.hidden = open;
+    if (open && !log.children.length) bubble('coach', `Hi! I can tell you what is next, when your sessions are, how you are progressing and how the Academy works.${ai ? ' Ask me anything about your programme.' : ' Pick a question or type your own.'}`);
+    if (open) setTimeout(() => input.focus(), 50);
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && open) toggle(false); });
+  return h('div', { class: 'co' }, panel, fab);
+}

@@ -1,3 +1,4 @@
+import { coachRouter, groupAdminRouter } from './coach.js';
 import express from 'express';
 import helmet from 'helmet';
 import session from 'express-session';
@@ -149,11 +150,13 @@ export async function createApp() {
   app.use('/api/me', requireAuth, meProgramme);
   app.use('/api/me', requireAuth, collectiblesRouter);
   app.use('/api/me', requireAuth, whatsNewRouter);
+  app.use('/api/me', requireAuth, coachRouter);
   app.use('/api/admin', requireAdmin, adminRouter);
   app.use('/api/admin', requireAdmin, adminProgramme);
   app.use('/api/admin', requireAdmin, boardRouter);
   app.use('/api/admin', requireAdmin, sessionsRouter);
   app.use('/api/admin', requireAdmin, releasesRouter);
+  app.use('/api/admin', requireAdmin, groupAdminRouter);
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found.' }));
 
   // Browsers revalidate the app files on every visit (cheap 304s via ETag), so a new version shows up straight away.

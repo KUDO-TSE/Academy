@@ -343,3 +343,15 @@ CREATE TABLE IF NOT EXISTS sandbox_runs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS sandbox_runs_user ON sandbox_runs (user_id, scenario, created_at);
+
+-- Group sessions scheduled by the KUDO Trainer (shown to trainees and to the virtual coach).
+CREATE TABLE IF NOT EXISTS group_sessions (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  topic TEXT,
+  starts_at TIMESTAMPTZ NOT NULL,
+  minutes INT NOT NULL DEFAULT 60,
+  link TEXT,
+  created_by INT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

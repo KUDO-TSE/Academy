@@ -169,6 +169,7 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
           h('span', { class: 'muted small' }, thisWeek.length ? `${thisWeek.length} step${thisWeek.length > 1 ? 's' : ''} · about ${fmtMin(minWeek)}` : 'You are ahead of your plan')),
         thisWeek.length ? thisWeek.map((it) => itemRow(it, { readOnly })) : st.next.length ? st.next.map((it) => itemRow(it, { readOnly })) : h('div', { class: 'ok', style: 'margin-top:10px' }, 'Everything on your side is done. Well done.'),
         st.jackNext.length ? h('div', { class: 'jack-next' }, h('b', null, 'Coming up with your KUDO Trainer: '), st.jackNext.map((i) => i.title.replace(/\s*with your KUDO Trainer:?\s*/i, ': ').replace(/^: /, '').replace(/:\s*$/, '')).join(' · ')) : null,
+        readOnly ? null : groupNext(),
         readOnly ? null : challengeCard()),
       h('div', { class: 'card focus-card' }, h('h2', null, 'Why these three focus areas'), h('p', { class: 'sub' }, plan.focusPinned ? 'Chosen with your KUDO Trainer' : 'Picked from your results, your clients and the team priorities'),
         plan.focus.length ? plan.focus.map((s) => { const l = st.levels.find((x) => x.scenario === s); return h('div', { class: 'focus-why' }, h('div', { class: 'row spread' }, h('b', null, l.label, ' ', tipI(`Because ${plan.focusReasons[s]}.`)), h('span', { class: `chip ${BAND_CHIP[l.band.key]}` }, `${l.now}% → ${l.target}%`)), ); }) : h('div', { class: 'muted' }, 'You are already at target on every scenario: your plan keeps it sharp and proves it.'),
@@ -190,6 +191,14 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
   if (part === 'training') return h('div', { class: 'page prog training' }, banner, trainingHead, ...training);
   if (part === 'all') return h('div', { class: 'page prog' }, banner, ...home, h('h2', { class: 'sec-h' }, 'Training'), ...training);
   return h('div', { class: 'page prog home' }, banner, ...home);
+}
+
+// The next group session, when the KUDO Trainer has scheduled one.
+function groupNext() {
+  const box = h('div');
+  api('GET', '/api/me/group-sessions').then(({ sessions }) => { const g = sessions[0]; if (!g) return;
+    box.replaceChildren(h('div', { class: 'jack-next group' }, h('b', null, 'Group session: '), `${new Date(g.starts_at).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · ${g.title}${g.topic ? ` · ${g.topic}` : ''} `, g.link ? h('a', { href: g.link, target: '_blank', rel: 'noopener' }, 'Join link') : null)); }).catch(() => {});
+  return box;
 }
 
 const stat = (label, value, note, keep) => h('div', { class: 'card kpi' }, h('div', { class: 'label' }, label), h('div', { class: 'value' }, value), h('div', { class: keep ? 'note keep' : 'note' }, note));
