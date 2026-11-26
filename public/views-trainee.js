@@ -1,5 +1,6 @@
 import { h, api, toast, pct, fmtDate, dateOnly, KIND, DELIVERY, reading } from './ui.js';
 import { pairedBars, lineChart, COLORS, progressDumbbell } from './charts.js';
+import { SCENARIOS as SANDBOXES } from './sandbox.js';
 
 // `data` has the shape returned by GET /api/me. The admin "View as trainee" preview builds the same shape.
 const roundsOf = (data, kind) => data.rounds.filter((r) => r.kind === kind && data.scores.some((s) => s.round_id === r.id));
@@ -170,7 +171,15 @@ function academyResults() {
         h('span', { class: 'muted small lp-when' }, ago(a.at)),
         h('div', { class: 'lp-what' }, h('a', { href: `#module-${a.module}` }, a.moduleTitle), h('span', { class: 'muted small' }, ` · ${KIND_LABEL[a.kind] || 'Test'}${a.kind === 'explain' ? (a.reviewed ? ', reviewed by your KUDO Trainer' : ', automatic review') : ''}`)),
         h('div', { class: 'lp-eff' }, h('span', { class: `chip ${a.record ? 'blue' : 'grey'}` }, a.record ? 'Result of record' : 'Practice'), h('b', null, a.pct != null ? `${a.pct}%` : '–'))))) : h('p', { class: 'muted', style: 'margin:8px 0 0' }, 'No test yet. Open a module and take its test.'));
-    box.replaceChildren(head, table, list);
+    const sbx = h('div', { class: 'card' }, h('h2', null, 'Sandbox exercises'), h('p', { class: 'sub' }, 'Hands-on tasks on the replica of the KUDO screens. Your first run is the result of record; pass mark 80%'), h('div', { class: 'muted' }, 'Loading…'));
+    api('GET', '/api/me/sandbox').then(({ scenarios }) => {
+      const title = (k) => SANDBOXES[k] ? `Scenario ${SANDBOXES[k].num}: ${SANDBOXES[k].title}` : k;
+      sbx.lastChild.replaceWith(h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Exercise', 'Result of record', 'Runs', 'Best', 'Taken'].map((x, i) => h('th', { class: i ? 'num' : null }, x)))),
+        h('tbody', null, scenarios.map((x) => h('tr', null, h('td', null, h('a', { href: `#sandbox-${x.key}` }, title(x.key))),
+          h('td', { class: 'num' }, x.record ? h('span', null, `${x.record.score}%`, h('span', { class: `chip ${x.record.score >= 80 ? 'green' : 'amber'}`, style: 'margin-left:8px' }, x.record.score >= 80 ? 'Passed' : 'Below 80%')) : h('a', { class: 'small', href: `#sandbox-${x.key}` }, 'Not tried')),
+          h('td', { class: 'num muted small' }, String(x.runs)), h('td', { class: 'num muted small' }, x.best != null ? `${x.best}%` : '–'), h('td', { class: 'num muted small' }, x.record ? fmtDate(x.record.at) : '–')))))));
+    }).catch(() => sbx.lastChild.replaceWith(h('div', { class: 'muted' }, 'Could not load the sandbox results.')));
+    box.replaceChildren(head, table, sbx, list);
   }).catch((e) => box.replaceChildren(failed(e)));
   return box;
 }

@@ -28,9 +28,30 @@ export const SCENARIOS = {
     module: 'platform', title: 'Run a meeting, add a language live, find the recording',
     request: `A client runs "${NAME}" with AI Translation. Create the meeting with English as the speaker language and French and German as translation languages. Add the Host (${HOST}) and make sure the meeting is recorded. Start it. While it is live, the client asks for Spanish: add it. Then end the meeting and show where the client will find the recordings.`,
     expert: ['Log in with the Client account', 'New meeting, AI speech translation', 'Name, date and time', 'Speaker language English; translation languages French and German', 'Tick "Automatically record this meeting when it starts"', 'Save', 'Users, Participants', 'Add participant: the Host\'s email, Next', 'Make host', 'Start meeting', 'Edit meeting: add Spanish, Update', 'Restart translation service', 'End meeting', 'Content, Recordings & transcripts', 'Download: one file per language'],
-    expertSeconds: 180,
+    expertSeconds: 180, num: 1, replaces: true,
     // Screens the task needs. Anything else is fully built but logged as a detour.
     screens: ['login', 'home', 'meetings', 'new-ai', 'meeting', 'participants', 'users', 'edit', 'recordings'],
+  },
+  'hi-1': {
+    module: 'hi', num: 5, title: 'Set up a Human Interpretation meeting and book the interpreters',
+    request: 'A client holds "Board Meeting" on Monday 30 November 2026, in English and French, with interpreters. Create the Human interpretation meeting for that day, then book the interpreters: the subject matter is Banking / Finance and the interpreters should know the topic "Annual results". The client accepts the cost. Finally, open the place where the client will add the agenda and slides for the interpreters.',
+    expert: ['Log in with the Client account', 'New meeting, Human interpretation', 'Name "Board Meeting"', 'Start date: Monday 30 November 2026', 'Spoken languages English and French', 'Save', 'Book Interpreters on the Overview', 'Subject matter: Banking / Finance', 'Specific topic: Annual results', 'Tick "I agree to this additional non-refundable cost"', 'Complete Booking', 'Add preparation materials'],
+    expertSeconds: 150,
+    screens: ['login', 'home', 'meetings', 'new-hi', 'meeting', 'edit', 'interpreters'],
+  },
+  'rtmp-1': {
+    module: 'rtmp', num: 11, title: 'Stream a meeting to YouTube in two languages (RTMP)',
+    request: 'A client streams "Product Day" to YouTube today, in French and in German. Create the AI speech translation meeting (English speaker language; French and German translation languages). The client sent the server URL rtmp://a.rtmp.youtube.com/live2 and one stream key per language: French fr4k-29qx-7mbn-c0d1, German de8p-41zw-9hty-k2e5. Set up the streams, start the meeting, then start the broadcast.',
+    expert: ['Log in with the Client account', 'New meeting, AI speech translation', 'Name "Product Day"', 'Speaker language English; translation languages French and German', 'Save', 'Settings, Broadcast', 'RTMP Stream on', '+ Add RTMP stream: YouTube Live, server URL, French key, French; Save', '+ Add RTMP stream: YouTube Live, server URL, German key, German; Save', 'Overview, Start meeting, confirm', 'Settings, Broadcast, Start broadcast'],
+    expertSeconds: 200,
+    screens: ['login', 'home', 'meetings', 'new-ai', 'meeting', 'broadcast', 'rtmp'],
+  },
+  'hls-1': {
+    module: 'hls', num: 12, title: 'Broadcast to the client\'s web page (HLS)',
+    request: 'A client shows "Investor Day" today on its own website, to viewers who do not register. Create the AI speech translation meeting (English speaker language; French and German translation languages). Turn on HLS for a 3-hour stream and copy the widget code the client\'s web team must put on the page. Then start the meeting and start the HLS broadcast.',
+    expert: ['Log in with the Client account', 'New meeting, AI speech translation', 'Name "Investor Day"', 'Speaker language English; translation languages French and German', 'Save', 'Settings, Broadcast', 'HLS Stream on', 'Stream Duration: 3 hours', 'Viewer-Only, Copy widget code, Broadcasting', 'Overview, Start meeting, confirm', 'Settings, Broadcast, Start broadcast, Start HLS broadcast'],
+    expertSeconds: 150,
+    screens: ['login', 'home', 'meetings', 'new-ai', 'meeting', 'broadcast'],
   },
 };
 
@@ -53,7 +74,7 @@ export function sandboxView(key, { onExit } = {}) {
   const tick = setInterval(() => { if (!document.body.contains(root)) return clearInterval(tick); const s = Math.round((Date.now() - S.t0) / 1000); timer.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }, 1000);
   const taskBox = h('div', { class: 'sbx-task' }, h('b', null, 'Your task'), h('p', null, sc.request));
   const bar = h('div', { class: 'sbx-bar' },
-    h('div', { class: 'sbx-bar-l' }, h('span', { class: 'sbx-pill' }, 'Sandbox'), h('b', null, `Scenario 1 · ${sc.title}`), timer),
+    h('div', { class: 'sbx-bar-l' }, h('span', { class: 'sbx-pill' }, 'Sandbox'), h('b', null, `Scenario ${sc.num} · ${sc.title}`), timer),
     h('div', { class: 'sbx-bar-r' },
       h('button', { class: 'btn sm', type: 'button', on: { click: () => { taskBox.hidden = !taskBox.hidden; } } }, 'Task'),
       h('button', { class: 'btn sm', type: 'button', on: { click: hint } }, 'Hint'),
@@ -271,7 +292,7 @@ export function sandboxView(key, { onExit } = {}) {
       participants: f.hosts.map((e) => ({ email: e, name: e.split('@')[0], role: 'Host', via: 'form' })), operators: [], viewers: [], polls: [], files: [], status: 'scheduled', glossary: null,
       av: { res: 'Auto (adaptive)', fps: 'Auto (adaptive)', bitrate: 'Auto (adaptive)', stereo: false, level: 50, processing: true },
       features: { lobby: false, lobbyP: false, lobbyV: false, users: true, docs: true, msg: true, polls: true, request: false, share: true } };
-    S.mine = S.meeting;
+    S.mine = S.meeting; S.flags.created = [...(S.flags.created || []), f.kind];
     log('save', 'Save: meeting created', { meeting: { kind: f.kind, name: S.meeting.name, speakers: S.meeting.speakers, translations: S.meeting.translations, autoRecord: f.autoRecord } });
     go('meeting', 'Meeting created'); toastK('Meeting scheduled successfully');
   }
@@ -305,7 +326,7 @@ export function sandboxView(key, { onExit } = {}) {
   const links = () => (['finished', 'canceled'].includes(S.meeting.status) ? h('aside', { class: 'k-links' }, h('p', { class: 'k-mini' }, 'The meeting is finished. The invite links are not available.'))
     : h('aside', { class: 'k-links' }, h('h4', null, ic('link'), ' KUDO meeting links ', h('small', { class: 'k-click', on: { click: () => { detour('Copy all links'); toastK('Links copied'); } } }, 'Copy all links')),
       ...['Participant/Speaker', ...(S.meeting.kind === 'hi' ? ['Interpreter'] : []), 'Operator', 'Viewer-Only'].map((l) => h('div', { class: 'k-lbox' }, h('div', { class: 'k-rowsp' }, h('b', null, l), l === 'Viewer-Only' ? h('span', { class: 'k-rel' }, h('button', { class: 'k-link small', type: 'button', on: { click: () => { S.menu = S.menu === 'wcode' ? null : 'wcode'; log('click', 'Copy widget code'); draw(); } } }, 'Copy widget code ▾'),
-          S.menu === 'wcode' ? h('div', { class: 'k-menu right' }, ...[['Real time stream *', 'real time'], ['Broadcasting **', 'broadcasting']].map(([t, k]) => h('button', { type: 'button', on: { click: () => { S.menu = null; S.wcode = k; log('copy', `Widget code copied: ${k}`); toastK('Copy Successful! Copied!'); draw(); } } }, t))) : null) : null),
+          S.menu === 'wcode' ? h('div', { class: 'k-menu right' }, ...[['Real time stream *', 'real time'], ['Broadcasting **', 'broadcasting']].map(([t, k]) => h('button', { type: 'button', on: { click: () => { S.menu = null; S.wcode = k; if (S.meeting === S.mine) S.flags.wcodes = [...(S.flags.wcodes || []), k]; log('copy', `Widget code copied: ${k}`); toastK('Copy Successful! Copied!'); draw(); } } }, t))) : null) : null),
         h('button', { class: 'k-copy', type: 'button', on: { click: () => { detour(`Copied the ${l} link`); toastK('Copy Successful! Copied!'); } } }, `https://live.kudoway.eu/${l === 'Interpreter' ? 'ad/3302' : 'k8/2402'}…`), h('div', { class: 'k-rowsp' }, h('span', { class: 'k-mini' }, 'Add to calendar:'), h('span', null, ...['Google', 'Outlook'].map((c) => h('button', { class: 'k-cal-ic', type: 'button', title: c, on: { click: () => { detour(`Add to calendar (${c}): ${l}`); toastK(`${c} calendar invite downloaded`); } } }, ic('cal', 12))))))),
       h('h4', null, 'KUDO language access'), h('div', { class: 'k-lbox' }, h('b', null, 'iframe widget'), h('button', { class: 'k-copy', type: 'button', on: { click: () => { detour('Copied the iframe widget'); toastK('Code copied'); } } }, '<iframe name="KUDO Widget"…')),
       h('div', { class: 'k-lbox' }, h('b', null, 'Mobile Link'), h('button', { class: 'k-copy', type: 'button', on: { click: () => { detour('Copied the Mobile Link'); toastK('Link copied'); } } }, 'https://audio-widget.kudoway.com/7702…')), h('div', { class: 'k-lbox k-qr' }, h('span', null, 'Download QR code'), h('span', { class: 'k-qrbox' }))));
@@ -554,48 +575,163 @@ export function sandboxView(key, { onExit } = {}) {
   }
 
   // ---------------------------------------------------------------- hints, scoring, report
+  const evd = (re) => S.events.some((e) => re.test(e.what || ''));
+  const named = (m, n) => !!m && m.name.toLowerCase().includes(n.toLowerCase());
+  const aiLangs = (m) => m && m.speakers.length === 1 && m.speakers[0] === 'English' && m.translations.some(fr) && m.translations.some(de);
+  const RULES = {
+    'platform-1': {
+      next() {
+        const m = S.mine, host = m?.participants.find((p) => p.email === HOST && p.role === 'Host');
+        if (!m) return 'Create the meeting: New meeting, then AI speech translation.';
+        if (m.kind !== 'ai') return 'This meeting is not an AI speech translation meeting: the client wants AI Translation.';
+        if (!host) return m.participants.some((p) => p.email === HOST) ? 'The person is a participant, not the Host yet: Users, Participants, then Make Host on their row.' : 'Add the Host: Users, Participants, + Add participant.';
+        if (!m.autoRecord) return 'The meeting must record itself: Edit meeting, Recording and transcript, tick "Automatically record this meeting when it starts". Do it before you start.';
+        if (m.status === 'scheduled') return 'Start the meeting from the Overview.';
+        if (m.status === 'live' && !(S.flags.liveAdded || []).some(es)) return 'Add Spanish while it is live: Edit meeting, translation languages, Update.';
+        if (m.status === 'live' && m.pendingRestart) return 'The new language needs the translation service restarted: the circular arrow on the Overview.';
+        if (m.status === 'live') return 'End the meeting from the Overview.';
+        if (!S.flags.foundRecording) return 'Find the recordings: Content, Recordings & transcripts, then Download.';
+        return null;
+      },
+      checks(m, F) {
+        const host = m.participants.find((p) => p.email === HOST && p.role === 'Host');
+        const extra = m.translations.filter((l) => !['English (US)', 'English (UK)'].includes(l) && !fr(l) && !de(l) && !es(l));
+        return [
+          ['AI speech & captions meeting created', !!S.mine && m.kind === 'ai' && m.type === 'speech', 8],
+          [`Named "${NAME}"`, named(S.mine, 'quarterly partner update'), 4],
+          ['English as the only speaker language', m.speakers.length === 1 && m.speakers[0] === 'English', 8],
+          ['French and German as translation languages, nothing extra', m.translations.some(fr) && m.translations.some(de) && !extra.length, 8],
+          ['Automatic recording on before the start', !!m.autoRecord && !!m.recording, 10],
+          [`${HOST} is the Host`, !!host, 10],
+          ['Meeting started', !!F.started && !F.cancelled, 6],
+          ['Spanish added while live', (F.liveAdded || []).some(es), 12],
+          ['Translation service restarted after adding Spanish', !!F.restarted, 12],
+          ['Meeting ended after Spanish was added', !!F.ended && !F.endedBeforeSpanish, 6],
+          ['Recordings found in Content, Recordings & transcripts', !!F.foundRecording, 16],
+        ];
+      },
+      traps(m, F) {
+        const t = [];
+        if (F.endedBeforeSpanish && F.ended) t.push(['Ended the meeting before adding Spanish: an AI meeting cannot be restarted', 10]);
+        if (F.cancelled) t.push(['Cancelled the meeting', 10]);
+        if ((F.addedBeforeStart || []).some(es)) t.push(['Added Spanish before the start, not while live', 4]);
+        if (F['locked_Speaker language']) t.push(['Tried to change the speaker language while live (locked)', 3]);
+        if ((F.removed || []).length) t.push([`Removed a language (${F.removed.join(', ')})`, 4]);
+        if (F.restartNoChange) t.push(['Restarted the translation service with nothing to apply', 2]);
+        if (S.events.some((e) => e.type === 'trap' && /Deleted/.test(e.what))) t.push(['Deleted a user from the meeting', 3]);
+        return t;
+      },
+    },
+    'hi-1': {
+      next() {
+        const m = S.mine;
+        if (!m || m.kind !== 'hi') return 'Create the meeting: New meeting, then Human interpretation.';
+        if (m.day !== '2026-11-30') return 'The meeting must be on Monday 30 November: Edit meeting, click the start date and pick 30 in the calendar, Update.';
+        if (!m.booked) return 'Book the interpreters: the Book Interpreters button on the Overview.';
+        if (!evd(/preparation materials/i)) return 'Open the place for the agenda and slides: "Add preparation materials" (on the booking page or the Overview).';
+        return null;
+      },
+      checks(m, F) {
+        const b = m.booked || {};
+        return [
+          ['Human interpretation meeting created', !!S.mine && m.kind === 'hi', 10],
+          ['Named "Board Meeting"', named(S.mine, 'board meeting'), 4],
+          ['English and French as spoken languages, nothing extra', m.speakers.length === 2 && m.speakers.includes('English') && m.speakers.includes('French'), 10],
+          ['Scheduled on Monday 30 November 2026', m.day === '2026-11-30', 12],
+          ['Interpreters booked', !!m.booked, 20],
+          ['Subject matter Banking / Finance', b.subject === 'Banking / Finance', 10],
+          ['Topic "Annual results" given to the interpreters', (b.topics || []).some((t) => /annual results/i.test(t)), 8],
+          ['Meeting kept scheduled (not started or cancelled)', !!S.mine && m.status === 'scheduled', 8],
+          ['Found where to add preparation materials', evd(/preparation materials/i), 18],
+        ];
+      },
+      traps(m, F) {
+        const t = [];
+        if ((F.created || []).includes('ai')) t.push(['Created an AI meeting: interpreters are booked on Human interpretation meetings', 5]);
+        if (F.cancelled) t.push(['Cancelled the meeting', 10]);
+        if (F.started) t.push(['Started the meeting days before it takes place', 6]);
+        return t;
+      },
+    },
+    'rtmp-1': {
+      next() {
+        const m = S.mine, st = m?.bc?.streams || [];
+        if (!m || m.kind !== 'ai') return 'Create the meeting: New meeting, then AI speech translation.';
+        if (!m.bc?.rtmp) return 'Turn RTMP on: Settings, Broadcast, RTMP Stream.';
+        if (!st.some((x) => fr(x.lang))) return 'Add the French stream: + Add RTMP stream, YouTube Live, the server URL, the French key, French.';
+        if (!st.some((x) => de(x.lang))) return 'Add the German stream with its own key: + Add RTMP stream.';
+        if (m.status !== 'live') return 'Start the meeting from the Overview first: the broadcast can only start once the meeting runs.';
+        if (!m.bc.rlive) return 'Start the broadcast: Settings, Broadcast, Start broadcast (RTMP).';
+        return null;
+      },
+      checks(m, F) {
+        const st = m.bc?.streams || [], URLOK = (x) => x.url.replace(/\/+$/, '') === 'rtmp://a.rtmp.youtube.com/live2' && x.medium === 'YouTube Live';
+        const frS = st.find((x) => fr(x.lang)), deS = st.find((x) => de(x.lang));
+        return [
+          ['AI speech & captions meeting "Product Day"', !!S.mine && m.kind === 'ai' && m.type === 'speech' && named(S.mine, 'product day'), 8],
+          ['English speaker language; French and German translation', aiLangs(m), 8],
+          ['RTMP Stream on', !!m.bc?.rtmp, 8],
+          ['French stream: YouTube Live, right server URL, French key', !!frS && URLOK(frS) && frS.key === 'fr4k-29qx-7mbn-c0d1', 18],
+          ['German stream: YouTube Live, right server URL, German key', !!deS && URLOK(deS) && deS.key === 'de8p-41zw-9hty-k2e5', 18],
+          ['One stream per language, each with its own key', st.length === 2 && new Set(st.map((x) => x.key)).size === 2, 6],
+          ['Meeting started', !!F.started && !F.cancelled, 14],
+          ['RTMP broadcast started', !!F.rtmpStarted, 20],
+        ];
+      },
+      traps(m, F) {
+        const t = [], st = m.bc?.streams || [];
+        if (st.some((x) => fr(x.lang) && x.key === 'de8p-41zw-9hty-k2e5') || st.some((x) => de(x.lang) && x.key === 'fr4k-29qx-7mbn-c0d1')) t.push(['Swapped the stream keys: viewers would hear the wrong language', 8]);
+        if (evd(/Same stream key/)) t.push(['Used one stream key for two streams: it interrupts the stream', 6]);
+        if (m.bc?.hls) t.push(['Turned HLS on: the client asked for YouTube (RTMP)', 3]);
+        if (F.cancelled) t.push(['Cancelled the meeting', 10]);
+        if (F.ended) t.push(['Ended the meeting', 8]);
+        return t;
+      },
+    },
+    'hls-1': {
+      next() {
+        const m = S.mine;
+        if (!m || m.kind !== 'ai') return 'Create the meeting: New meeting, then AI speech translation.';
+        if (!m.bc?.hls) return 'Turn HLS on: Settings, Broadcast, HLS Stream.';
+        if (m.bc.dur !== '3 hours') return 'Set the Stream Duration to 3 hours.';
+        if (!(S.flags.wcodes || []).includes('broadcasting')) return 'Copy the code for the web team: Viewer-Only, Copy widget code, Broadcasting.';
+        if (m.status !== 'live') return 'Start the meeting from the Overview.';
+        if (!m.bc.live) return 'Start the HLS broadcast: Settings, Broadcast, Start broadcast.';
+        return null;
+      },
+      checks(m, F) {
+        return [
+          ['AI speech & captions meeting "Investor Day"', !!S.mine && m.kind === 'ai' && m.type === 'speech' && named(S.mine, 'investor day'), 8],
+          ['English speaker language; French and German translation', aiLangs(m), 8],
+          ['HLS Stream on', !!m.bc?.hls, 14],
+          ['Stream Duration 3 hours', m.bc?.dur === '3 hours', 10],
+          ['Broadcasting widget code copied for the web team', (F.wcodes || []).includes('broadcasting'), 20],
+          ['Meeting started', !!F.started && !F.cancelled, 10],
+          ['HLS broadcast started', !!F.hlsStarted, 20],
+          ['Only HLS used (RTMP left off)', !m.bc?.rtmp, 10],
+        ];
+      },
+      traps(m, F) {
+        const t = [];
+        if ((F.wcodes || []).includes('real time')) t.push(['Copied the Real time stream code: the page would not show the broadcast', 6]);
+        if (F.cancelled) t.push(['Cancelled the meeting', 10]);
+        if (F.ended) t.push(['Ended the meeting', 8]);
+        return t;
+      },
+    },
+  };
+  const RULE = RULES[key];
   function nextStep() {
-    const m = S.mine, host = m?.participants.find((p) => p.email === HOST && p.role === 'Host');
     if (S.screen === 'login') return 'Log in: the account is filled in for you.';
-    if (!m) return 'Create the meeting: New meeting, then AI speech translation.';
-    if (m.kind !== 'ai') return 'This meeting is not an AI speech translation meeting: the client wants AI Translation.';
-    if (!host) return m.participants.some((p) => p.email === HOST) ? 'The person is a participant, not the Host yet: Users, Participants, then Make Host on their row.' : 'Add the Host: Users, Participants, + Add participant.';
-    if (!m.autoRecord) return 'The meeting must record itself: Edit meeting, Recording and transcript, tick "Automatically record this meeting when it starts". Do it before you start.';
-    if (m.status === 'scheduled') return 'Start the meeting from the Overview.';
-    if (m.status === 'live' && !(S.flags.liveAdded || []).some(es)) return 'Add Spanish while it is live: Edit meeting, translation languages, Update.';
-    if (m.status === 'live' && m.pendingRestart) return 'The new language needs the translation service restarted: the circular arrow on the Overview.';
-    if (m.status === 'live') return 'End the meeting from the Overview.';
-    if (!S.flags.foundRecording) return 'Find the recordings: Content, Recordings & transcripts, then Download.';
-    return 'All done: click "I am done".';
+    return RULE.next() || 'All done: click "I am done".';
   }
   function hint() { S.hints++; log('hint', nextStep()); toast(nextStep()); }
 
   function score() {
-    const m = S.mine || { participants: [], translations: [], speakers: [] }, F = S.flags;
-    const host = m.participants.find((p) => p.email === HOST && p.role === 'Host');
-    const extra = m.translations.filter((l) => !['English (US)', 'English (UK)'].includes(l) && !fr(l) && !de(l) && !es(l));
-    const checks = [
-      ['AI speech & captions meeting created', !!S.mine && m.kind === 'ai' && m.type === 'speech', 8],
-      [`Named "${NAME}"`, !!S.mine && m.name.toLowerCase().includes('quarterly partner update'), 4],
-      ['English as the only speaker language', m.speakers.length === 1 && m.speakers[0] === 'English', 8],
-      ['French and German as translation languages, nothing extra', m.translations.some(fr) && m.translations.some(de) && !extra.length, 8],
-      ['Automatic recording on before the start', !!m.autoRecord && !!m.recording, 10],
-      [`${HOST} is the Host`, !!host, 10],
-      ['Meeting started', !!F.started && !F.cancelled, 6],
-      ['Spanish added while live', (F.liveAdded || []).some(es), 12],
-      ['Translation service restarted after adding Spanish', !!F.restarted, 12],
-      ['Meeting ended after Spanish was added', !!F.ended && !F.endedBeforeSpanish, 6],
-      ['Recordings found in Content, Recordings & transcripts', !!F.foundRecording, 16],
-    ];
+    const m = S.mine || { participants: [], translations: [], speakers: [], bc: null }, F = S.flags;
+    const checks = RULE.checks(m, F);
     const outcome = Math.round(checks.reduce((t, c) => t + (c[1] ? c[2] : 0), 0));
-    const traps = [];
-    if (F.endedBeforeSpanish && F.ended) traps.push(['Ended the meeting before adding Spanish: an AI meeting cannot be restarted', 10]);
-    if (F.cancelled) traps.push(['Cancelled the meeting', 10]);
-    if ((F.addedBeforeStart || []).some(es)) traps.push(['Added Spanish before the start, not while live', 4]);
-    if (F['locked_Speaker language']) traps.push(['Tried to change the speaker language while live (locked)', 3]);
-    if ((F.removed || []).length) traps.push([`Removed a language (${F.removed.join(', ')})`, 4]);
-    if (F.restartNoChange) traps.push(['Restarted the translation service with nothing to apply', 2]);
-    if (S.events.some((e) => e.type === 'trap' && /Deleted/.test(e.what))) traps.push(['Deleted a user from the meeting', 3]);
+    const traps = RULE.traps(m, F);
     const detours = S.events.filter((e) => e.type === 'detour').length;
     const path = Math.max(0, 100 - detours * 6 - traps.reduce((t, x) => t + x[1], 0) * 3 - S.hints * 8);
     const secs = Math.round((Date.now() - S.t0) / 1000);

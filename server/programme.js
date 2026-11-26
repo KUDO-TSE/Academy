@@ -92,7 +92,9 @@ meProgramme.get('/progress-live', async (req, res, next) => {
 // ------------------------------------------------------------------ sandbox practice
 // Runs on the replica of the KUDO screens. The first run is the result of record; passing it (80%) signs the
 // module's practice off. For now a sandbox run, like any practice, does not move the level.
-const SANDBOX = { 'platform-1': 'platform' };
+const SANDBOX = { 'platform-1': 'platform', 'hi-1': 'hi', 'rtmp-1': 'rtmp', 'hls-1': 'hls' };
+// Sandboxes that replace the module's practice sign it off; the others sit next to a written practice task and only keep their result.
+const SANDBOX_SIGNS = new Set(['platform-1']);
 meProgramme.post('/sandbox/:key', async (req, res, next) => {
   try {
     const key = req.params.key, mk = SANDBOX[key]; if (!mk) return res.status(404).json({ error: 'Not found.' });
@@ -105,12 +107,19 @@ meProgramme.post('/sandbox/:key', async (req, res, next) => {
     const uid = req.user.id;
     const first = (await q('SELECT 1 FROM sandbox_runs WHERE user_id=$1 AND scenario=$2 LIMIT 1', [uid, key])).rowCount === 0;
     const row = (await q('INSERT INTO sandbox_runs (user_id,scenario,score,result,events,record,seconds) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', [uid, key, score, result, JSON.stringify(ev), first, result.secs])).rows[0];
-    if (first && score >= 80) {
+    if (first && score >= 80 && SANDBOX_SIGNS.has(key)) {
       await q(`INSERT INTO plan_progress (user_id,item_key,status,note,completed_at,signed_off_at) VALUES ($1,$2,'done',$3,now(),now())
         ON CONFLICT (user_id,item_key) DO UPDATE SET status='done', signed_off_at=COALESCE(plan_progress.signed_off_at, now())`, [uid, `${mk}.practice`, `Sandbox: ${score}%`]);
       await refreshPlan(uid).catch(() => {});
     }
     res.json({ id: row.id, record: first, passed: score >= 80 });
+  } catch (e) { next(e); }
+});
+meProgramme.get('/sandbox', async (req, res, next) => {
+  try {
+    const rows = (await q('SELECT scenario,score,record,seconds,created_at FROM sandbox_runs WHERE user_id=$1 ORDER BY created_at', [req.user.id])).rows;
+    res.json({ scenarios: Object.entries(SANDBOX).map(([key, module]) => { const rs = rows.filter((r) => r.scenario === key); const rec = rs.find((r) => r.record);
+      return { key, module, record: rec ? { score: rec.score, seconds: rec.seconds, at: rec.created_at } : null, runs: rs.length, best: rs.length ? Math.max(...rs.map((r) => r.score)) : null }; }) });
   } catch (e) { next(e); }
 });
 meProgramme.get('/sandbox/:key', async (req, res, next) => {
