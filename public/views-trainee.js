@@ -12,7 +12,7 @@ export function latest(data, kind) {
 }
 const label = (data, key) => data.scenarios.find((s) => s.key === key)?.label || key;
 const shortOf = (data, key) => data.scenarios.find((s) => s.key === key)?.short || key;
-const kpi = (l, v, note) => h('div', { class: 'card kpi' }, h('div', { class: 'label' }, l), h('div', { class: 'value' }, v), h('div', { class: 'note' }, note));
+const kpi = (l, v, note, keep) => h('div', { class: 'card kpi' }, h('div', { class: 'label' }, l), h('div', { class: 'value' }, v), h('div', { class: keep ? 'note keep' : 'note' }, note));
 const empty = (title, text) => h('div', { class: 'card empty' }, h('b', null, title), text);
 
 export function homeView(data, ctx = {}) {
@@ -30,7 +30,7 @@ export function homeView(data, ctx = {}) {
       kpi('Knowledge test', lo ? (lo.total ? `${lo.correct}/${lo.total}` : pct(lo.pct)) : '–', lo ? `${pct(lo.pct)} · ${live.round.label}` : 'Not taken yet'),
       kpi('Self assessment', so ? pct(so.pct) : '–', so ? self.round.label : 'Not completed yet'),
       kpi('Training plan', data.plan.length ? `${done}/${data.plan.length}` : '–', data.plan.length ? 'items completed' : 'Your plan is on its way'),
-      kpi('Next due', open[0]?.due_date ? fmtDate(open[0].due_date) : '–', open[0] ? open[0].title : 'Nothing scheduled'),
+      kpi('Next due', open[0]?.due_date ? fmtDate(open[0].due_date) : '–', open[0] ? open[0].title : 'Nothing scheduled', true),
     ),
     h('div', { class: 'grid g-8-4', style: 'margin-top:16px' },
       h('div', { class: 'card' }, h('h2', null, 'Self rating vs knowledge test'), h('p', { class: 'sub' }, 'How you rated yourself next to what you scored, by scenario'),

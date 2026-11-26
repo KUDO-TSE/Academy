@@ -54,7 +54,8 @@ bcrypt passwords, server-side role checks on every route (trainee API is scoped 
 ## Assumptions to review
 
 - Emails are `firstname@kudo.ai`; correct them in the roster file if different.
-- Priority weighting follows Priority Weighting System v1; HI/AI themes and risk inputs (Admin > Priorities) are editable.
+- Priority weighting follows Priority Weighting System v1; HI/AI themes and risk inputs (Admin > Priorities, behind Edit) are editable. Each scenario shows one bar whose segments are the weighted components; Show breakdown lists them.
+- Self Assessment and test imports may omit the `overall` row: it is then derived (mean of the scenario ratings; summed correct/total for tests) so counts, averages and estimates match the bars.
 - Free-text "dreaded question" answers are visible to admins only.
 
 ## Programme (v2): personal plans built automatically

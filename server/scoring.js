@@ -13,6 +13,13 @@ export function latestByUser(rows, kind) {
     if (!out.has(r.user_id)) out.set(r.user_id, {});
     out.get(r.user_id)[r.scenario] = { pct: Number(r.pct), correct: r.correct, total: r.total };
   }
+  // The "overall" row is optional in imports: without it, derive one from the scenario rows so counts and averages match the bars.
+  for (const m of out.values()) {
+    if (m.overall) continue;
+    const v = Object.values(m); if (!v.length) continue;
+    const C = v.every((x) => x.correct != null && x.total) ? v.reduce((a, x) => a + x.correct, 0) : null, T = C != null ? v.reduce((a, x) => a + x.total, 0) : null;
+    m.overall = { pct: C != null ? (C / T) * 100 : v.reduce((a, x) => a + x.pct, 0) / v.length, correct: C, total: T, derived: true };
+  }
   return out;
 }
 

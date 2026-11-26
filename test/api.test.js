@@ -61,6 +61,18 @@ test.before(async () => {
 });
 test.after(async () => { server?.close(); await pool.end(); });
 
+test('a Self Assessment without an overall row still counts and averages (overall derived from the scenarios)', async () => {
+  const { latestByUser } = await import('../server/scoring.js');
+  const m = latestByUser([
+    { user_id: 1, kind: 'self', sort: 1, scenario: 'teams', pct: 80 }, { user_id: 1, kind: 'self', sort: 1, scenario: 'zoom', pct: 60 },
+    { user_id: 1, kind: 'live', sort: 1, scenario: 'teams', pct: 50, correct: 5, total: 10 }, { user_id: 1, kind: 'live', sort: 1, scenario: 'zoom', pct: 100, correct: 10, total: 10 },
+    { user_id: 2, kind: 'self', sort: 1, scenario: 'overall', pct: 42 }, { user_id: 2, kind: 'self', sort: 1, scenario: 'teams', pct: 90 }], 'self');
+  assert.equal(m.get(1).overall.pct, 70); assert.equal(m.get(1).overall.derived, true);
+  assert.equal(m.get(2).overall.pct, 42, 'an imported overall row wins');
+  const l = latestByUser([{ user_id: 1, kind: 'live', sort: 1, scenario: 'teams', pct: 50, correct: 5, total: 10 }, { user_id: 1, kind: 'live', sort: 1, scenario: 'zoom', pct: 100, correct: 10, total: 10 }], 'live');
+  assert.equal(l.get(1).overall.correct, 15); assert.equal(l.get(1).overall.total, 20); assert.equal(l.get(1).overall.pct, 75);
+});
+
 test('wrong password and unknown user get the same answer', async () => {
   const c = client();
   const a = await c('POST', '/api/auth/login', { email: 'ann@test.local', password: 'nope' });

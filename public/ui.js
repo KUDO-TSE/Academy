@@ -100,5 +100,13 @@ export function quiet(root) {
     if (!t || /\d/.test(t) || p.classList.contains('keep')) return;
     p.previousElementSibling.append(' ', tipI(t)); p.remove();
   });
-  run(); new MutationObserver(run).observe(root, { childList: true, subtree: true });
+  // Figure tiles: a note that is a baseline (has a number) or a status (no figure yet) stays; a note that only explains goes into the (i).
+  const tiles = () => root.querySelectorAll('.kpi > .note:not([data-q]), .jm-fact > .jm-fs:not([data-q])').forEach((n) => {
+    n.dataset.q = '1'; const t = n.textContent.trim(); const tile = n.parentElement;
+    const v = tile.querySelector('.value, b')?.textContent.trim();
+    if (!t || /\d/.test(t) || n.classList.contains('keep') || !v || v === '–') return;
+    tile.querySelector('.label, .jm-fk')?.append(' ', tipI(t)); n.remove();
+  });
+  const all = () => { run(); tiles(); };
+  all(); new MutationObserver(all).observe(root, { childList: true, subtree: true });
 }

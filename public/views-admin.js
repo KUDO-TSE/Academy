@@ -1,5 +1,5 @@
 import * as P from './views-admin-programme.js';
-import { h, api, toast, modal, pct, fmtDate, dateOnly, KIND, DELIVERY, reading, initials, importsHead } from './ui.js';
+import { h, api, toast, modal, pct, fmtDate, dateOnly, KIND, DELIVERY, reading, initials, importsHead, tipI } from './ui.js';
 import { pairedBars, COLORS } from './charts.js';
 import { homeView, resultsView, progressView, planView, latest, scoresFor } from './views-trainee.js';
 
@@ -24,10 +24,10 @@ export async function overviewView() {
     h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Overview'), h('p', null, 'The whole team at a glance. Full detail on each person is under Team.'))),
     h('div', { class: 'grid g4' },
       kpi('Trainees', d.counts.trainees, `${d.counts.selfDone} Self Assessments · ${d.counts.liveDone} tests`),
-      kpi('Average self rating', pct(d.avgSelf), 'Latest Self Assessment'),
-      kpi('Average test score', pct(d.avgLive), d.avgSelf != null && d.avgLive != null ? `${d.avgLive - d.avgSelf >= 0 ? '+' : ''}${Math.round(d.avgLive - d.avgSelf)} pts vs self rating` : 'Latest test'),
+      kpi('Average self rating', pct(d.avgSelf), d.avgSelf != null ? 'Latest Self Assessment' : 'No Self Assessment yet'),
+      kpi('Average test score', pct(d.avgLive), d.avgSelf != null && d.avgLive != null ? `${d.avgLive - d.avgSelf >= 0 ? '+' : ''}${Math.round(d.avgLive - d.avgSelf)} pts vs self rating` : d.avgLive != null ? 'Latest test' : 'No test yet'),
       kpi('Plan completion', d.planTotals.total ? pct((d.planTotals.done / d.planTotals.total) * 100) : '–', d.planTotals.total ? `${d.planTotals.done} of ${d.planTotals.total} items` : 'No plans loaded yet')),
-    h('div', { class: 'grid g-8-4', style: 'margin-top:16px' },
+    h('div', { class: 'grid g-8-4', style: 'margin-top:16px;align-items:start' },
       h('div', { class: 'card' }, h('h2', null, 'Team by scenario'), h('p', { class: 'sub' }, 'Average self rating next to average test score'), legend(), (() => { const has = rows.filter((r) => r.self != null || r.live != null); return has.length ? h('div', null, pairedBars(has), has.length < rows.length ? h('div', { class: 'muted small' }, `${rows.length - has.length} scenarios without results yet`) : null) : h('div', { class: 'empty' }, 'No results yet: import a Self Assessment or a test under Imports.'); })()),
       h('div', { class: 'stack' },
         h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('h2', null, 'Top training priorities'), h('a', { href: '#priorities' }, 'See all')),
@@ -187,27 +187,32 @@ export function previewView(sub) {
 }
 
 // ---------------------------------------------------------------- Priorities
+const PARTS = [['demand', 'Demand 40%', 0.4], ['weakness', 'Weakness 30%', 0.3], ['struggle', 'Struggle 15%', 0.15], ['reach', 'Reach 10%', 0.1], ['risk', 'Risk 5%', 0.05]];
+/** One bar per scenario: each segment is a component's weighted points, so the segments add up to the priority (0-100). */
+const priBar = (p) => h('span', { class: 'pri-bar', title: PARTS.map(([k, l, w]) => `${l.split(' ')[0]} ${Math.round(p[k] * w)} pts`).join(' · ') }, PARTS.map(([k, , w], i) => h('i', { class: `s${i}`, style: `width:${Math.max(0, p[k] * w)}%` })));
 export async function prioritiesView() {
   await meta();
-  let basis = 'auto';
+  let basis = 'auto', showParts = false, editRisk = false;
   const box = h('div', { class: 'stack' });
   const draw = async () => {
     const d = await api('GET', `/api/admin/priorities?basis=${basis === 'self' ? 'self' : 'auto'}`);
     const flagged = d.oneToOne.filter((x) => x.flagged);
     const crit = h('div', { class: 'weights' }, META.scenarios.flatMap((s) => [h('span', null, s.short), h('input', { type: 'range', min: 0, max: 12, value: d.critical[s.key] ?? 0, 'aria-label': `Critical steps ${s.label}`, on: { input: (e) => { e.target.nextSibling.textContent = e.target.value; } } }), h('b', null, d.critical[s.key] ?? 0)]));
     box.replaceChildren(
-      h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'Team training priority'), h('p', { class: 'sub', style: 'margin:0' }, `Basis: ${d.basis === 'self' ? 'Self Assessment only' : 'Self Assessment + knowledge test'}. 50+ is Tier 1 (team session + resource), 35 to 49 Tier 2, below 35 Tier 3.`)),
+      h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'Team training priority ', tipI('Priority = 40% client demand + 30% weakness + 15% stated struggle + 10% reach + 5% risk. 50+ is Tier 1 (team session + resource), 35 to 49 Tier 2, below 35 Tier 3.')), h('p', { class: 'sub keep', style: 'margin:0' }, d.basis === 'self' ? 'Self Assessment only' : 'Self Assessment + knowledge test')),
         select([['auto', 'Self + test'], ['self', 'Self only']], basis, { style: 'width:auto', 'aria-label': 'Basis', on: { change: (e) => { basis = e.target.value; draw(); } } })),
-        h('div', { class: 'tbl-wrap', style: 'margin-top:14px' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['#', 'Scenario', 'Priority', 'Tier', 'Demand 40%', 'Weakness 30%', 'Struggle 15%', 'Reach 10%', 'Risk 5%'].map((x, i) => h('th', { class: i > 1 && i !== 3 ? 'num' : '' }, x)))),
-          h('tbody', null, d.scenarios.filter((p) => !THEME.includes(p.scenario)).map((p, i) => h('tr', null, h('td', null, i + 1), h('td', null, h('b', null, scLabel(p.scenario)), p.safetyNet ? h('span', { class: 'chip amber', style: 'margin-left:8px' }, 'Safety net') : null), h('td', { class: 'num' }, h('b', null, p.priority)), h('td', null, h('span', { class: `chip ${p.tier === 1 ? 'coral' : p.tier === 2 ? 'amber' : 'grey'}` }, `Tier ${p.tier}`)), ...[p.demand, p.weakness, p.struggle, p.reach, p.risk].map((v) => h('td', { class: 'num' }, v))))))),
-        h('p', { class: 'muted small', style: 'margin:12px 0 0' }, 'Safety net: half the team at level 2 or lower gets a resource regardless of demand.')),
+        h('div', { class: 'tbl-wrap', style: 'margin-top:14px' }, h('table', { class: `tbl pri-tbl${showParts ? ' parts' : ''}` }, h('thead', null, h('tr', null, ['#', 'Scenario', 'Priority', 'Tier', ...PARTS.map(([, l]) => l)].map((x, i) => h('th', { class: `${i === 2 || i > 3 ? 'num' : ''}${i > 3 ? ' part' : ''}` }, x)))),
+          h('tbody', null, d.scenarios.filter((p) => !THEME.includes(p.scenario)).map((p, i) => h('tr', null, h('td', { class: 'muted' }, i + 1), h('td', null, h('b', null, scLabel(p.scenario)), p.safetyNet ? h('span', { class: 'chip amber', style: 'margin-left:8px' }, 'Safety net') : null),
+            h('td', { class: 'num' }, h('span', { class: 'pri-cell' }, priBar(p), h('b', null, p.priority))), h('td', null, h('span', { class: `chip ${p.tier === 1 ? 'coral' : p.tier === 2 ? 'amber' : 'grey'}` }, `Tier ${p.tier}`)), ...PARTS.map(([k]) => h('td', { class: 'num part' }, p[k]))))))),
+        h('div', { class: 'row', style: 'margin-top:10px;gap:14px' }, h('button', { class: 'btn sm', on: { click: () => { showParts = !showParts; draw(); } } }, showParts ? 'Hide breakdown' : 'Show breakdown'), h('span', { class: 'muted small row', style: 'gap:6px' }, 'Safety net', tipI('Half the team at level 2 or lower gets a resource regardless of demand.')))),
       h('div', { class: 'card' }, h('h2', null, 'Delivery theme: Human Interpretation vs AI Translation'), h('p', { class: 'sub' }, 'Ranked separately, as the Guide workflows differ. Every training and 1:1 covers both.'),
         d.scenarios.filter((p) => THEME.includes(p.scenario)).map((p) => h('div', { class: 'row spread', style: 'padding:9px 0;border-top:1px solid var(--border-soft)' }, h('b', null, scLabel(p.scenario)), h('span', { class: 'row' }, h('span', { class: 'muted small' }, `Weakness ${p.weakness} · Struggle ${p.struggle} · Reach ${p.reach}`), h('span', { class: `chip ${p.tier === 1 ? 'coral' : p.tier === 2 ? 'amber' : 'grey'}` }, `${p.priority} · Tier ${p.tier}`))))),
       h('div', { class: 'card' }, h('h2', null, '1:1 coaching flags'), h('p', { class: 'sub' }, 'CMs & Sales scoring 55 or more on any scenario'),
         flagged.length ? h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Person', 'Region', 'Top scenarios', 'Score'].map((x, i) => h('th', { class: i === 3 ? 'num' : '' }, x)))), h('tbody', null, flagged.map((x) => h('tr', { class: 'click', on: { click: () => { location.hash = `person-${x.user_id}`; } } }, h('td', null, h('b', null, x.name)), h('td', null, x.region || '–'), h('td', null, x.scenarios.map((s) => scShort(s.scenario)).join(', ')), h('td', { class: 'num' }, h('span', { class: 'chip coral' }, x.top.score))))))) : h('div', { class: 'muted' }, 'No one is above the flag right now.'),
         d.oneToOne.length ? h('p', { class: 'muted small', style: 'margin:12px 0 0' }, `Next highest: ${d.oneToOne.filter((x) => !x.flagged).slice(0, 3).map((x) => `${x.name} (${x.top.score})`).join(', ') || '–'}`) : null),
-      h('div', { class: 'card' }, h('h2', null, 'Risk inputs'), h('p', { class: 'sub' }, 'Critical steps in the CM Onboarding Guide for each scenario (platform steps counted in each scenario that uses them). Update when the Guide changes.'), crit,
-        h('div', { style: 'margin-top:14px' }, h('button', { class: 'btn primary', on: { click: async () => { const vals = {}; const inputs = [...crit.querySelectorAll('input')]; META.scenarios.forEach((s, i) => { vals[s.key] = Number(inputs[i].value); }); try { await api('PUT', '/api/admin/settings/critical-steps', { critical: vals }); toast('Saved'); draw(); } catch (e) { toast(e.message, true); } } } }, 'Save risk inputs'))));
+      h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'Risk inputs ', tipI('Critical steps in the CM Onboarding Guide for each scenario (platform steps counted in each scenario that uses them). Update when the Guide changes.')), h('p', { class: 'sub keep', style: 'margin:0' }, `${Object.values(d.critical).filter((v) => v > 0).length} of ${META.scenarios.length} scenarios with critical steps · 5% of the priority`)),
+          editRisk ? null : h('button', { class: 'btn sm', on: { click: () => { editRisk = true; draw(); } } }, 'Edit')),
+        editRisk ? h('div', { style: 'margin-top:12px' }, crit, h('div', { class: 'row', style: 'margin-top:14px;gap:8px' }, h('button', { class: 'btn primary', on: { click: async () => { const vals = {}; const inputs = [...crit.querySelectorAll('input')]; META.scenarios.forEach((s, i) => { vals[s.key] = Number(inputs[i].value); }); try { await api('PUT', '/api/admin/settings/critical-steps', { critical: vals }); toast('Saved'); editRisk = false; draw(); } catch (e) { toast(e.message, true); } } } }, 'Save risk inputs'), h('button', { class: 'btn', on: { click: () => { editRisk = false; draw(); } } }, 'Cancel'))) : null));
   };
   await draw();
   return h('div', { class: 'page' }, h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Priorities'), h('p', null, 'What to train next, and who needs a 1:1, from the Priority Weighting System v1.'))), box);
