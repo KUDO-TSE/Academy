@@ -133,8 +133,9 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
   const home = [
     h('section', { class: 'hero' },
       h('div', { class: 'hero-main' },
-        h('div', { class: 'eyebrow' }, `${first(data.user.name)}'s KUDO Academy programme`),
-        h('h1', null, settings.goal),
+        h('div', { class: 'eyebrow' }, `${first(data.user.name)}, this is your KUDO Academy`),
+        h('h1', null, 'Your custom programme to become a KUDO Champion'),
+        settings.goal ? h('p', { class: 'hero-goal' }, settings.goal) : null,
         h('div', { class: 'hero-meta' }, h('span', null, `Week ${st.week} of ${st.weeks} `, tipI('Self-paced: work through each week any time in the week.')), st.started_on ? h('span', null, `Started ${fmtDate(st.started_on)}`) : null),
         data.message ? h('div', { class: 'hero-msg' }, h('b', null, 'From your KUDO Trainer: '), data.message) : null,
         readOnly ? null : h('div', { class: 'hero-cta' }, h('a', { class: 'btn primary lg', href: '#training' }, nextUp ? 'Continue my training' : 'Open my training', ' →'),

@@ -7,7 +7,7 @@ import { h } from './ui.js';
 // ------------------------------------------------------------------ scripts
 const TRAINEE = [
   { title: 'Welcome to the KUDO Academy', text: 'This is your personal 12-week programme to master the KUDO client scenarios: what to set up yourself, what to hand over, and how to explain it to a client. It is self-paced: work through it whenever suits you in the week. This tour takes about a minute.', center: true },
-  { route: 'programme', sel: '.prog .hero', title: 'Your goal and your progress', text: 'The goal for the whole team, set by your KUDO Trainer, and how much of your plan is done. The pace tells you if you are on track for the 12 weeks.' },
+  { route: 'programme', sel: '.prog .hero', title: 'Your goal and your progress', text: 'Your programme, built for you, with the goal set by your KUDO Trainer underneath, and how much of your plan is done. The pace tells you if you are on track for the 12 weeks.' },
   { route: 'programme', sel: '.home-stats', title: 'Home: your programme at a glance', text: 'Home is the overview: your readiness, how many scenarios are at target, and your focus areas. To work, use Continue my training.' },
   { route: 'programme', sel: '.roadmap-card', title: 'Your 12 weeks at a glance', text: 'Your route through the four phases, one stop per week. Each stop says what the week covers and how much is done. Coral means steps to catch up, and the dark tags are your KUDO Trainer sessions. Select a week to see its steps.' },
   { route: 'programme', sel: '.journey', title: 'Where you are, where you will be', text: 'Your starting point comes from the October Self Assessment and live test. The chart shows how your readiness grows week by week, and where the plan takes you by week 12.' },
