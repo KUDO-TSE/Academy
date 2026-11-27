@@ -387,8 +387,25 @@ export function liveState(u, planRow, ctx) {
     });
     trajectory.push({ week: w, v: avg(vals) });
   }
+  // Readiness, test by test: the starting point (Self Assessment and knowledge test), then one point each time a
+  // result moves a scenario's level, labelled with the module that moved it. This is the real-time view on Home.
+  const progression = [{ at: planRow.started_on || null, v: avg(levelRows.map((l) => l.baseline)), what: 'Starting point', changes: [] }];
+  {
+    const cur = Object.fromEntries(levelRows.map((l) => [l.scenario, l.baseline]));
+    const evs = levelRows.flatMap((l) => (l.history || []).filter((x) => x.v != null && (!start || new Date(x.at).getTime() >= start.getTime())).map((x) => ({ ...x, scenario: l.scenario, short: l.short })))
+      .sort((a, b) => new Date(a.at) - new Date(b.at));
+    let last = null;
+    for (const e of evs) {
+      const from = cur[e.scenario]; cur[e.scenario] = e.v;
+      const same = last && last.module === (e.module || null) && last.what === e.what && Math.abs(new Date(last.at) - new Date(e.at)) < 60000;
+      if (!same) { last = { at: e.at, what: e.what, module: e.module || null, moduleTitle: MODULE_BY_KEY[e.module]?.title || null, score: e.score ?? null, changes: [] }; progression.push(last); }
+      last.changes.push({ short: e.short, from: round(from), to: round(e.v) });
+      last.v = avg(Object.values(cur));
+    }
+    if (progression.length > 41) progression.splice(1, progression.length - 41);
+  }
   return {
-    items, week, weeks: WEEKS, started_on: planRow.started_on, trajectory,
+    items, week, weeks: WEEKS, started_on: planRow.started_on, trajectory, progression,
     progress: { done: doneN, total: items.length, pct: items.length ? round((doneN / items.length) * 100) : 0, pace: expected ? (doneBy >= expected ? 'on' : doneBy >= expected - 2 ? 'close' : 'behind') : 'on' },
     next: mine.filter((i) => !i.done).slice(0, 3),
     jackNext: items.filter((i) => i.owner === 'jack' && !i.done).slice(0, 2),

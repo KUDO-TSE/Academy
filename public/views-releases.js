@@ -77,7 +77,7 @@ export async function releaseView(id) {
     const mods = h('div', { class: 'rl-mods' });
     const drawMods = () => mods.replaceChildren(h('span', { class: 'muted small' }, 'Concerns'),
       ...(it.modules.length ? it.modules.map((k) => h('span', { class: 'chip blue' }, modTitle(k), ro ? null : h('button', { class: 'chip-x', type: 'button', 'aria-label': `Remove ${modTitle(k)}`, on: { click: () => { it.modules = it.modules.filter((x) => x !== k); drawMods(); save(it); } } }, '×'))) : [h('span', { class: 'chip grey' }, 'General: no module')]),
-      ro || it.modules.length >= 3 ? null : h('select', { class: 'rl-add', 'aria-label': 'Add a module', on: { change: (e) => { if (e.target.value) { it.modules.push(e.target.value); drawMods(); save(it); } } } }, h('option', { value: '' }, '+ Module'), r.modules.filter((m) => !it.modules.includes(m.key)).map((m) => h('option', { value: m.key }, m.title))));
+      ro || it.modules.length >= 3 ? '' : h('select', { class: 'rl-add', 'aria-label': 'Add a module', on: { change: (e) => { if (e.target.value) { it.modules.push(e.target.value); drawMods(); save(it); } } } }, h('option', { value: '' }, '+ Module'), r.modules.filter((m) => !it.modules.includes(m.key)).map((m) => h('option', { value: m.key }, m.title))));
     drawMods();
 
     if (!a.faq.module) a.faq.module = it.modules[0] || r.modules[0].key;
@@ -130,6 +130,23 @@ export async function releaseView(id) {
       stat('Modules concerned', String(touched.length), touched.slice(0, 3).map(modTitle).join(', ') + (touched.length > 3 ? '…' : '')),
       stat('Likely out of date', String(strong), strong ? 'Lines or questions that contradict the note' : 'Nothing contradicts the note'),
       stat('Worth a check', String(flagged.length - strong), 'Close to what changed')),
+    newsEditor(r, applied),
     ...r.items.map(itemCard),
     applied ? null : h('div', { class: 'rl-bar' }, h('span', { class: 'muted' }, count, '. Nothing reaches trainees until you apply.'), applyBtn));
+}
+
+// KUDO News: the version and the executive summary trainees read. Drafted automatically; an admin's text is kept.
+function newsEditor(r, applied) {
+  const version = h('input', { type: 'text', value: r.version || '', placeholder: 'e.g. 5.12', 'aria-label': 'Version', style: 'max-width:160px' });
+  const summary = h('textarea', { rows: 8, placeholder: applied ? 'Drafting…' : 'The summary is drafted when you apply the release. You can also write it now.', 'aria-label': 'Executive summary' });
+  summary.value = r.summary || '';
+  const by = h('span', { class: 'muted small' }, { admin: 'Written by you', ai: 'Drafted by Claude: check it, then save', auto: 'Drafted from the note: check it, then save' }[r.summary_by] || 'Not drafted yet');
+  const save = async () => { try { await api('PUT', `/api/admin/releases/${r.id}/news`, { version: version.value, summary: summary.value }); by.textContent = 'Written by you'; toast('Saved. KUDO News shows this summary.'); } catch (e) { toast(e.message, true); } };
+  const draft = async (e) => { const b = e.currentTarget; b.disabled = true; try { const x = await api('POST', `/api/admin/releases/${r.id}/news/draft`); summary.value = x.summary; by.textContent = x.ai ? 'Drafted by Claude: check it, then save' : 'Drafted from the note: check it, then save'; } catch (err) { toast(err.message, true); } b.disabled = false; };
+  return h('section', { class: 'card' },
+    h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'KUDO News'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, applied ? 'What trainees read about this release, under KUDO News.' : 'Shown under KUDO News once you apply this release.')), by),
+    h('div', { class: 'form-row', style: 'display:grid;gap:12px;margin-top:12px' },
+      h('label', { class: 'f' }, h('span', { class: 'l' }, 'Version'), version),
+      h('label', { class: 'f' }, h('span', { class: 'l' }, 'Executive summary (two or three short paragraphs, a blank line between them)'), summary)),
+    h('div', { class: 'row', style: 'gap:8px;margin-top:12px' }, h('button', { class: 'btn primary', type: 'button', on: { click: save } }, 'Save summary'), h('button', { class: 'btn', type: 'button', on: { click: draft } }, 'Draft it again')));
 }

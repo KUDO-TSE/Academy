@@ -1,7 +1,7 @@
 import { h, api, toast, fmtDate, dateOnly, modal, metaRow } from './ui.js';
 import { programmeView, moduleView, KIND_LABEL, DEPTH_LABEL } from './views-programme.js';
 import { trajectoryChart } from './charts.js';
-import { journeyMap } from './journey.js';
+import { weeksCard } from './home.js';
 
 const STATUS = { draft: ['amber', 'Draft: needs approval'], changes: ['amber', 'Changes waiting'], approved: ['green', 'Approved'] };
 const RATING = [['', 'Not set'], ['gap', 'Gap'], ['developing', 'Developing'], ['solid', 'Solid']];
@@ -95,8 +95,7 @@ export function tabProgramme(personId, reload) {
         h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Done'), h('div', { class: 'value' }, `${d.approved.state.progress.pct}%`), h('div', { class: 'note' }, `${d.approved.state.progress.done} of ${d.approved.state.progress.total}`)),
         h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Readiness'), h('div', { class: 'value' }, `${d.approved.state.readiness.now}%`), h('div', { class: 'note' }, `Started ${d.approved.state.readiness.start}%, target ${d.approved.state.readiness.end}%`))) : null,
       d.approved ? (() => { const st = d.approved.state; return h('div', { class: 'stack' },
-        h('div', { class: 'card roadmap-card', style: 'margin-top:0' }, h('h2', null, '12 weeks at a glance'), h('p', { class: 'sub' }, 'One stop per week: what it covers, how much is done and the sessions with you'),
-          journeyMap({ items: st.items, week: st.week, weeks: st.weeks, phases: META.phases || d.phases || [], levels: st.levels, modules: META.modules || [] })),
+        weeksCard({ title: '12 weeks at a glance', items: st.items, week: st.week, weeks: st.weeks, phases: d.phases || META.phases || [], levels: st.levels, modules: d.modules || META.modules || [] }),
         h('div', { class: 'card jr wide' }, h('h2', null, 'Readiness'), trajectoryChart({ trajectory: st.trajectory || [], start: st.readiness.start, now: st.readiness.now, end: st.readiness.end, target: Math.round(st.levels.reduce((t, l) => t + l.target, 0) / st.levels.length), week: st.week, weeks: st.weeks }))); })() : null,
       h('div', { class: 'row' }, d.approved ? h('a', { class: 'btn', href: `#pview-${personId}` }, 'View as trainee') : null),
       h('div', { class: 'card' }, h('h2', null, 'Levels now'), h('p', { class: 'sub' }, 'Estimate per scenario and what last moved it'),

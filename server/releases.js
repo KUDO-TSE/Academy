@@ -194,7 +194,7 @@ export async function updatesFor(moduleKey, days = 120) {
 
 // ------------------------------------------------------------------ routes (admin)
 export const releasesRouter = Router();
-const pub = (r) => ({ id: r.id, title: r.title, released_on: r.released_on, status: r.status, created_at: r.created_at, applied_at: r.applied_at, items: r.items });
+const pub = (r) => ({ id: r.id, title: r.title, version: r.version || versionOf(r.title), summary: r.summary || null, summary_by: r.summary_by || null, released_on: r.released_on, status: r.status, created_at: r.created_at, applied_at: r.applied_at, items: r.items });
 const modList = () => MODULES.map((m) => ({ key: m.key, title: m.title }));
 
 releasesRouter.get('/releases', async (_req, res, next) => {
@@ -277,6 +277,7 @@ releasesRouter.post('/releases/:id/apply', async (req, res, next) => {
     }
     await q("UPDATE releases SET items=$2, status='applied', applied_at=now() WHERE id=$1", [id, JSON.stringify(r.items)]);
     await loadContentEdits();
+    if (!r.summary) draftSummary(id).catch(() => {});
     await audit(req, 'release.apply', String(id), `${done.whatsnew} news · ${done.faq} FAQ · ${done.edits} lines · ${done.retired} retired`);
     res.json({ ok: true, done });
   } catch (e) { next(e); }
@@ -317,5 +318,100 @@ whatsNewRouter.get('/whats-new', async (_req, res, next) => {
   try {
     const r = await q("SELECT f.id,f.question AS title,f.answer AS body,f.item,r.id AS release_id,r.title AS release,r.released_on FROM field_notes f JOIN releases r ON r.id=f.release_id WHERE f.kind='update' AND f.status='published' AND r.released_on >= CURRENT_DATE - 120 ORDER BY r.released_on DESC, f.id LIMIT 60");
     res.json({ updates: r.rows.map((u) => ({ id: u.id, title: u.title, body: u.body, kind: u.item?.kind || 'feature', modules: (u.item?.modules || []).map((k) => ({ key: k, title: MODULE_BY_KEY[k]?.title, scenario: MODULE_BY_KEY[k]?.scenario || null })), release: u.release, release_id: u.release_id, released_on: u.released_on })) });
+  } catch (e) { next(e); }
+});
+
+// ------------------------------------------------------------------ KUDO News
+// Every applied release, newest first, with its version, date, an executive summary and its changes by type.
+// The summary is drafted once (by Claude when ANTHROPIC_API_KEY is set, otherwise from the note itself) and an admin
+// can rewrite it under Imports, Release notes. An admin's text is never overwritten by a new draft.
+export const versionOf = (title) => { const m = String(title || '').match(/\bv?(\d+(?:\.\d+){1,3})\b/i); return m ? m[1] : null; };
+const KIND_WORD = { feature: ['new feature', 'new features'], fix: ['improvement', 'improvements'], known: ['known issue', 'known issues'], removed: ['retired feature', 'retired features'] };
+const firstSentence = (t) => { const m = String(t || '').match(/^(.{20,260}?[.!?])(\s|$)/); return (m ? m[1] : String(t || '').slice(0, 220)).trim(); };
+const joinAnd = (a) => (a.length < 2 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a.at(-1)}`);
+// A DATE column comes back as local midnight: keep the calendar day, whatever the server's time zone.
+const ymd = (d) => (d instanceof Date ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : String(d || '').slice(0, 10));
+const fmtDay = (d) => new Date(`${ymd(d)}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+const lc = (t) => t; // titles keep their own capitals: product names (Webex, Meet Now) must not be lower-cased
+const plain = (t) => brand(t).replace(/[.:]$/, '').trim();
+
+/** A summary written from the note alone: what the release brings, the headline changes, what it means for clients. */
+export function builtInSummary(r) {
+  const items = (r.items || []).filter((i) => i.status !== 'skipped');
+  const by = (k) => items.filter((i) => i.kind === k);
+  const counts = Object.keys(KIND_WORD).map((k) => [k, by(k).length]).filter(([, n]) => n).map(([k, n]) => `${n} ${KIND_WORD[k][n > 1 ? 1 : 0]}`);
+  const name = r.version || versionOf(r.title) ? `KUDO ${r.version || versionOf(r.title)}` : brand(r.title);
+  const paras = [`${name}, released on ${fmtDay(r.released_on)}, brings ${joinAnd(counts) || 'a set of changes'}.`];
+  const feats = by('feature'), fixes = [...by('fix'), ...by('removed')];
+  const head = feats[0] || items[0];
+  if (head) {
+    let p = `The headline change: ${lc(plain(head.title))}. ${brand(firstSentence(head.body))}`;
+    const more = feats.filter((i) => i !== head);
+    if (more.length) p += ` Also new: ${joinAnd(more.slice(0, 3).map((i) => lc(plain(i.title))))}${more.length > 3 ? ` and ${more.length - 3} more` : ''}.`;
+    if (fixes.length) p += ` ${fixes.length > 1 ? 'Improvements cover' : 'One improvement covers'} ${joinAnd(fixes.slice(0, 3).map((i) => lc(plain(i.title))))}.`;
+    paras.push(p);
+  }
+  const mods = [...new Set(items.flatMap((i) => i.modules || []).map((k) => MODULE_BY_KEY[k]?.title?.split(':')[0].trim()).filter(Boolean))];
+  if (mods.length) paras.push(`For client conversations, this concerns ${joinAnd(mods.slice(0, 4))}${mods.length > 4 ? ` and ${mods.length - 4} more` : ''}. The Academy lessons for these modules include the change.`);
+  const known = by('known');
+  if (known.length) paras.push(`Worth telling clients: ${known.length > 1 ? 'there are known issues with' : 'there is a known issue with'} ${joinAnd(known.slice(0, 2).map((i) => lc(plain(i.title))))}. ${brand(firstSentence(known[0].body))}`);
+  return paras.join('\n\n');
+}
+
+/** A summary written by Claude for client-facing teams, when the key is set. Null otherwise or on failure. */
+async function aiSummary(r) {
+  const key = process.env.ANTHROPIC_API_KEY; if (!key) return null;
+  const items = (r.items || []).filter((i) => i.status !== 'skipped').map((i) => `- [${i.kind}] ${i.title}: ${i.body}`).join('\n');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: process.env.COACH_MODEL || 'claude-sonnet-5-5', max_tokens: 700,
+      system: 'You write the executive summary of a KUDO product release for KUDO\'s client-facing teams (Customer Success, Sales, Technical Support). Always write the brand as KUDO, in capitals. Plain English, no marketing tone, no headings, no bullet points, no emoji. Two or three short paragraphs, 120 to 200 words in total: what the release brings and the headline changes; why they matter for clients and meetings; anything to watch out for or tell clients (known issues, retired features, settings to change). Only use facts from the note.',
+      messages: [{ role: 'user', content: `Release: ${r.title}${r.version ? ` (version ${r.version})` : ''}, released ${fmtDay(r.released_on)}.\n\nChanges:\n${items}` }] }),
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!res.ok) return null;
+  const j = await res.json();
+  const t = (j.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+  return t ? brand(t) : null;
+}
+
+/** Draft and store a summary (Claude if available, otherwise built in). Never replaces an admin's text unless forced. */
+export async function draftSummary(id, { force = false } = {}) {
+  const r = (await q('SELECT * FROM releases WHERE id=$1', [id])).rows[0];
+  if (!r || (r.summary_by === 'admin' && !force)) return r?.summary || null;
+  let text = null, by = 'ai';
+  try { text = await aiSummary(r); } catch { text = null; }
+  if (!text) { text = builtInSummary(r); by = 'auto'; }
+  await q('UPDATE releases SET summary=$2, summary_by=$3, version=COALESCE(version,$4) WHERE id=$1', [id, text, by, versionOf(r.title)]);
+  return text;
+}
+
+// Admin: set the version and the summary shown in KUDO News, or draft the summary again.
+releasesRouter.put('/releases/:id/news', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id), b = req.body || {};
+    const version = String(b.version ?? '').trim().slice(0, 40) || null, summary = String(b.summary ?? '').trim().slice(0, 4000);
+    if (summary.length < 20) return bad(res, 'Write a summary of at least a sentence.');
+    const r = await q("UPDATE releases SET version=$2, summary=$3, summary_by='admin' WHERE id=$1 RETURNING id", [id, version, brand(summary)]);
+    if (!r.rowCount) return res.status(404).json({ error: 'Not found.' });
+    await audit(req, 'release.news', String(id), version || '');
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+releasesRouter.post('/releases/:id/news/draft', async (req, res, next) => {
+  try { const text = await draftSummary(Number(req.params.id), { force: true }); if (text == null) return res.status(404).json({ error: 'Not found.' }); res.json({ summary: text, ai: !!process.env.ANTHROPIC_API_KEY }); } catch (e) { next(e); }
+});
+
+// Everyone signed in: the news, newest release first.
+const drafting = new Set();
+whatsNewRouter.get('/news', async (_req, res, next) => {
+  try {
+    const rows = (await q("SELECT * FROM releases WHERE status='applied' ORDER BY released_on DESC, id DESC LIMIT 60")).rows;
+    res.json({ releases: rows.map((r) => {
+      if (!r.summary && !drafting.has(r.id)) { drafting.add(r.id); draftSummary(r.id).catch(() => {}).finally(() => drafting.delete(r.id)); }
+      const items = (r.items || []).filter((i) => i.status !== 'skipped');
+      return { id: r.id, version: r.version || versionOf(r.title), title: brand(r.title), released_on: ymd(r.released_on), summary: r.summary || builtInSummary(r),
+        items: items.map((i) => ({ kind: i.kind, title: brand(i.title), body: brand(i.body), modules: (i.modules || []).filter((k) => MODULE_BY_KEY[k]).map((k) => ({ key: k, title: MODULE_BY_KEY[k].title })) })) };
+    }) });
   } catch (e) { next(e); }
 });

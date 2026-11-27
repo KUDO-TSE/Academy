@@ -382,3 +382,7 @@ CREATE TABLE IF NOT EXISTS module_recaps (
   shown_at TIMESTAMPTZ,
   PRIMARY KEY (user_id, module_key)
 );
+-- KUDO News: each release carries its version and an executive summary (drafted automatically, editable by an admin).
+ALTER TABLE releases ADD COLUMN IF NOT EXISTS version TEXT;
+ALTER TABLE releases ADD COLUMN IF NOT EXISTS summary TEXT;
+ALTER TABLE releases ADD COLUMN IF NOT EXISTS summary_by TEXT;
