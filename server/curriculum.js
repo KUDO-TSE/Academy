@@ -319,7 +319,7 @@ export const MODULES = [
         'Recording and transcript: tick "Automatically record this meeting when it starts". Check both show the same time zone, especially with a VPN. The glossary chosen on KUDO carries over automatically.',
       ] },
       { title: 'On the day and after', points: [
-        'Nothing to start in KUDO: the KUDO meeting starts by itself when the Zoom meeting starts, so the host stays in Zoom. The bot tries to join 1 minute before the start; with a waiting room on, the host admits it.',
+        'Nothing to start in KUDO: the KUDO meeting starts by itself when the Zoom meeting starts, so the host stays in Zoom. The bot joins by itself as an external, non-registered user, captures the audio and video and sends them to KUDO. The bot tries to join 1 minute before the start; with a waiting room on, the host admits it.',
         'In Zoom the host sees "KUDO AI Translator bot is requesting to record to computer": tick "Apply these permissions to all future requests in this meeting" and Approve. Without approval the bot hears nothing.',
         'Once in, the bot shows a QR code on its video and posts the Mobile Link in the Zoom chat. On the Mobile Link page attendees pick a language and Join, then choose voice and captions separately (for example hear German, read English), next to Zoom.',
         'KUDO bot timeout: the bot disconnects if no participant is detected after 10 minutes. Missing bot: Add bot. Disconnected: Restart bot service. Both are on the KUDO Overview.',
@@ -354,7 +354,8 @@ export const MODULES = [
     ],
     sections: [
       { title: 'The shared model', points: [
-        'Google Meet and Webex work exactly like Zoom: a KUDO bot joins as an external guest, listens and translates. AI Translation only.',
+        'The bot rule is the same on every platform: the KUDO AI Translator bot joins the platform meeting by itself as an external, non-registered user (a guest), captures the audio and video and sends them to the matching KUDO meeting. Google Meet and Webex work exactly like Zoom. AI Translation only.',
+        'What changes is each platform\'s own way to keep guests, bots or third-party recording out: Zoom end-to-end encryption, the waiting room and the recording request; Meet\'s access type and "ask to join"; Webex\'s guest rule, lobby and automatic lock; Teams\' lobby. Your job is to find the setting that blocks it.',
         'Platform rules: a standard meeting (not a webinar, seminar or live stream), a new meeting ID, not recurring.',
         'In KUDO: New meeting, AI speech translation meeting, same name, date and time; tick Force close meeting; turn on "External meeting: Using KUDO on another platform?", choose the Meeting platform (Microsoft Teams, Google Meet, Zoom or Webex) and paste the full join link. No option: ask the Client Manager. Detect language automatically and "Automatically record this meeting when it starts" on, same time zone.',
         'Nothing to start in KUDO: it starts by itself when the client\'s meeting starts. The bot tries to join 1 minute before the start and must be let in by the host. Without that it hears nothing. The glossary carries over automatically.',
