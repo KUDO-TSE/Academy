@@ -45,7 +45,7 @@ export async function programmeOverview() {
 }
 function confirmBox(text) { return window.confirm(text); }
 
-// Group sessions: date, time, topic and link. Trainees see the next one on My training, and the virtual coach answers from it.
+// Group sessions: date, time, topic and link. Trainees see the next one on My courses, and the virtual coach answers from it.
 function groupSessionsCard() {
   const list = h('div');
   const f = { title: h('input', { placeholder: 'Title, e.g. Group kick-off', maxlength: 120 }), when: h('input', { type: 'datetime-local' }), minutes: h('input', { type: 'number', min: 5, max: 480, value: 60, style: 'width:90px' }), topic: h('input', { placeholder: 'Topic (optional)', maxlength: 500 }), link: h('input', { placeholder: 'https:// join link (optional)', maxlength: 500 }) };
@@ -57,7 +57,7 @@ function groupSessionsCard() {
       h('button', { class: 'btn sm', on: { click: async () => { if (!confirmBox(`Remove "${x.title}"?`)) return; await api('DELETE', `/api/admin/group-sessions/${x.id}`); load(); } } }, 'Remove')))) : h('div', { class: 'muted small', style: 'padding:6px 0' }, 'None scheduled.'));
   };
   load().catch(() => {});
-  return h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Group sessions'), h('p', { class: 'sub keep' }, 'Trainees see the next one on My training, and the virtual coach answers from this list.'), list,
+  return h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Group sessions'), h('p', { class: 'sub keep' }, 'Trainees see the next one on My courses, and the virtual coach answers from this list.'), list,
     h('div', { class: 'form-row gs-form' },
       h('label', { class: 'f', style: 'margin:0' }, h('span', { class: 'l' }, 'Title'), f.title), h('label', { class: 'f', style: 'margin:0' }, h('span', { class: 'l' }, 'Date and time'), f.when),
       h('label', { class: 'f', style: 'margin:0' }, h('span', { class: 'l' }, 'Minutes'), f.minutes), h('label', { class: 'f', style: 'margin:0' }, h('span', { class: 'l' }, 'Topic'), f.topic),

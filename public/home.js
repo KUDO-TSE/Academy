@@ -4,10 +4,11 @@ import { h, icon, svg, fmtDate } from './ui.js';
 import { small } from './charts.js';
 
 const tick = (s = 14) => svg(`<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`);
+export const weeksLabel = (p) => (p.weeks[0] === p.weeks[1] ? `Week ${p.weeks[0]}` : `Weeks ${p.weeks[0]} to ${p.weeks[1]}`);
 export const mins = (m) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60}` : ''}`);
 const KIND = { scenario: 'Decide', explain: 'Explain it', survey: 'Survey', lesson: 'Lesson', practice: 'Practice', check: 'Check', review: 'Review', baseline: 'Baseline', missed: 'Revisit', teach: 'Teach-back', pair: 'Pairing', one_to_one: 'With your KUDO Trainer', milestone: 'Milestone' };
 const KIND_CHIP = { lesson: 'blue', practice: 'amber', check: 'green', review: 'green', scenario: 'grey', explain: 'grey', baseline: 'green' };
-const ACTION = { scenario: 'Start', explain: 'Record it', survey: 'Answer', lesson: 'Open lesson', practice: 'Open task', check: 'Take the check', review: 'Take the review', baseline: 'Start', missed: 'Open', teach: 'Open' };
+const ACTION = new Proxy({}, { get: () => 'Take the course' }); // every step opens its course: one wording everywhere
 const mine = (i) => (i.owner || 'you') === 'you';
 
 /** A session with the KUDO Trainer: its short name and icon. */
@@ -29,11 +30,12 @@ export function weeksCard({ items, week, weeks = 12, phases, levels = [], module
   const jacks = (w) => items.filter((i) => i.week === w && i.owner === 'jack');
   const phaseOf = (w) => phases.find((p) => w >= p.weeks[0] && w <= p.weeks[1]);
   const theme = (w) => {
-    const names = [...new Set(yours(w).map((i) => shortOf(i.scenario) || (i.kind === 'missed' ? 'Your October questions' : i.kind === 'survey' ? 'Your feedback' : i.kind === 'baseline' ? 'Baseline' : modTitle(i.module))).filter(Boolean).map((n) => n.split(':')[0].trim()))];
+    const main = yours(w).filter((i) => i.kind !== 'review'), pool = main.length ? main : yours(w);
+    const names = [...new Set(pool.map((i) => shortOf(i.scenario) || (i.kind === 'missed' ? 'Your October questions' : i.kind === 'survey' ? 'Your feedback' : i.kind === 'baseline' ? 'Baseline' : modTitle(i.module))).filter(Boolean).map((n) => n.split(':')[0].trim()))];
     if (!names.length) return jacks(w).length ? event(jacks(w)[0], shortOf).label : 'Catch-up week';
     return names.length > 3 ? `${names.slice(0, 3).join(', ')} and ${names.length - 3} more` : names.join(', ');
   };
-  const themeFull = (w) => [...new Set(yours(w).map((i) => shortOf(i.scenario) || modTitle(i.module)).filter(Boolean))].join(', ');
+  const themeFull = (w) => [...new Set(yours(w).filter((i) => i.kind !== 'review').map((i) => shortOf(i.scenario) || modTitle(i.module)).filter(Boolean))].join(', ');
   const stateOf = (w) => {
     const its = yours(w), left = its.filter((i) => !i.done).length;
     if (w === week) return 'now';
@@ -88,7 +90,7 @@ export function weeksCard({ items, week, weeks = 12, phases, levels = [], module
       h('div', { class: 'wk-gh' },
         h('div', { class: 'wk-gh-top' }, h('b', null, p.name), h('span', null, `${pd} of ${its.length}`)),
         h('div', { class: 'wk-ph-bar' }, h('i', { style: `width:${its.length ? Math.round((pd / its.length) * 100) : 0}%` })),
-        h('small', null, `Weeks ${p.weeks[0]} to ${p.weeks[1]}`)),
+        h('small', null, weeksLabel(p))),
       Array.from({ length: p.weeks[1] - p.weeks[0] + 1 }, (_, k) => {
         const w = p.weeks[0] + k, st = stateOf(w), wi = yours(w), d = wi.filter((i) => i.done).length, left = wi.length - d;
         const evs = jacks(w).map((it) => event(it, shortOf));
@@ -122,7 +124,7 @@ export function upNextCard({ items, week, hrefFor = () => null, onStep = () => {
   const when = (i) => (i.week < week ? ['late', `Week ${i.week}, to catch up`] : i.week === week ? ['now', 'This week'] : ['next', i.week === week + 1 ? 'Next week' : `Week ${i.week}`]);
   return h('section', { class: 'card upnext-card' },
     h('div', { class: 'un-head' }, h('div', null, h('h2', null, 'Up next'), h('p', { class: 'sub' }, next.length ? `Your next ${next.length > 1 ? `${next.length} steps` : 'step'}, in order. About ${mins(total)} in total.` : 'Nothing waiting on your side.')),
-      readOnly ? null : h('a', { class: 'btn sm ghost', href: '#training' }, 'All my training')),
+      readOnly ? null : h('a', { class: 'btn sm ghost', href: '#training' }, 'All my courses')),
     next.length ? h('ol', { class: 'un-list' }, next.map((it, k) => {
       const href = readOnly ? null : hrefFor(it), [wc, wl] = when(it);
       return h('li', { class: k === 0 ? 'first' : '' },
@@ -130,7 +132,7 @@ export function upNextCard({ items, week, hrefFor = () => null, onStep = () => {
         h('div', { class: 'un-main' },
           h('div', { class: 'un-t' }, href ? h('a', { href, on: { click: () => onStep(it) } }, it.title) : it.title),
           h('div', { class: 'un-m' }, h('span', { class: `chip ${KIND_CHIP[it.kind] || 'grey'}` }, KIND[it.kind] || 'Step'), it.minutes ? h('span', null, mins(it.minutes)) : null, h('span', { class: `un-w ${wc}` }, wl))),
-        href ? h('a', { class: `btn sm ${k === 0 ? 'primary' : ''}`, href, on: { click: () => onStep(it) } }, k === 0 ? (ACTION[it.kind] || 'Start') : 'Open') : null);
+        href ? h('a', { class: `btn sm ${k === 0 ? 'primary' : ''}`, href, on: { click: () => onStep(it) } }, 'Take the course') : null);
     })) : h('p', { class: 'empty-note' }, 'You are ahead of your plan. New steps appear here as your KUDO Trainer adds them.'));
 }
 

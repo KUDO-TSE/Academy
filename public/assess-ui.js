@@ -187,7 +187,7 @@ export function feedbackCard(moduleKey, { onDone } = {}) {
   return box;
 }
 
-// ------------------------------------------------------------------ spaced review (My training)
+// ------------------------------------------------------------------ spaced review (My courses)
 export function spacedCard() {
   const box = h('div');
   (async () => {
@@ -203,7 +203,7 @@ export function spacedCard() {
   return box;
 }
 
-// ------------------------------------------------------------------ weekly challenge (My training)
+// ------------------------------------------------------------------ weekly challenge (My courses)
 export function challengeCard() {
   const box = h('div', { class: 'card challenge' }, h('div', { class: 'muted' }, 'Loading…'));
   (async () => {

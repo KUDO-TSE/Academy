@@ -17,8 +17,8 @@ import { newsView } from './views-news.js';
 const root = document.getElementById('app');
 let me = null;
 
-const NAV_TRAINEE = [['programme', 'Home', 'home'], ['training', 'My training', 'plan'], ['results', 'My results', 'chart'], ['progress', 'My progress', 'trend'], ['collection', 'My collection', 'star'], ['news', 'KUDO News', 'news']];
-const NAV_ME = [['me-programme', 'Home', 'home'], ['me-training', 'My training', 'plan'], ['me-results', 'My results', 'chart'], ['me-progress', 'My progress', 'trend'], ['me-collection', 'My collection', 'star']];
+const NAV_TRAINEE = [['programme', 'Home', 'home'], ['training', 'My courses', 'plan'], ['results', 'My results', 'chart'], ['progress', 'My progress', 'trend'], ['collection', 'My collection', 'star'], ['news', 'KUDO News', 'news']];
+const NAV_ME = [['me-programme', 'Home', 'home'], ['me-training', 'My courses', 'plan'], ['me-results', 'My results', 'chart'], ['me-progress', 'My progress', 'trend'], ['me-collection', 'My collection', 'star']];
 const NAV_ADMIN = [['board', 'My board', 'board'], ['overview', 'Overview', 'home'], ['team', 'Team', 'team'], ['priorities', 'Priorities', 'target'], ['programme', 'Programme', 'plan'], ['reviews', 'Reviews', 'inbox'], ['feedback', 'Feedback', 'msg'], ['curriculum', 'Curriculum', 'book'], ['news', 'KUDO News', 'news'], ['try', 'Try as a trainee', 'user'], ['SEP', 'Admin'], ['imports', 'Imports', 'upload'], ['users', 'Users & access', 'key'], ['audit', 'Activity log', 'log'], ['logic', 'Logic notes', 'info']];
 
 async function boot() {

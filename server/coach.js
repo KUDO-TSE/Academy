@@ -19,8 +19,9 @@ export const coachRouter = Router();
 // ------------------------------------------------------------------ how the Academy works (shared by both modes)
 export const KNOWLEDGE = `
 PAGES
-- Home: the programme at a glance: your goal, progress, readiness, focus areas, your 12 weeks, your level per scenario, notes from your KUDO Trainer, your cards. The "Continue my training" button opens My training.
-- My training: where you work. This week's steps first (with the weekly challenge), why your three focus areas, review practice, then your plan week by week. "Coming up with your KUDO Trainer" lists your next sessions.
+- Home: your goal and progress, your 12 weeks (a board of the four phases; select a week to see its steps), Up next (your next five steps), your readiness (from your starting point, moving with each test result) and your level per scenario. The "Take the course" button opens the next course.
+- Every button that opens a step of a course says "Take the course". A course is a module.
+- My courses: where you work. This week's steps first (with the weekly challenge), why your three focus areas, review practice, then your plan week by week. "Coming up with your KUDO Trainer" lists your next sessions.
 - Each module has up to five numbered steps: Learn (the lesson as a short story on slides, or One page), Practise (the sandbox, a replica of the KUDO screens and of the client's tools, or a written or recorded task), Decide (a decision walkthrough), Explain it (record or write it for the client), and Prove it (the scored module check, last). A tracker at the top of the module page shows each step: green is done, blue is up next; a click jumps to the step. After each step the page points to the next one; when the last step of the plan is done, KUDOG opens the module recap by himself, then the trainee moves on to the next module.
 - My results: every test, the sandbox exercises, untaken modules folded away.
 - My progress: how each test moved your level, scenario by scenario, against where you started.
@@ -117,23 +118,23 @@ export function builtInAnswer(question, c) {
   if (intent === 'next') {
     const due = mine.filter((i) => !i.done && i.week <= c.week).sort((a, b) => a.week - b.week);
     const list = (due.length ? due : mine.filter((i) => !i.done).sort((a, b) => a.week - b.week)).slice(0, 4);
-    if (!list.length) return { intent, text: 'Everything on your side is done. Well done. Your KUDO Trainer has the last sessions.', links: [{ label: 'My training', href: '#training' }] };
+    if (!list.length) return { intent, text: 'Everything on your side is done. Well done. Your KUDO Trainer has the last sessions.', links: [{ label: 'My courses', href: '#training' }] };
     list.forEach((i) => links.push({ label: i.title, href: hrefFor(i) }));
     return { intent, links, text: `You are in week ${c.week} of ${c.weeks}. ${due.length ? `Due now (${due.length} step${due.length > 1 ? 's' : ''}):` : 'You are ahead of your plan. Next up:'}\n${bullets(list.map((i) => `${i.title} · about ${i.minutes} min${i.week < c.week ? ` (from week ${i.week})` : ''}`))}${trainer[0] ? `\n\nNext with your KUDO Trainer: ${trainer[0].title}, planned in week ${trainer[0].week} (${range(trainer[0])}).` : ''}` };
   }
 
   if (intent === 'group') {
-    if (!c.groups.length) return { intent, text: 'No group session is scheduled yet. When your KUDO Trainer schedules one, it appears here and on My training with its date, time and topic. If several kick-offs or check-ins fall due together, your KUDO Trainer may run one group session instead of separate ones.', links: [{ label: 'My training', href: '#training' }] };
+    if (!c.groups.length) return { intent, text: 'No group session is scheduled yet. When your KUDO Trainer schedules one, it appears here and on My courses with its date, time and topic. If several kick-offs or check-ins fall due together, your KUDO Trainer may run one group session instead of separate ones.', links: [{ label: 'My courses', href: '#training' }] };
     const g = c.groups[0];
     if (g.link) links.push({ label: 'Join link', href: g.link });
     return { intent, links, text: `The next group session is "${g.title}" on ${nice(g.starts_at)} at ${new Date(g.starts_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Brussels' })} (Brussels time), ${g.minutes} minutes.${g.topic ? `\nTopic: ${g.topic}` : ''}${c.groups.length > 1 ? `\n\nAfter that:\n${bullets(c.groups.slice(1).map((x) => `${niceShort(x.starts_at)}: ${x.title}`))}` : ''}` };
   }
 
   if (intent === 'session') {
-    if (!trainer.length) return { intent, text: 'All your sessions with your KUDO Trainer are done or none are left in your plan.', links: [{ label: 'My training', href: '#training' }] };
+    if (!trainer.length) return { intent, text: 'All your sessions with your KUDO Trainer are done or none are left in your plan.', links: [{ label: 'My courses', href: '#training' }] };
     const n = trainer[0];
-    links.push({ label: 'My training', href: '#training' });
-    return { intent, links, text: `Your next session is "${n.title}", planned in week ${n.week} (${range(n)}).${n.why ? ` ${n.why}` : ''}\n\nHow it is scheduled: your plan sets the week, and your KUDO Trainer books the exact time with you during that week. You find it on My training, under "Coming up with your KUDO Trainer", and on Home in your 12 weeks.${trainer.length > 1 ? `\n\nAfter that:\n${bullets(trainer.slice(1, 4).map((x) => `${x.title}: week ${x.week} (${range(x)})`))}` : ''}${c.groups.length ? `\n\nThere is also a group session on ${niceShort(c.groups[0].starts_at)}: ${c.groups[0].title}.` : ''}` };
+    links.push({ label: 'My courses', href: '#training' });
+    return { intent, links, text: `Your next session is "${n.title}", planned in week ${n.week} (${range(n)}).${n.why ? ` ${n.why}` : ''}\n\nHow it is scheduled: your plan sets the week, and your KUDO Trainer books the exact time with you during that week. You find it on My courses, under "Coming up with your KUDO Trainer", and on Home in your 12 weeks.${trainer.length > 1 ? `\n\nAfter that:\n${bullets(trainer.slice(1, 4).map((x) => `${x.title}: week ${x.week} (${range(x)})`))}` : ''}${c.groups.length ? `\n\nThere is also a group session on ${niceShort(c.groups[0].starts_at)}: ${c.groups[0].title}.` : ''}` };
   }
 
   if (intent === 'progress') {
@@ -159,10 +160,10 @@ export function builtInAnswer(question, c) {
   }
 
   if (intent === 'focus') {
-    if (!c.focus.length) return { intent, text: 'You are already at target on every scenario: your plan keeps it sharp and proves it.', links: [{ label: 'My training', href: '#training' }] };
+    if (!c.focus.length) return { intent, text: 'You are already at target on every scenario: your plan keeps it sharp and proves it.', links: [{ label: 'My courses', href: '#training' }] };
     const named = c.focus.find((x) => x.level && t.includes(String(x.level.short || '').toLowerCase().replace(/\.$/, '')));
-    if (named) return { intent, links: [{ label: 'My training', href: '#training' }], text: `${named.level.label} is a focus area${named.reason ? ` because ${named.reason}` : ''}. You are at ${named.level.now}%, and your target is ${named.level.target}%.` };
-    return { intent, links: [{ label: 'My training', href: '#training' }], text: `Your three focus areas:\n${bullets(c.focus.map((x) => `${x.level?.label || x.scenario}: ${x.level ? `${x.level.now}% → target ${x.level.target}%` : ''}${x.reason ? `, because ${x.reason}` : ''}`))}\n\nYou can ask to swap the third one on My training; your KUDO Trainer approves the change.` };
+    if (named) return { intent, links: [{ label: 'My courses', href: '#training' }], text: `${named.level.label} is a focus area${named.reason ? ` because ${named.reason}` : ''}. You are at ${named.level.now}%, and your target is ${named.level.target}%.` };
+    return { intent, links: [{ label: 'My courses', href: '#training' }], text: `Your three focus areas:\n${bullets(c.focus.map((x) => `${x.level?.label || x.scenario}: ${x.level ? `${x.level.now}% → target ${x.level.target}%` : ''}${x.reason ? `, because ${x.reason}` : ''}`))}\n\nYou can ask to swap the third one on My courses; your KUDO Trainer approves the change.` };
   }
 
   if (intent === 'weak') {
@@ -181,7 +182,7 @@ export function builtInAnswer(question, c) {
   if (intent === 'cards') return { intent, links: [{ label: 'My collection', href: '#collection' }], text: `You have ${c.cards} card${c.cards === 1 ? '' : 's'}. First step comes at your first connection; the others are earned by work in the Academy, for example reaching your target on a scenario after a lesson or test on it, or passing sandbox exercises.` };
 
   if (intent === 'where') {
-    return { intent, links: [{ label: 'Home', href: '#programme' }, { label: 'My training', href: '#training' }, { label: 'My results', href: '#results' }, { label: 'My progress', href: '#progress' }], text: 'Where things are:\n- Home: your programme at a glance, with "Continue my training".\n- My training: this week\'s steps, the weekly challenge, your focus areas, your plan week by week, and your next sessions with your KUDO Trainer.\n- Each lesson: Step 1 Learn (slides), Step 2 Practise (sandbox or task), Step 3 Prove it (the check).\n- My results: every test and sandbox exercise.\n- My progress: how each test moved your level.\n- My collection: your cards. The Guided tour is in the menu.' };
+    return { intent, links: [{ label: 'Home', href: '#programme' }, { label: 'My courses', href: '#training' }, { label: 'My results', href: '#results' }, { label: 'My progress', href: '#progress' }], text: 'Where things are:\n- Home: your 12 weeks, your next five steps and your readiness, with "Take the course" for the next one.\n- My courses: this week\'s steps, the weekly challenge, your focus areas, your plan week by week, and your next sessions with your KUDO Trainer.\n- Each lesson: Step 1 Learn (slides), Step 2 Practise (sandbox or task), Step 3 Prove it (the check).\n- My results: every test and sandbox exercise.\n- My progress: how each test moved your level.\n- My collection: your cards.\n- KUDO News: every KUDO release with a short summary. The Guided tour is in the menu.' };
   }
 
   if (intent === 'trainer') return { intent, links: [], text: 'Use the "Your KUDO Trainer" tab at the top of this panel: choose Question, Remark or Observation, write it and send. It lands on your KUDO Trainer\'s board, and their reply comes back here.' };

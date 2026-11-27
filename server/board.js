@@ -83,13 +83,14 @@ export async function buildBoard() {
     add({ key: `group:${itemKey}:${iso(thisMon)}`, type: 'session', group: true, itemKey, userIds: same.map((t) => t.userId), person: `${same.length} trainees`, title: itemKey === 'kickoff' ? 'Run a group kick-off' : 'Run a group mid-point check-in', detail: `Instead of ${same.length} separate sessions: ${same.map((t) => t.person).join(', ')}. Mark it held for everyone who attended.`, minutes: 60, due: same.map((t) => t.due).sort()[0], urgency: urg, link: '#board' });
   }
 
-  // Peer teach-back: in the Broaden phase (weeks 8 to 10), pair trainees who share a focus scenario. Explaining to a
+  // Peer teach-back: in the Broaden phase (its weeks come from each plan), pair trainees who share a focus scenario. Explaining to a
   // colleague consolidates learning and builds the team; the KUDO Trainer makes the introduction, so no one sees another's results.
   const broaden = [];
   for (const p of plans.rows.filter((x) => x.status === 'approved')) {
     const u = users.get(p.user_id); if (!u || u.is_demo) continue;
     const wk = p.started_on ? Math.floor((today - new Date(p.started_on)) / (7 * DAY)) + 1 : 0;
-    if (wk >= 8 && wk <= 10 && p.data?.focus?.length) broaden.push({ u, focus: p.data.focus });
+    const bw = p.data?.phases?.[2]?.weeks || [8, 10];
+    if (wk >= bw[0] && wk <= bw[1] && p.data?.focus?.length) broaden.push({ u, focus: p.data.focus });
   }
   const paired = new Set();
   for (const s of [...new Set(broaden.flatMap((b) => b.focus))]) {

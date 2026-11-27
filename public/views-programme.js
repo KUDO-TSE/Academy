@@ -1,5 +1,5 @@
 import { h, api, toast, fmtDate, svg, tipI, metaRow, mark } from './ui.js';
-import { weeksCard, upNextCard, readinessCard, levelsCard } from './home.js';
+import { weeksCard, upNextCard, readinessCard, levelsCard, weeksLabel } from './home.js';
 import { SCENARIOS as SANDBOXES } from './sandbox.js';
 import { storyPlayer } from './story.js';
 import { revealNew } from './collectibles.js';
@@ -24,7 +24,7 @@ function itemHref(it) {
 }
 /** Remember which step of a module to open on: the module page scrolls to it once drawn. */
 export const focusStep = (kind) => { try { if (['lesson', 'practice', 'scenario', 'explain', 'check'].includes(kind)) sessionStorage.setItem('academy.focusStep', kind); } catch { /* not kept */ } };
-const ACTION = { scenario: 'Start', explain: 'Record it', survey: 'Answer', lesson: 'Open lesson', practice: 'Open task', check: 'Take the check', review: 'Take the review', baseline: 'Start', missed: 'Open', teach: 'Open' };
+const ACTION = new Proxy({}, { get: () => 'Take the course' }); // every step opens its course: one wording everywhere
 
 function itemRow(it, { readOnly, compact } = {}) {
   const href = itemHref(it);
@@ -100,7 +100,7 @@ function focusChoice() {
   return box;
 }
 
-// ------------------------------------------------------------------ Home and My training (one view, two parts)
+// ------------------------------------------------------------------ Home and My courses (one view, two parts)
 export function programmeView(data, { readOnly = false, banner = null, part = 'home' } = {}) {
   if (data.status === 'pending' || data.status === 'none') {
     return h('div', { class: 'page' }, banner,
@@ -120,7 +120,6 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
   const nextUp = thisWeek[0] || st.next[0] || null;
 
   // ---- Home: a tiled dashboard built around what to do next. One step leads; everything else is context.
-  const KIND = { lesson: 'Learn', practice: 'Practise', check: 'Prove it', scenario: 'Decide', explain: 'Explain it' };
   const nextHref = nextUp && !readOnly ? itemHref(nextUp) : null;
   const home = [
     h('div', { class: 'bento' },
@@ -131,7 +130,7 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
           h('p', { class: 'hero-goal' }, settings.goal || 'Your custom programme to become a KUDO Champion.'),
           data.message ? h('div', { class: 'hero-msg' }, h('b', null, 'From your KUDO Trainer: '), data.message) : null,
           readOnly ? null : h('div', { class: 'hero-cta' },
-            nextUp ? h('a', { class: 'btn primary lg', href: nextHref || '#training', on: { click: () => focusStep(nextUp.kind) } }, `Continue: ${KIND[nextUp.kind] || 'next step'}`) : null,
+            nextUp ? h('a', { class: 'btn primary lg', href: nextHref || '#training', on: { click: () => focusStep(nextUp.kind) } }, 'Take the course') : null,
             nextUp ? h('span', { class: 'hero-next' }, nextUp.title) : h('span', { class: 'hero-next' }, 'Everything on your side is done for now.')))),
       h('section', { class: 'card span-4 prog-tile' },
         h('div', { class: 'row spread' }, h('h2', null, 'Your progress'), h('span', { class: `chip ${paceChip[0]}` }, paceChip[1])),
@@ -148,14 +147,14 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
     data.shared?.length ? h('div', { class: 'card' }, h('h2', null, 'Notes from your KUDO Trainer sessions'), data.shared.map((n) => h('div', { class: 'note-box' }, h('b', null, n.title), h('div', null, n.text), h('div', { class: 'when' }, fmtDate(n.on))))) : null,
   ];
 
-  // ---- My training: the work on the left (this week, then the plan week by week), support on the right.
+  // ---- My courses: the work on the left (this week, then the plan week by week), support on the right.
   const phaseBar = h('nav', { class: 'phasebar', 'aria-label': 'The four phases' }, byPhase.map((p) => {
     const mine = p.items.filter((i) => (i.owner || 'you') === 'you'), done = mine.filter((i) => i.done).length;
     const isNow = st.week >= p.weeks[0] && st.week <= p.weeks[1], past = st.week > p.weeks[1];
     return h('div', { class: `pb-ph ${isNow ? 'now' : past ? 'past' : ''}` },
       h('div', { class: 'pb-top' }, h('b', null, p.name), h('span', null, `${done}/${mine.length}`)),
       h('div', { class: 'bar' }, h('i', { style: `width:${mine.length ? Math.round((done / mine.length) * 100) : 0}%` })),
-      h('small', null, isNow ? `Weeks ${p.weeks[0]} to ${p.weeks[1]}, you are here` : `Weeks ${p.weeks[0]} to ${p.weeks[1]}`));
+      h('small', null, isNow ? `${weeksLabel(p)}, you are here` : weeksLabel(p)));
   }));
   const training = [
     phaseBar,
@@ -171,7 +170,7 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
             const weeks = [...new Set(p.items.map((i) => i.week))].sort((x, y) => x - y);
             const isNow = st.week >= p.weeks[0] && st.week <= p.weeks[1];
             return h('details', { class: `card phase ${isNow ? 'now' : ''}`, open: isNow },
-              h('summary', { class: 'row spread' }, h('div', null, h('h2', null, p.name), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, p.aim), h('div', { class: 'phase-meta' }, metaRow([`Phase ${p.n}`, `weeks ${p.weeks[0]} to ${p.weeks[1]}`, isNow ? 'you are here' : null]))), h('span', { class: 'chip grey' }, `${done}/${p.items.length}`)),
+              h('summary', { class: 'row spread' }, h('div', null, h('h2', null, p.name), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, p.aim), h('div', { class: 'phase-meta' }, metaRow([`Phase ${p.n}`, weeksLabel(p).toLowerCase(), isNow ? 'you are here' : null]))), h('span', { class: 'chip grey' }, `${done}/${p.items.length}`)),
               weeks.map((w) => { const wi = p.items.filter((i) => i.week === w); const wd = wi.filter((i) => i.done).length;
                 return h('div', { class: 'wk' }, h('div', { class: `wk-h ${w === st.week ? 'now' : ''}` }, h('span', null, `Week ${w}${w === st.week ? ', this week' : ''}`), h('span', { class: 'wk-n' }, `${wd}/${wi.length}`)), wi.map((it) => itemRow(it, { readOnly, compact: false }))); }));
           })))),
@@ -188,10 +187,10 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
           st.jackNext.length ? st.jackNext.slice(0, 4).map((i) => h('div', { class: 'tt-row' }, h('span', { class: 'tt-wk' }, `W${i.week}`), h('span', null, i.title.replace(/\s*with your KUDO Trainer:?\s*/i, ': ').replace(/^: /, '').replace(/:\s*$/, '')))) : h('p', { class: 'muted small' }, 'No session planned yet.'),
           readOnly ? null : groupNext()))),
   ];
-  const trainingHead = h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My training'), h('p', null, `Week ${st.week} of ${st.weeks}, ${myDone} of ${mySteps.length} steps done`)));
+  const trainingHead = h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My courses'), h('p', null, `Week ${st.week} of ${st.weeks}, ${myDone} of ${mySteps.length} steps done`)));
 
   if (part === 'training') return h('div', { class: 'page prog training stack' }, banner, trainingHead, ...training);
-  if (part === 'all') return h('div', { class: 'page prog stack' }, banner, ...home, h('h2', { class: 'sec-h' }, 'Training'), ...training);
+  if (part === 'all') return h('div', { class: 'page prog stack' }, banner, ...home, h('h2', { class: 'sec-h' }, 'Courses'), ...training);
   return h('div', { class: 'page prog home stack' }, banner, ...home);
 }
 
@@ -399,7 +398,7 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
       h('p', { class: 'sub' }, baseline ? 'No pass mark: answer honestly, it aims your plan at the right gaps.' : last ? 'Your recorded score is from your first attempt. Retakes are for practice: a new mix of questions each time, and they do not change your score.' : `Your first attempt is the score we keep, so take your time (aim for ${Math.round((m.pass || 0.8) * 100)}%). After that, retake it as often as you like to practise.`), !last && !admin ? warmUp() : null, quizBox, nextBar('check'));
 
   const page = h('div', { class: 'page lesson' },
-    h('a', { href: admin ? '#curriculum' : '#training', class: 'muted back-link' }, admin ? 'Back to Curriculum' : 'Back to My training'),
+    h('a', { href: admin ? '#curriculum' : '#training', class: 'muted back-link' }, admin ? 'Back to Curriculum' : 'Back to My courses'),
     h('div', { class: 'page-head', style: 'margin-top:8px' }, h('div', null,
       h('h1', null, m.title), h('p', null, m.summary),
       h('div', { class: 'lesson-meta' }, metaRow([m.depth ? `${DEPTH_LABEL[m.depth]} depth` : null, m.minutes ? `about ${m.minutes} min` : null, m.delivery && m.delivery !== 'both' ? (m.delivery === 'ai' ? 'AI Translation' : 'Human Interpretation') : null]),
@@ -436,7 +435,7 @@ export async function moduleRoute(key, { planItems = [], rerender }) {
 export async function missedView({ readOnly = false, rerender, planItems = [] }) {
   const list = await api('GET', '/api/me/missed');
   const it = planItems.find((i) => i.key === 'missed');
-  return h('div', { class: 'page lesson' }, h('a', { href: '#training', class: 'muted' }, 'Back to My training'),
+  return h('div', { class: 'page lesson' }, h('a', { href: '#training', class: 'muted' }, 'Back to My courses'),
     h('div', { class: 'page-head', style: 'margin-top:8px' }, h('div', null, h('h1', null, 'The questions you missed in October'), h('p', null, 'Say your answer out loud first, then reveal. Retrieval is what makes it stick.'))),
     h('div', { class: 'card' }, list.length ? list.map((x) => { const a = h('div', { class: 'a', hidden: true }, 'Answer: ', x.answer || 'None'); return h('div', { class: 'q-item' }, h('b', null, `Q${x.qnum}. ${x.question}`), h('div', null, h('button', { class: 'btn sm', style: 'margin-top:6px', on: { click: (e) => { a.hidden = false; e.target.remove(); } } }, 'Reveal answer')), a); }) : h('div', { class: 'ok' }, 'No missed questions on record.'),
       it && !readOnly ? h('div', { style: 'margin-top:14px' }, it.done ? h('span', { class: 'chip green' }, 'Done') : h('button', { class: 'btn primary', on: { click: async () => { await api('POST', '/api/me/items/missed/done', {}); toast('Ticked off'); rerender(); } } }, 'I have gone through them all')) : null));

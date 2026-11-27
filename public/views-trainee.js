@@ -118,7 +118,7 @@ export function planView(data, { readOnly = false, onChange } = {}) {
       items.length ? items.map((p) => planItem(data, p, { readOnly, onChange })) : h('div', { class: 'muted small' }, 'Nothing planned yet.'));
   };
   return h('div', { class: 'page' },
-    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My training plan'), h('p', null, 'Your next three months, built around your results and the scenarios your clients bring you.')),
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My courses'), h('p', null, 'Your next three months, built around your results and the scenarios your clients bring you.')),
       total ? h('div', { class: 'row' }, h('div', { class: 'ring', style: `--p:${p100}`, role: 'img', 'aria-label': `${p100}% complete` }, h('b', null, `${p100}%`)), h('div', { class: 'muted' }, `${done} of ${total} done`)) : null),
     total ? h('div', { class: 'grid g3' }, [1, 2, 3].map(col)) : empty('Your plan is on its way', 'Your Academy team is preparing a plan customised to your results. It will appear here.'));
 }
@@ -187,7 +187,7 @@ function academyResults() {
         return h('a', { class: `stile ${r ? (ok ? 'pass' : 'below') : 'todo'}`, href: `#sandbox-${x.key}` },
           h('span', { class: 'st-n' }, String(SANDBOXES[x.key]?.num ?? '')),
           h('div', { class: 'st-main' }, h('b', null, SANDBOXES[x.key]?.title || x.key), h('small', null, r ? `${x.runs} run${x.runs > 1 ? 's' : ''}, best ${x.best}%` : 'Not tried yet')),
-          h('span', { class: 'st-score' }, r ? `${r.score}%` : 'Start'));
+          h('span', { class: 'st-score' }, r ? `${r.score}%` : 'Not taken'));
       })));
     }).catch(() => sbx.lastChild.replaceWith(h('div', { class: 'muted' }, 'Could not load the sandbox results.')));
     box.replaceChildren(head, table, sbx, list);
