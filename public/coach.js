@@ -30,7 +30,7 @@ export function coachWidget() {
   let open = false, busy = false, ai = false;
   api('GET', '/api/me/coach').then((r) => { ai = !!r.ai; }).catch(() => {});
   const log = h('div', { class: 'co-log', 'aria-live': 'polite' });
-  const input = h('textarea', { rows: 1, placeholder: 'Ask about your programme, results or the Academy', maxlength: 500, 'aria-label': 'Your question',
+  const input = h('textarea', { rows: 1, placeholder: 'Ask KUDOG a question', maxlength: 500, 'aria-label': 'Your question',
     on: { keydown: (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input.value); } }, input: () => { awake(); if (!busy) dog.mood(input.value.trim() ? 'listening' : 'idle'); }, focus: () => awake(), blur: () => { if (!busy && dog.state() === 'listening' && !input.value.trim()) dog.mood('idle'); } } });
   const chips = h('div', { class: 'co-chips' }, SUGGEST.map((s) => h('button', { type: 'button', on: { click: () => send(s) } }, s)));
   const bubble = (role, text, links = []) => {

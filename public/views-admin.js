@@ -101,7 +101,7 @@ function tabResults(d) {
   const missed = live ? d.questions.filter((q) => q.round_id === live.round.id && !q.correct) : [];
   return h('div', { class: 'stack' },
     h('div', { class: 'grid g3' }, kpi('Self rating', pct(self?.map.overall?.pct), self?.round.label || 'Not completed'), kpi('Knowledge test', o ? (o.total ? `${o.correct}/${o.total}` : pct(o.pct)) : 'None', live ? `${pct(o.pct)}, ${live.round.label}` : 'Not taken'), kpi('Gap', o && self?.map.overall ? `${o.pct - self.map.overall.pct >= 0 ? '+' : ''}${Math.round(o.pct - self.map.overall.pct)} pts` : 'None', 'Test minus self rating')),
-    h('div', { class: 'card' }, h('h2', null, 'By scenario'), legend(), self || live ? pairedBars(rows) : h('div', { class: 'empty' }, 'No results loaded for this person yet.')),
+    h('div', { class: 'card' }, h('h2', null, 'By scenario'), legend(), self || live ? (() => { const has = rows.filter((r) => r.self != null || r.live != null); return h('div', null, pairedBars(has), has.length < rows.length ? h('div', { class: 'muted small' }, `${rows.length - has.length} scenarios without results yet`) : null); })() : h('div', { class: 'empty' }, 'No results loaded for this person yet.')),
     d.oneToOne ? h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('h2', null, '1:1 priority'), h('span', { class: `chip ${d.oneToOne.flagged ? 'coral' : 'grey'}` }, d.oneToOne.flagged ? 'Flagged for a 1:1' : 'Below the 55 flag')),
       h('p', { class: 'sub' }, 'Highest scenarios for this person (40% demand, 30% weakness, 15% struggle, 10% over-confidence, 5% risk).'),
       d.oneToOne.scenarios.map((s) => h('div', { class: 'row spread', style: 'padding:6px 0' }, h('b', null, scLabel(s.scenario)), h('span', { class: 'chip blue' }, s.score)))) : null,
@@ -166,7 +166,7 @@ function tabProfile(d, reload) {
   const weight = h('input', { type: 'number', min: 0, max: 1, step: 0.5, value: u.weight }), dem = select(scOpts('None'), u.demand_scenario);
   const sts = META.scenarios.map((s) => ({ s, el: h('input', { type: 'checkbox', checked: (u.struggle_scenarios || []).includes(s.key), style: 'width:auto' }) }));
   const save = async () => { try { await api('PATCH', `/api/admin/trainees/${u.id}`, { name: name.value, region: region.value, team: team.value, weight: Number(weight.value), demand_scenario: dem.value, struggle_scenarios: sts.filter((x) => x.el.checked).map((x) => x.s.key) }); toast('Saved'); reload(); } catch (e) { toast(e.message, true); } };
-  return h('div', { class: 'grid g2' },
+  return h('div', { class: 'grid g2 top' },
     h('div', { class: 'card' }, h('h2', null, 'Profile'), h('div', { style: 'margin-top:12px' }, field('Name', name), h('div', { class: 'grid g2' }, field('Region', region), field('Team', team)), field('Priority weight', weight, '1 = CM & Sales. 0.5 = other departments. 0 = excluded from priority scoring.'), field('Scenario clients bring most', dem)), h('button', { class: 'btn primary', on: { click: save } }, 'Save profile')),
     h('div', { class: 'stack' },
       h('div', { class: 'card' }, h('h2', null, 'Struggle tags'), h('p', { class: 'sub' }, 'Scenarios their “dreaded question” relates to. Feeds the 15% struggle part of the priority score.'), h('div', { class: 'pick-list' }, sts.map((x) => h('label', null, x.el, x.s.label))), h('div', { style: 'margin-top:12px' }, h('button', { class: 'btn primary', on: { click: save } }, 'Save tags'))),
@@ -282,13 +282,13 @@ export async function usersView() {
 export async function auditView() {
   const rows = await api('GET', '/api/admin/audit');
   return h('div', { class: 'page' }, h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Activity log'), h('p', null, 'The last 200 sign-ins and changes'))),
-    h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['When', 'Who', 'Action', 'Target', 'Detail'].map((x) => h('th', null, x)))), h('tbody', null, rows.map((r) => h('tr', null, h('td', null, new Date(r.at).toLocaleString('en-GB')), h('td', null, r.actor_email || 'None'), h('td', null, h('span', { class: 'chip grey' }, r.action)), h('td', null, r.target || ''), h('td', { class: 'muted small' }, (r.detail || '').slice(0, 120))))))));
+    h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['When', 'Who', 'Action', 'Target', 'Detail'].map((x) => h('th', null, x)))), h('tbody', null, rows.map((r) => h('tr', null, h('td', { class: 'nowrap' }, new Date(r.at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })), h('td', null, r.actor_email || 'None'), h('td', null, h('span', { class: 'chip grey' }, r.action)), h('td', null, r.target || ''), h('td', { class: 'muted small' }, (r.detail || '').slice(0, 120))))))));
 }
 
 // ---------------------------------------------------------------- Logic notes
 export function logicView() {
   const sec = (t, ...c) => [h('h3', null, t), ...c];
-  return h('div', { class: 'page', style: 'max-width:860px' }, h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Logic notes'), h('p', null, 'The rules the Academy Tracker follows. If a rule changes, update this page too.'))),
+  return h('div', { class: 'page logic-page' }, h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Logic notes'), h('p', null, 'The rules the Academy Tracker follows. If a rule changes, update this page too.'))),
     h('div', { class: 'card logic' },
       sec('Who sees what', h('ul', null, h('li', null, h('b', null, 'Admin'), ': every person, every result, plans, targets, notes, imports, access and the activity log.'), h('li', null, h('b', null, 'Trainee'), ': only their own results, progress, targets, training plan and notes shared with them. They cannot see colleagues, team averages or rankings. The server enforces this; the screens do not decide it.'))),
       sec('Sign-in', h('ul', null, h('li', null, 'Email and password, stored in the Academy’s own database as a bcrypt hash.'), h('li', null, 'New accounts start with the generic password and must choose their own at first sign-in (at least 10 characters, a letter and a number).'), h('li', null, 'Five wrong passwords lock the account for 15 minutes. An admin can reset a password to the generic one at any time.'))),

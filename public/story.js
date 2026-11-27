@@ -54,7 +54,7 @@ export function storyPlayer(moduleKey, story, { toPractice } = {}) {
   const N = story.slides.length;
   let i = Math.min(recall(moduleKey), N - 1);
   const stage = h('div', { class: 'st-stage' });
-  const bar = h('div', { class: 'st-progress', role: 'progressbar', 'aria-valuemin': 1, 'aria-valuemax': N });
+  const bar = h('div', { class: 'st-progress', role: 'progressbar', 'aria-label': 'Slides', 'aria-valuemin': 1, 'aria-valuemax': N });
   const count = h('span', { class: 'st-count' });
   const back = h('button', { class: 'btn', type: 'button', on: { click: () => go(i - 1) } }, 'Back');
   const next = h('button', { class: 'btn primary', type: 'button', on: { click: () => go(i + 1) } }, 'Next');

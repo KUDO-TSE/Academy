@@ -9,10 +9,10 @@
   --kudo-navy:#11374F; --kudo-blue:#1B5C84; --kudo-sky:#48A1D8; --kudo-coral:#DB6539; --kudo-amber:#F8C63F;
   /* neutrals: cool slate, tuned to the navy */
   --n-0:#FFFFFF; --n-25:#FAFBFC; --n-50:#F5F7F9; --n-100:#EEF1F4; --n-150:#E5E9EE; --n-200:#D9DFE5; --n-300:#C1C9D2;
-  --n-400:#8E99A6; --n-500:#64707D; --n-600:#4A5562; --n-700:#323C47; --n-800:#1E2833; --n-900:#111A24;
+  --n-400:#8E99A6; --n-500:#58636F; --n-600:#4A5562; --n-700:#323C47; --n-800:#1E2833; --n-900:#111A24;
   /* semantic */
   --bg-app:var(--n-50); --bg-panel:var(--n-0); --bg-sunken:var(--n-25);
-  --ink-900:var(--n-900); --ink-700:var(--n-700); --ink-500:var(--n-500); --ink-400:var(--n-400);
+  --ink-900:var(--n-900); --ink-700:var(--n-700); --ink-500:var(--n-500); --ink-400:#64707D;
   --border:var(--n-150); --border-soft:var(--n-100); --border-strong:var(--n-200);
   --primary:var(--kudo-blue); --primary-600:var(--kudo-navy); --primary-100:#E8F1F8; --primary-50:#F3F8FC;
   --teal:var(--kudo-sky); --teal-100:#DCEDF8; --coral:var(--kudo-coral); --coral-100:#FBE6DC; --coral-ink:#A3431D;
@@ -55,7 +55,7 @@ a:hover{color:var(--primary-600)}
 .nav a.active::before{left:-12px;top:10px;bottom:10px;width:3px;background:var(--primary)}
 .nav svg{width:18px;height:18px;color:var(--n-400)}
 .nav a:hover svg{color:var(--ink-500)} .nav a.active svg{color:var(--primary)}
-.nav .sep{font-family:var(--font-head);font-size:11px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--n-400);padding:var(--s-5) var(--s-3) var(--s-2)}
+.nav .sep{font-family:var(--font-head);font-size:11px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-400);padding:var(--s-5) var(--s-3) var(--s-2)}
 .acct{border-top:1px solid var(--border-soft);padding-top:var(--s-3)}
 .acct-btn{border-radius:var(--radius-md);padding:var(--s-2)}
 .acct-btn:hover{background:var(--n-50)}
@@ -373,3 +373,35 @@ td.none{color:var(--ink-400);font-weight:400}
 .weekgrid{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
 .wday{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));column-gap:var(--s-5);align-content:start}
 .wday>.wday-h,.wday>.muted{grid-column:1/-1}
+
+/* ---------- round 4: details ---------- */
+.f .hint,.hint{margin:6px 0 var(--s-4);font-size:12.5px;line-height:1.4}
+.grid.top{align-items:start}
+td.nowrap{white-space:nowrap;font-variant-numeric:tabular-nums}
+.logic-page .card.logic{max-width:880px}
+.co-in textarea{min-height:44px;height:44px;padding:11px 12px;border-color:var(--border-strong);border-radius:var(--radius-md)}
+.co-in textarea:focus{border-color:var(--primary);box-shadow:var(--ring);outline:0}
+
+/* Tables on phones: one card per row, each value with its column name */
+@media (max-width:640px){
+  .tbl-wrap{border:0;background:transparent;overflow:visible;border-radius:0}
+  table.tbl,table.tbl tbody{display:block;width:100%}
+  table.tbl thead{display:none}
+  table.tbl tr{display:block;background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--s-1) var(--s-4);margin-bottom:var(--s-3);box-shadow:var(--shadow-1)}
+  table.tbl td{display:flex;justify-content:space-between;align-items:center;gap:var(--s-4);padding:10px 0;border-bottom:1px solid var(--border-soft);text-align:right;min-height:0;white-space:normal}
+  table.tbl td::before{content:attr(data-label);font-family:var(--font-head);font-size:12.5px;font-weight:600;color:var(--ink-500);text-align:left;flex:none;max-width:45%}
+  table.tbl td:first-child{display:block;text-align:left;font-size:15px;padding-top:12px}
+  table.tbl td:first-child::before,table.tbl td[data-label=""]::before{display:none}
+  table.tbl tr:last-child td,table.tbl td:last-child{border-bottom:0}
+  table.tbl td.none{color:var(--ink-400)}
+  table.tbl td>.row,table.tbl td>div{justify-content:flex-end}
+}
+@media (max-width:640px){
+  table.tbl td{flex-wrap:wrap;row-gap:6px;column-gap:6px}
+  table.tbl td::before{margin-right:auto}
+  table.tbl td:first-child>.row,table.tbl td:first-child>div{justify-content:flex-start}
+  table.tbl td:empty{display:none}
+}
+/* Links inside running text are underlined, not told apart by colour alone; the page area shows no ring when clicked */
+.main p a:not(.btn),.lesson a:not(.btn),.card .sub a:not(.btn){text-decoration:underline;text-underline-offset:2px;text-decoration-thickness:1px}
+#main:focus:not(:focus-visible){outline:0}

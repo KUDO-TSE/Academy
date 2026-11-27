@@ -18,6 +18,8 @@ export function h(tag, attrs, ...kids) {
   }
   // Empty table values read "None": shown quietly so the real figures stand out.
   if (tag === 'td' && el.childNodes.length === 1 && el.textContent === 'None') el.classList.add('none');
+  // A labelled icon (a tick, a status mark) is announced as an image with that label.
+  if (tag === 'span' && el.hasAttribute('aria-label') && !el.hasAttribute('role') && !el.textContent.trim()) el.setAttribute('role', 'img');
   return el;
 }
 export const svg = (markup) => { const t = document.createElement('template'); t.innerHTML = markup; const el = t.content.firstElementChild; if (el && el.tagName.toLowerCase() === 'svg' && !el.hasAttribute('aria-label') && !el.hasAttribute('role') && !el.querySelector('title')) el.setAttribute('aria-hidden', 'true'); return el; };
@@ -137,4 +139,15 @@ export function quiet(root) {
   });
   const all = () => { run(); tiles(); };
   all(); new MutationObserver(all).observe(root, { childList: true, subtree: true });
+}
+
+// Phone layout for tables: each cell carries its column header as data-label, so CSS can stack a row as a card.
+const labelTables = () => document.querySelectorAll('table.tbl').forEach((t) => {
+  const heads = [...t.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+  if (!heads.length) return;
+  t.querySelectorAll('tbody tr').forEach((tr) => [...tr.children].forEach((td, i) => { if (!td.hasAttribute('data-label')) td.setAttribute('data-label', heads[i] || ''); }));
+});
+if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined') {
+  let queued = false;
+  new MutationObserver(() => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; labelTables(); }); }).observe(document.documentElement, { childList: true, subtree: true });
 }
