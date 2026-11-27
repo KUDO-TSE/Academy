@@ -7,7 +7,17 @@ import { EXPLAIN, RUBRIC, SURVEY, WALKTHROUGHS, PRACTICE } from './curriculum-ex
 import { CASES } from './curriculum-bank.js';
 import { faqFor } from './sessions.js';
 import { updatesFor, editedIn } from './releases.js';
-async function videoLinks() { return (await q("SELECT value FROM app_settings WHERE key='videos'")).rows[0]?.value || {}; }
+// Videos set in code until an admin sets another link for the module (the admin's link wins).
+const DEFAULT_VIDEOS = { hybrid: 'https://player.vimeo.com/video/1218279487' };
+async function videoLinks() { return { ...DEFAULT_VIDEOS, ...((await q("SELECT value FROM app_settings WHERE key='videos'")).rows[0]?.value || {}) }; }
+/** A Vimeo page or management link becomes its player link, so it plays inside the lesson. */
+export function vimeoEmbed(url) {
+  try {
+    const u = new URL(url); if (!/(^|\.)vimeo\.com$/.test(u.hostname) || u.hostname === 'player.vimeo.com') return url;
+    const m = u.pathname.match(/^\/(?:manage\/videos\/)?(\d+)(?:\/([0-9a-f]+))?/); if (!m) return url;
+    return `https://player.vimeo.com/video/${m[1]}${m[2] ? `?h=${m[2]}` : ''}`;
+  } catch { return url; }
+}
 import { enqueue } from './autoreview.js';
 import { SANDBOX, SANDBOX_SIGNS } from './sandboxes.js';
 import { STORIES } from './stories.js';
@@ -487,7 +497,7 @@ adminProgramme.post('/programme/approve-all', async (req, res, next) => {
 adminProgramme.put('/curriculum/:key/video', async (req, res, next) => {
   try {
     const key = req.params.key; if (!MODULE_BY_KEY[key]) return res.status(404).json({ error: 'Not found.' });
-    const url = String(req.body?.url || '').trim();
+    const url = vimeoEmbed(String(req.body?.url || '').trim());
     if (url) { let u; try { u = new URL(url); } catch { return bad(res, 'Paste a full link starting with https://'); } if (u.protocol !== 'https:') return bad(res, 'Use an https link.'); }
     const v = await videoLinks(); if (url) v[key] = url.slice(0, 1000); else delete v[key];
     await q("INSERT INTO app_settings (key,value) VALUES ('videos',$1) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value", [v]);

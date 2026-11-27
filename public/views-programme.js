@@ -55,11 +55,11 @@ function levelBars(levels) {
 // YouTube no-cookie), otherwise opened in a new tab. Admins paste the link from the Curriculum page.
 function videoBlock(m, admin) {
   const url = m.video;
-  const embeddable = (u) => { try { const x = new URL(u); return (/\.sharepoint\.com$/.test(x.hostname) && /\/_layouts\/15\/embed\.aspx/i.test(x.pathname)) || (x.hostname === 'www.youtube-nocookie.com' && x.pathname.startsWith('/embed/')); } catch { return false; } };
-  const view = url ? (embeddable(url) ? h('div', { class: 'video' }, h('iframe', { src: url, title: `Explainer video: ${m.title}`, allow: 'fullscreen', loading: 'lazy' }))
+  const embeddable = (u) => { try { const x = new URL(u); return (/\.sharepoint\.com$/.test(x.hostname) && /\/_layouts\/15\/embed\.aspx/i.test(x.pathname)) || (x.hostname === 'www.youtube-nocookie.com' && x.pathname.startsWith('/embed/')) || (x.hostname === 'player.vimeo.com' && x.pathname.startsWith('/video/')); } catch { return false; } };
+  const view = url ? (embeddable(url) ? h('div', { class: 'video' }, h('iframe', { src: url, title: `Explainer video: ${m.title}`, allow: 'fullscreen; picture-in-picture', loading: 'lazy' }))
     : h('a', { class: 'btn', href: url, target: '_blank', rel: 'noopener' }, '▶ Watch the explainer video')) : null;
   if (!admin) return view;
-  const input = h('input', { type: 'url', value: url || '', placeholder: 'Paste the video link (a SharePoint embed link plays in the page)', style: 'flex:1;min-width:240px' });
+  const input = h('input', { type: 'url', value: url || '', placeholder: 'Paste the video link (Vimeo, or a SharePoint embed link, plays in the page)', style: 'flex:1;min-width:240px' });
   return h('div', { class: 'stack', style: 'margin-bottom:10px' }, view, h('div', { class: 'row', style: 'gap:6px' }, input,
     h('button', { class: 'btn sm', on: { click: async () => { try { await api('PUT', `/api/admin/curriculum/${m.key}/video`, { url: input.value }); toast(input.value ? 'Video link saved' : 'Video link removed'); } catch (e) { toast(e.message, true); } } } }, 'Save video link')),
     h('div', { class: 'muted small' }, 'In SharePoint: open the video, Share, Embed, and copy the link inside src="…". Trainees need access to the file.'));

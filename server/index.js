@@ -41,7 +41,7 @@ export async function createApp() {
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         imgSrc: ["'self'", 'data:'],
         mediaSrc: ["'self'", 'blob:'],
-        frameSrc: ['https://kudolive.sharepoint.com', 'https://*.sharepoint.com', 'https://www.youtube-nocookie.com'],
+        frameSrc: ['https://kudolive.sharepoint.com', 'https://*.sharepoint.com', 'https://www.youtube-nocookie.com', 'https://player.vimeo.com'],
         scriptSrc: ["'self'"],
         connectSrc: ["'self'"],
         frameAncestors: ["'none'"],

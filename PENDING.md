@@ -3,6 +3,7 @@
 Updated 27 Nov 2026 (Teams and Zoom recordings in: sandbox exercises 4 and 6, Teams and Zoom lessons corrected; Google Meet and Webex exercises 7 and 8 built on the Zoom journey; KUDOG answers with Claude, test trainees start fresh, content from the old KUDO Academy course). Ask "what is still pending?" at any time; this list is kept up to date with every change.
 
 ## Waiting on Nils
+- **Hybrid video (Vimeo 1218279487):** it now plays inside the Hybrid lesson. If trainees see "Because of its privacy settings, this video cannot be played here", set the video's Embed privacy in Vimeo to allow the Academy's address (or Anywhere).
 - **Slack webhook for "Brag to the team".** In Slack, create an incoming webhook for the channel the brags should go to (Slack app settings, Incoming Webhooks, Add New Webhook). In Railway add `SLACK_WEBHOOK_URL` (the hooks.slack.com address) and `SLACK_CHANNEL_NAME` (for example `kudo-academy`, shown on the button). Until then the brag button stays hidden. Once academy.kudo.ai is live, also set `ACADEMY_URL` so the message links there.
 - **Recordings (announced for 27 Nov):**
   - The client's side of each integration, to rebuild as generic look-alikes and to correct the screen mocks in the lesson slides: Microsoft Teams admin center (app approval and policies), ON24 (Console Builder), RingCentral Events (app settings). A short Google Meet and Webex recording would confirm exercises 7 and 8, built from Google's and Cisco's public help pages.
