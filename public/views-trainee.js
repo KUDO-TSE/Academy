@@ -157,30 +157,38 @@ function academyResults() {
       fact('Passed', taken.length ? `${passed.length} of ${taken.length}` : 'None', `Pass mark ${Math.round(d.pass * 100)}%`, taken.length && passed.length === taken.length ? 'good' : ''),
       fact('Average score', avg != null ? `${avg}%` : 'None', 'Across your module tests of record'),
       fact('Explain-it recordings', String(ex.length), ex.length ? `${ex.filter((m) => m.explain.reviewed).length} reviewed by your KUDO Trainer` : 'None sent yet'));
-    const row = (m) => h('tr', null,
-      h('td', null, h('a', { href: `#module-${m.key}` }, m.title), h('div', { class: 'muted small' }, m.short || 'Cross-cutting topic')),
-      h('td', { class: 'num' }, m.check ? h('span', null, `${m.check.pct}%`, h('span', { class: `chip ${m.check.passed ? 'green' : 'amber'}`, style: 'margin-left:8px' }, m.check.passed ? 'Passed' : 'Below pass')) : h('a', { class: 'small', href: `#module-${m.key}` }, 'Not taken')),
-      h('td', { class: 'num' }, m.walk ? `${m.walk.pct}%` : 'None'),
-      h('td', { class: 'num' }, m.explain ? h('span', { title: m.explain.reviewed ? 'Reviewed by your KUDO Trainer' : 'Automatic review: your KUDO Trainer may change it' }, `${m.explain.pct}%`, h('span', { class: 'muted small' }, m.explain.reviewed ? ' reviewed' : ' auto')) : 'None'),
-      h('td', { class: 'num muted small' }, m.practice ? `${m.practice.n}, best ${m.practice.best}%` : 'None'),
-      h('td', { class: 'num muted small' }, m.check ? fmtDate(m.check.at) : 'None'));
-    const table = h('div', { class: 'card' }, h('h2', null, 'Academy tests, module by module'), h('p', { class: 'sub' }, 'Your result of record is your first attempt. Retakes are practice: they show here and never replace it'),
-      (() => { const done = d.modules.filter((m) => m.check || m.walk || m.explain || m.practice), rest = d.modules.filter((m) => !done.includes(m));
-        const thead = h('thead', null, h('tr', null, ['Module', 'Module test', 'Walkthrough', 'Explain it', 'Practice retakes', 'Taken'].map((x, i) => h('th', { class: i ? 'num' : null }, x))));
-        return h('div', null, done.length ? h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, thead, h('tbody', null, done.map(row)))) : h('p', { class: 'muted' }, 'No module test yet.'),
-          rest.length ? h('details', { class: 'not-taken' }, h('summary', null, `${rest.length} module${rest.length > 1 ? 's' : ''} not taken yet`), h('div', { class: 'chips-wrap' }, rest.map((m) => h('a', { class: 'chip grey', href: `#module-${m.key}` }, m.title)))) : null); })());
+    // Module tiles: the test score against the pass mark, then the other ways the module was worked on.
+    const passPct = Math.round(d.pass * 100);
+    const tile = (m) => {
+      const c = m.check, sc = c ? c.pct : null;
+      return h('a', { class: `mtile ${c ? (c.passed ? 'pass' : 'below') : 'todo'}`, href: `#module-${m.key}` },
+        h('div', { class: 'mt-top' }, h('div', null, h('b', null, m.title), h('small', null, m.short || 'Cross-cutting topic')),
+          h('span', { class: 'mt-score' }, sc != null ? `${sc}%` : 'Not taken')),
+        h('div', { class: 'mt-bar', style: `--pass:${passPct}%` }, h('i', { style: `width:${sc ?? 0}%` })),
+        h('div', { class: 'mt-meta' },
+          h('span', null, 'Walkthrough ', h('b', null, m.walk ? `${m.walk.pct}%` : 'None')),
+          h('span', null, 'Explain it ', h('b', null, m.explain ? `${m.explain.pct}%` : 'None')),
+          h('span', null, 'Retakes ', h('b', null, m.practice ? String(m.practice.n) : '0'))),
+        c ? h('span', { class: `chip ${c.passed ? 'green' : 'amber'}` }, c.passed ? `Passed, ${fmtDate(c.at)}` : `Below ${passPct}%, ${fmtDate(c.at)}`) : h('span', { class: 'chip grey' }, 'Take the module test'));
+    };
+    const worked = d.modules.filter((m) => m.check || m.walk || m.explain || m.practice), rest = d.modules.filter((m) => !worked.includes(m));
+    const table = h('section', { class: 'card' }, h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'Your modules'), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, `Your first attempt is the result of record; the bar shows it against the ${passPct}% pass mark.`))),
+      worked.length ? h('div', { class: 'mtiles' }, worked.map(tile)) : h('div', { class: 'empty-note' }, h('b', null, 'No module test yet.'), ' Your scores appear here as soon as you take your first module test.'),
+      rest.length ? h('details', { class: 'not-taken' }, h('summary', null, `${rest.length} module${rest.length > 1 ? 's' : ''} not started`), h('div', { class: 'mtiles compact' }, rest.map(tile))) : null);
     const list = h('div', { class: 'card' }, h('h2', null, 'Every attempt'), h('p', { class: 'sub' }, 'Newest first. Results of record and practice'),
       d.attempts.length ? h('ul', { class: 'lp-feed' }, d.attempts.slice(0, 40).map((a) => h('li', null,
         h('span', { class: 'muted small lp-when' }, ago(a.at)),
         h('div', { class: 'lp-what' }, h('a', { href: `#module-${a.module}` }, a.moduleTitle), h('span', { class: 'muted small sep-l' }, `${KIND_LABEL[a.kind] || 'Test'}${a.kind === 'explain' ? (a.reviewed ? ', reviewed by your KUDO Trainer' : ', automatic review') : ''}`)),
         h('div', { class: 'lp-eff' }, h('span', { class: `chip ${a.record ? 'blue' : 'grey'}` }, a.record ? 'Result of record' : 'Practice'), h('b', null, a.pct != null ? `${a.pct}%` : 'None'))))) : h('p', { class: 'muted', style: 'margin:8px 0 0' }, 'No test yet. Open a module and take its test.'));
-    const sbx = h('div', { class: 'card' }, h('h2', null, 'Sandbox exercises'), h('p', { class: 'sub' }, 'Hands-on tasks on the replica of the KUDO screens. Your first run is the result of record; pass mark 80%'), h('div', { class: 'muted' }, 'Loading…'));
+    const sbx = h('section', { class: 'card' }, h('h2', null, 'Sandbox exercises'), h('p', { class: 'sub keep' }, 'Hands-on tasks on replicas of the KUDO screens and the client\'s tools. Your first run is the result of record; pass mark 80%.'), h('div', { class: 'muted' }, 'Loading…'));
     api('GET', '/api/me/sandbox').then(({ scenarios }) => {
-      const title = (k) => SANDBOXES[k] ? `Scenario ${SANDBOXES[k].num}: ${SANDBOXES[k].title}` : k;
-      sbx.lastChild.replaceWith(h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Exercise', 'Result of record', 'Runs', 'Best', 'Taken'].map((x, i) => h('th', { class: i ? 'num' : null }, x)))),
-        h('tbody', null, [...scenarios].sort((a, b) => (SANDBOXES[a.key]?.num || 99) - (SANDBOXES[b.key]?.num || 99)).map((x) => h('tr', null, h('td', null, h('a', { href: `#sandbox-${x.key}` }, title(x.key))),
-          h('td', { class: 'num' }, x.record ? h('span', null, `${x.record.score}%`, h('span', { class: `chip ${x.record.score >= 80 ? 'green' : 'amber'}`, style: 'margin-left:8px' }, x.record.score >= 80 ? 'Passed' : 'Below 80%')) : h('a', { class: 'small', href: `#sandbox-${x.key}` }, 'Not tried')),
-          h('td', { class: 'num muted small' }, String(x.runs)), h('td', { class: 'num muted small' }, x.best != null ? `${x.best}%` : 'None'), h('td', { class: 'num muted small' }, x.record ? fmtDate(x.record.at) : 'None')))))));
+      sbx.lastChild.replaceWith(h('div', { class: 'stiles' }, [...scenarios].sort((a2, b2) => (SANDBOXES[a2.key]?.num || 99) - (SANDBOXES[b2.key]?.num || 99)).map((x) => {
+        const r = x.record, ok = r && r.score >= 80;
+        return h('a', { class: `stile ${r ? (ok ? 'pass' : 'below') : 'todo'}`, href: `#sandbox-${x.key}` },
+          h('span', { class: 'st-n' }, String(SANDBOXES[x.key]?.num ?? '')),
+          h('div', { class: 'st-main' }, h('b', null, SANDBOXES[x.key]?.title || x.key), h('small', null, r ? `${x.runs} run${x.runs > 1 ? 's' : ''}, best ${x.best}%` : 'Not tried yet')),
+          h('span', { class: 'st-score' }, r ? `${r.score}%` : 'Start'));
+      })));
     }).catch(() => sbx.lastChild.replaceWith(h('div', { class: 'muted' }, 'Could not load the sandbox results.')));
     box.replaceChildren(head, table, sbx, list);
   }).catch((e) => box.replaceChildren(failed(e)));
