@@ -16,6 +16,8 @@ export function h(tag, attrs, ...kids) {
     if (kid == null || kid === false) continue;
     el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
   }
+  // Empty table values read "None": shown quietly so the real figures stand out.
+  if (tag === 'td' && el.childNodes.length === 1 && el.textContent === 'None') el.classList.add('none');
   return el;
 }
 export const svg = (markup) => { const t = document.createElement('template'); t.innerHTML = markup; const el = t.content.firstElementChild; if (el && el.tagName.toLowerCase() === 'svg' && !el.hasAttribute('aria-label') && !el.hasAttribute('role') && !el.querySelector('title')) el.setAttribute('aria-hidden', 'true'); return el; };

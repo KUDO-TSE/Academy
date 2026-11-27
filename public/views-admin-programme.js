@@ -1,4 +1,4 @@
-import { h, api, toast, fmtDate, dateOnly, modal, metaRow, mark } from './ui.js';
+import { h, api, toast, fmtDate, dateOnly, modal, metaRow } from './ui.js';
 import { programmeView, moduleView, KIND_LABEL, DEPTH_LABEL } from './views-programme.js';
 import { trajectoryChart } from './charts.js';
 import { journeyMap } from './journey.js';
@@ -58,10 +58,10 @@ function groupSessionsCard() {
   };
   load().catch(() => {});
   return h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Group sessions'), h('p', { class: 'sub keep' }, 'Trainees see the next one on My training, and the virtual coach answers from this list.'), list,
-    h('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:10px' },
-      h('label', { class: 'f', style: 'margin:0;flex:1;min-width:180px' }, h('span', { class: 'l' }, 'Title'), f.title), h('label', { class: 'f', style: 'margin:0' }, h('span', { class: 'l' }, 'Date and time'), f.when),
-      h('label', { class: 'f', style: 'margin:0' }, h('span', { class: 'l' }, 'Minutes'), f.minutes), h('label', { class: 'f', style: 'margin:0;flex:1;min-width:200px' }, h('span', { class: 'l' }, 'Topic'), f.topic),
-      h('label', { class: 'f', style: 'margin:0;flex:1;min-width:200px' }, h('span', { class: 'l' }, 'Link'), f.link),
+    h('div', { class: 'form-row gs-form' },
+      h('label', { class: 'f', style: 'margin:0' }, h('span', { class: 'l' }, 'Title'), f.title), h('label', { class: 'f', style: 'margin:0' }, h('span', { class: 'l' }, 'Date and time'), f.when),
+      h('label', { class: 'f', style: 'margin:0' }, h('span', { class: 'l' }, 'Minutes'), f.minutes), h('label', { class: 'f', style: 'margin:0' }, h('span', { class: 'l' }, 'Topic'), f.topic),
+      h('label', { class: 'f', style: 'margin:0' }, h('span', { class: 'l' }, 'Link'), f.link),
       h('button', { class: 'btn primary', on: { click: async () => { try { await api('POST', '/api/admin/group-sessions', { title: f.title.value, starts_at: f.when.value ? new Date(f.when.value).toISOString() : '', minutes: Number(f.minutes.value), topic: f.topic.value, link: f.link.value }); toast('Group session added'); f.title.value = ''; f.topic.value = ''; f.link.value = ''; load(); } catch (e) { toast(e.message, true); } } } }, 'Add')));
 }
 
@@ -212,7 +212,8 @@ export async function reviewsView() {
       x.transcript ? h('details', { open: true }, h('summary', null, 'Transcript'), h('div', { class: 'pre' }, x.transcript)) : x.text_answer ? h('div', { class: 'pre' }, x.text_answer) : null,
       x.auto?.rubric ? h('div', { class: 'auto-box' }, h('b', null, `Automatic review: ${x.auto.rating} (${x.auto.avg}/3)`), h('div', { class: 'small' }, x.auto.note), x.auto.flags?.length ? h('div', { class: 'small', style: 'color:var(--danger)' }, `Flags: ${x.auto.flags.join('; ')}`) : null, h('div', { class: 'muted small' }, `Pace ${x.auto.metrics?.wpm ?? 'unknown'} words/min, ${x.auto.metrics?.fillers ?? 0} filler words`)) : null,
       x.human_requested ? h('div', { class: 'chip coral' }, 'The trainee asked for your view') : null,
-      h('div', { class: 'small', style: 'margin-top:8px' }, h('b', null, x.auto?.points ? ['Key points (automatic check: ', mark(true), ' covered, ? unsure, ○ not heard): '] : 'Key points: '), h('ul', { style: 'list-style:none;padding-left:4px;margin:4px 0' }, x.points.map((p, i) => { const a = x.auto?.points?.[i]; return h('li', null, a ? (a.covered ? mark(true) : a.unsure ? '? ' : '○ ') : '• ', p); }))),
+      h('div', { class: 'kp' }, h('div', { class: 'kp-h' }, h('b', null, 'Key points'), x.auto?.points ? h('span', { class: 'kp-legend' }, h('span', { class: 'kp-ic kp-ok' }), 'covered', h('span', { class: 'kp-ic kp-unsure' }, '?'), 'unsure', h('span', { class: 'kp-ic kp-miss' }, ''), 'not heard', h('span', { class: 'muted' }, '(automatic check)')) : null),
+        h('ul', { class: 'kp-list' }, x.points.map((p, i) => { const a = x.auto?.points?.[i]; const k = a ? (a.covered ? 'ok' : a.unsure ? 'unsure' : 'miss') : 'none'; return h('li', null, h('span', { class: `kp-ic kp-${k}`, 'aria-label': { ok: 'Covered', unsure: 'Unsure', miss: 'Not heard', none: '' }[k] || null }, k === 'unsure' ? '?' : ''), h('span', null, p)); }))),
       h('div', { class: 'grid g4' }, d.rubric.map((c) => h('label', { class: 'f' }, h('span', { class: 'l' }, c.label), sel[c.key], h('div', { class: 'hint' }, c.hint)))),
       comment,
       h('button', { class: 'btn primary', style: 'margin-top:8px', on: { click: async () => {

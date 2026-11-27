@@ -4,7 +4,7 @@ Updated 27 Nov 2026 (Teams and Zoom recordings in: sandbox exercises 4 and 6, Te
 
 ## Waiting on Nils
 - **Explainer videos on Vimeo (Teams, Zoom, Hybrid, Widget, RTMP, HLS):** they now play inside their lessons. If trainees see "Because of its privacy settings, this video cannot be played here", set the video's Embed privacy in Vimeo to allow the Academy's address (or Anywhere).
-- **Slack webhook for "Brag to the team".** In Slack, create an incoming webhook for the channel the brags should go to (Slack app settings, Incoming Webhooks, Add New Webhook). In Railway add `SLACK_WEBHOOK_URL` (the hooks.slack.com address) and `SLACK_CHANNEL_NAME` (for example `kudo-academy`, shown on the button). Until then the brag button stays hidden. Once academy.kudo.ai is live, also set `ACADEMY_URL` so the message links there.
+- **Slack webhook for "Brag to the team".** In Slack, create an incoming webhook for the channel the brags should go to (Slack app settings, Incoming Webhooks, Add New Webhook). In Railway add `SLACK_WEBHOOK_URL` (the hooks.slack.com address) and `SLACK_CHANNEL_NAME` (for example `kudo-academy`, shown on the button). Until then the brag button stays hidden. The message links to https://academy.kudo.ai (set `ACADEMY_URL` only to use another address).
 - **Recordings (announced for 27 Nov):**
   - The client's side of each integration, to rebuild as generic look-alikes and to correct the screen mocks in the lesson slides: Microsoft Teams admin center (app approval and policies), ON24 (Console Builder), RingCentral Events (app settings). Exercises 7 (Google Meet) and 8 (Webex) follow Google's and Cisco's help pages; the bot behaves the same on every platform (confirmed 27 Nov).
   - KUDO screens not recorded yet: the live meeting page, Create glossary and term screens, AI detection and voices, Audio Manager, onsite QR, the KUDO Live phone app (Meet Now), the preparation materials page, partial booking, the full Usage & analytics.
@@ -31,7 +31,6 @@ Updated 27 Nov 2026 (Teams and Zoom recordings in: sandbox exercises 4 and 6, Te
   - Should sandbox runs count towards the level?
   - Who records the expert runs: the KUDO Trainer, or a product specialist per area?
   - The sandbox scoring split (outcome / path / time).
-- **Custom address academy.kudo.ai:** DNS records to add on kudo.ai.
 - **Security:** reset the YouTube stream key visible in the RTMP recording.
 
 ## Next to build (Claude)

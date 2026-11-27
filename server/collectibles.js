@@ -180,7 +180,7 @@ function bragOn(req) {
   return ok ? { on: true, channel: process.env.SLACK_CHANNEL_NAME || null, lines: BRAG_LINES.length } : { on: false };
 }
 function academyUrl() {
-  const u = process.env.ACADEMY_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : '');
+  const u = process.env.ACADEMY_URL || 'https://academy.kudo.ai';
   return /^https:\/\//.test(u) ? u.replace(/\/$/, '') : null;
 }
 export function bragMessage(user, card, { line = 0, note = '', earned = 0, total = CATALOG.length, rarity = null } = {}) {

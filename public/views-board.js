@@ -55,7 +55,7 @@ export async function boardView() {
       h('div', { class: 'weekgrid' }, b.week.days.map((d) => h('div', { class: `wday ${d.date === b.today ? 'today' : ''}` },
         h('div', { class: 'wday-h' }, h('b', null, d.label), h('span', null, fmtDate(d.date)), h('span', { class: 'muted small' }, hrs(d.minutes))),
         d.tasks.length ? d.tasks.map((t) => h('div', { class: `wtask ${t.type}` }, h('b', null, t.person || 'Content'), h('div', null, t.title), h('span', { class: 'muted small' }, `${TYPE[t.type]?.[1] || 'Task'}, ${t.minutes} min`))) : h('div', { class: 'muted small' }, 'Free')))),
-      b.week.overflow.length ? h('div', { class: 'small', style: 'margin-top:10px' }, h('b', null, 'Does not fit: '), b.week.overflow.map((t) => `${t.title}${t.person ? ` (${t.person})` : ''}`).join(', ')) : null),
+      b.week.overflow.length ? h('div', { class: 'wk-over' }, h('b', null, `Does not fit this week (${b.week.overflow.length})`), h('ul', null, b.week.overflow.map((t) => h('li', { class: `wtask ${t.type}` }, h('span', null, t.title), t.person ? h('span', { class: 'muted small' }, t.person) : null)))) : null),
 
     ...GROUPS.map(([k, label, sub]) => {
       const list = b.tasks.filter((t) => t.urgency === k);
