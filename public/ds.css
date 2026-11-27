@@ -615,3 +615,16 @@ td.nowrap{white-space:nowrap;font-variant-numeric:tabular-nums}
   .un-list li{grid-template-columns:28px minmax(0,1fr)}
   .un-list li>.btn{grid-column:2;justify-self:start}
 }
+
+/* Welcome banner: a soft pastel blue with navy text (easier on the eyes than white on dark navy; text stays at 4.7:1 or more) */
+.prog .hero,.hero{background:linear-gradient(135deg,#EAF3FA 0%,#DCEAF5 100%);color:var(--kudo-navy);border:1px solid #CFE1EF}
+.hero::after{background:radial-gradient(closest-side,rgba(72,161,216,.18),rgba(72,161,216,0))}
+.hero h1{color:var(--kudo-navy)}
+.hero-kicker{color:#3D6A88}
+.hero .hero-goal,.hero p,.hero-meta{color:#2A4F68}
+.hero-next{color:#2A4F68}
+.hero-msg{background:rgba(255,255,255,.65);border:1px solid #CFE1EF;color:var(--kudo-navy)}
+.hero-cta .btn.primary{background:var(--kudo-blue);border-color:var(--kudo-blue);color:#fff}
+.hero-cta .btn.primary:hover{background:#174E70;border-color:#174E70;color:#fff}
+.hero :focus-visible{outline-color:var(--kudo-blue)}
+.hero .tip-i{color:#3D6A88}
