@@ -1,7 +1,7 @@
 // Sandbox: a replica of the KUDO screens a scenario needs, rebuilt from an expert's screen recording.
 // The trainee does the task here instead of in a test account. Everything they do is recorded (clicks, fields,
 // screens, time, detours, hints) and the run is scored: outcome first, then path, then time.
-// Eight exercises (see SCENARIOS); scenarios with a brief start with a client call. Test data only.
+// Nine exercises (see SCENARIOS); scenarios with a brief start with a client call. Test data only.
 import { h, api, toast, svg, metaRow, mark } from './ui.js';
 // Line icons (stroke) in the style of the KUDO screens.
 const I = {
@@ -145,6 +145,34 @@ export const SCENARIOS = {
     screens: ['login', 'home', 'meetings', 'meeting', 'preview'],
     reply: [{ id: 'wid', label: 'Widget ID for the producer', type: 'text', placeholder: 'The ID only, not the whole link' }],
     setup: ({ base }) => { const m = base({ name: 'Sales Town Hall', date: 'Mon, Nov 30, 2026', time: '16:00 - 17:30', dur: '1 hour 30 minutes', speakers: ['English'], translations: ['English (US)', 'Portuguese (Brazil)', 'Spanish (Mexico)'], status: 'scheduled' }); return { list: [m], mine: m }; },
+  },
+  'teams-1': {
+    module: 'teams', num: 4, title: 'Add KUDO to the client\'s Teams meeting and follow it as an attendee', apps: ['teams'], startTab: 'teams',
+    request: 'Build what the client needs from your notes in their meetings app: KUDO in their Teams meeting, set before the start. Then join, let the KUDO bot in and check the translation the way their Madrid lead wants it.',
+    brief: {
+      who: 'Internal events lead at the client', event: '"Quarterly All-hands", a scheduled Teams meeting today',
+      opening: 'Hi! Our Quarterly All-hands is a scheduled Teams meeting today. Our leaders present in English, and our teams in Madrid and Dubai would like it in their language. Can KUDO do that inside Teams?',
+      questions: [
+        { id: 'type', key: true, q: 'Is it a scheduled Teams meeting, a town hall or a webinar?', a: 'A normal scheduled meeting in our calendar. I gave you access: it is the "Team meetings app" tab.', note: 'A scheduled Teams meeting; access in the "Team meetings app" tab', why: 'The KUDO app works in scheduled meetings. Town halls and webinars need a manual setup with the Mobile Link.' },
+        { id: 'it', key: true, q: 'Has your IT approved the KUDO app in Teams?', a: 'Yes, our Teams admin approved it last week.', note: 'KUDO app approved by their Teams admin', why: 'Without IT approval nobody can add KUDO, and approval can take 24 hours or more.' },
+        { id: 'time', key: true, q: 'Is the time final?', a: 'Not quite: we are moving it to 14:00 today, same length. Could you move it in the calendar?', note: 'Move the meeting to 14:00 today, same length', why: 'KUDO takes its time from Teams. If Teams moves after KUDO is added, Sync meeting.' },
+        { id: 'lang', key: true, q: 'Which language do the presenters speak, and which do the teams need?', a: 'Presenters speak English. Madrid needs Spanish, Dubai needs Arabic.', note: 'Speaker: English. Translation: Spanish and Arabic', why: 'Speaker language English, translation languages Spanish and Arabic.' },
+        { id: 'follow', key: true, q: 'How will people follow: voice, captions, or both?', a: 'Our Madrid lead wants to hear Spanish but read English captions. Please check that works before the start.', note: 'Madrid lead: Spanish voice, English captions; check it', why: 'Voice and captions are chosen separately in the KUDO panel: you can show exactly that.' },
+        { id: 'region', key: true, q: 'Where must meeting data be processed?', a: 'In the EU: we are a European company.', note: 'Meeting data processed in the European Union', why: 'You choose the data region when you log in to KUDO in Teams: European Union (live.kudoway.eu).' },
+        { id: 'end', key: true, q: 'Do you need a recording, and should KUDO stop with Teams?', a: 'Yes to both: a recording, and nothing running after we leave.', note: 'Recording on; KUDO ends with Teams', why: 'Recording and Transcript on, and Force Close KUDO Meeting so KUDO ends with Teams.' },
+        { id: 'budget', q: 'What is your budget for this event?', a: 'That is with our account manager.', why: 'Pricing is the account manager\'s: it does not change the set-up.' },
+        { id: 'logo', q: 'Would you like your logo on the KUDO page?', a: 'Not needed.', why: 'It does not change what you build.' },
+      ],
+      options: [
+        { id: 'app', ok: true, label: 'The KUDO app in their Teams meeting: AI Translation, with the bot admitted from the lobby', why: 'A scheduled Teams meeting with the app approved: KUDO runs inside Teams, attendees follow in the KUDO panel or on the Mobile Link.' },
+        { id: 'manual', label: 'The manual town hall setup: send everyone the Mobile Link', why: 'It is a scheduled meeting, not a town hall: the app gives voice and captions inside Teams.' },
+        { id: 'move', label: 'Move the All-hands into a KUDO meeting and send the Participant link', why: 'They want to stay in Teams, and a Participant link gives everyone a microphone and camera.' },
+        { id: 'rtmp', label: 'Stream the meeting to a video platform (RTMP)', why: 'Everyone is in Teams: a one-way stream does not fit.' },
+      ],
+    },
+    expert: ['Ask the client the seven questions that decide the set-up (meeting type, IT approval, time, languages, voice and captions, data region, recording and end)', 'Choose the KUDO app in their Teams meeting', 'Team meetings app: open "Quarterly All-hands", move it to 14:00, Save and close', 'Open it again: Apps, search KUDO, Add', 'Log in, Meeting data processed in: European Union, Save', 'KUDO tab: AI Translation, NEXT, AI Speech and Captions', 'Speaker English; translation Spanish and Arabic', 'Force Close KUDO Meeting on; keep Recording and Transcript and Mobile Link on; SAVE', 'Join the meeting and Admit the KUDO AI Translator bot from the waiting room', 'Chat: the bot posted the Mobile Link', 'KUDO in the toolbar: OK, Voice Spanish, Captions English, and keep the panel open'],
+    expertSeconds: 300,
+    screens: ['login', 'home', 'meetings', 'meeting', 'preview'],
   },
   'zoom-1': {
     module: 'zoom', num: 6, title: 'Bring KUDO AI translation into the client\'s Zoom meeting', apps: ['vmeet'],
@@ -1029,6 +1057,47 @@ export function sandboxView(key, { onExit } = {}) {
         if (v.includes(ids.p) || v.includes(ids.o)) t.push(['Gave the Participant or Operator meeting ID: the Widget ID is the one in the Mobile Link', 8]);
         return t; },
     },
+    'teams-1': {
+      next() {
+        const t = S.tm, k = t.kudo;
+        if (t.ev.start !== '14:00') return 'Team meetings app: open "Quarterly All-hands", move it to 14:00 and click "Save and close".';
+        if (!t.added) return 'In the meeting, click Apps, search KUDO and Add it.';
+        if (t.region !== 'eu' && !k?.step) return 'Log in to KUDO with "Meeting data will be processed in" set to European Union.';
+        if (k.step !== 'overview') return 'KUDO tab: AI Translation, NEXT, AI Speech and Captions, English to Spanish and Arabic, Force Close KUDO Meeting on, SAVE.';
+        if (k.start !== t.ev.start) return 'The Teams meeting moved after KUDO was set up: KUDO tab, Sync meeting.';
+        if (t.view !== 'live') return 'Join the meeting.';
+        if (t.bot === 'lobby') return 'The KUDO AI Translator bot is in the waiting room: Admit it.';
+        if (t.bot === 'denied' || t.bot === 'gone') return 'Leave, open the KUDO tab and click "+ Add bot", then join and Admit it.';
+        if (!S.flags.tmSawChat) return 'Open the Chat: the bot posted the Mobile Link for anyone on a phone.';
+        if (t.panel !== 'kudo' || !t.ok) return 'Click KUDO in the meeting toolbar and accept the notice (OK).';
+        if (t.voice !== 'Spanish (Spain)' || t.cap !== 'English (US)') return 'In the KUDO panel: Voice Spanish, Captions English. Keep the panel open.';
+        return null;
+      },
+      checks() {
+        const t = S.tm, k = t.kudo || {}, made = k.step === 'overview', extra = (k.translations || []).filter((l) => !['English (US)', 'English (UK)', 'Arabic'].includes(l) && !es(l));
+        return [
+          ['Teams meeting moved to 14:00 and saved', t.ev.start === '14:00', 6],
+          ['KUDO added to the meeting from Apps', !!t.added, 6],
+          ['Meeting data processed in the European Union', t.region === 'eu', 10],
+          ['AI Translation, AI Speech and Captions', made && k.type === 'ai' && k.ttype === 'speech', 8],
+          ['English speaker, Spanish and Arabic translation, nothing extra', made && k.speakers.length === 1 && k.speakers[0] === 'English' && k.translations.some(es) && k.translations.includes('Arabic') && !extra.length, 8],
+          ['Force Close KUDO Meeting on', made && !!k.force, 8],
+          ['Recording and Transcript on, recorded automatically', made && !!k.rec && !!k.auto, 6],
+          ['Mobile Link on', made && !!k.mobile, 4],
+          ['KUDO meeting at the Teams time (Sync meeting if it moved)', made && k.start === t.ev.start && t.ev.start === '14:00', 10],
+          ['Bot admitted from the waiting room', !!S.flags.tmAdmitted, 12],
+          ['Saw the Mobile Link the bot posted in the chat', !!S.flags.tmSawChat, 6],
+          ['KUDO panel open with Spanish voice and English captions', t.view === 'live' && t.panel === 'kudo' && t.ok && t.bot === 'in' && t.voice === 'Spanish (Spain)' && t.cap === 'English (US)', 16],
+        ];
+      },
+      traps() {
+        const t = [], F = S.flags, k = S.tm.kudo;
+        if (F.tmDenied) t.push(['Denied the KUDO bot in the waiting room: it had to be added again', 4]);
+        if (k?.audio) t.push(['Turned on Audio Manager: it is for venue audio in hybrid events, not needed here', 2]);
+        if (k?.type === 'hi') t.push(['Chose Human Interpretation: the client wants AI translation', 4]);
+        if (F.cancelled) t.push(['Cancelled the meeting', 10]);
+        return t; },
+    },
     'zoom-1': {
       next() {
         const x = S.vm.meet, m = S.mine;
@@ -1080,7 +1149,7 @@ export function sandboxView(key, { onExit } = {}) {
   const RULE = RULES[key];
   function nextStep() {
     if (S.call && !S.call.done) { const miss = sc.brief.questions.find((x) => x.key && !S.call.asked.includes(x.id)); return S.call.stage === 'talk' ? (miss ? `Ask what decides the set-up. For example: "${miss.q}"` : 'You have what you need: choose the solution.') : 'Pick the solution that fits your notes, then Confirm and start building.'; }
-    if (S.screen === 'login') return 'Log in: the account is filled in for you.';
+    if (S.screen === 'login' && !sc.startTab) return 'Log in: the account is filled in for you.';
     return RULE.next() || 'All done: click "I am done".';
   }
   function hint() { S.hints++; log('hint', nextStep()); toast(nextStep()); }
@@ -1112,9 +1181,9 @@ export function sandboxView(key, { onExit } = {}) {
   // ---------------------------------------------------------------- third-party look-alikes
   // Generic replicas of the client's own tools (no brand, no logo): a website builder (Wix-like) and a video
   // platform studio (YouTube-like). The trainee does the client's side too, so they can show a client how.
-  const APPS = { site: 'Client website', studio: 'Video studio', vmeet: 'Video meeting app' };
+  const APPS = { site: 'Client website', studio: 'Video studio', vmeet: 'Video meeting app', teams: 'Team meetings app' };
   const viewLog = (what) => { if (!S.events.some((e) => e.type === 'view' && e.what === what)) log('view', what); };
-  S.tab = 'kudo';
+  S.tab = sc.startTab || 'kudo';
   S.site = { blocks: [{ type: 'video' }, { type: 'embed', code: '' }], published: null, mode: 'editor', dlg: null };
   const keyGen = (n) => { const a = 'abcdefghjkmnpqrstuvwxyz23456789'; let x = 7 + n * 131, out = ''; for (let i = 0; i < 16; i++) { x = (x * 1103515245 + 12345) % 2147483648; out += a[x % a.length]; if (i % 4 === 3 && i < 15) out += '-'; } return out; };
   S.studio = { keys: [{ name: 'Default stream key', key: keyGen(0) }], sel: 0, show: false, naming: null, url: 'rtmp://a.rtmp.youtube.com/live2' };
@@ -1263,11 +1332,114 @@ export function sandboxView(key, { onExit } = {}) {
         h('button', { class: 'k-btn', type: 'button', on: { click: () => { v.mode = 'live'; v.started++; S.flags.vmStarted = true; if (x.enc === 'e2e') S.flags.vmStartedE2e = true; log('click', 'App: Start the meeting'); draw(); } } }, 'Start'))
         : h('p', { class: 'k-mini' }, 'No upcoming meetings. Schedule one.')), inv);
   }
+  // A generic team-meetings app (Teams-like, no name or logo): the calendar event, Apps, the KUDO sign-in with the
+  // data region, the KUDO tab (create, settings, overview), and the live meeting with the lobby, the bot's chat
+  // message and the KUDO side panel where attendees choose voice and captions.
+  S.tm = { ev: { title: 'Quarterly All-hands', start: '10:00' }, view: 'cal', etab: 'details', store: null, signin: null, kudo: null, draft: null, bot: null, panel: null, ok: false, voice: 'Original audio', cap: '', added: false };
+  const hourEnd = (t) => `${String(Number(t.slice(0, 2)) + 1).padStart(2, '0')}:${t.slice(3)}`;
+  const REGIONS = [['ca', 'Canada (live.kudoway.ca)'], ['asia', 'Asia (asia.kudoway.com)'], ['eu', 'European Union (live.kudoway.eu)'], ['us', 'United States (live.kudoway.com)']];
+  const CODE = { 'Spanish (Spain)': 'ES - Español', Arabic: 'AR - عربي', 'English (US)': 'EN - English', 'English (UK)': 'EN - English (UK)', 'French (France)': 'FR - Français', German: 'DE - Deutsch' };
+  const LINE = { 'Spanish (Spain)': 'Bienvenidos a nuestra reunión trimestral.', Arabic: 'مرحبا بكم في اجتماعنا الفصلي.', 'English (US)': 'Welcome to our quarterly all-hands.' };
+  const tmKudoMeeting = () => { const k = S.tm.kudo; if (!k || k.step !== 'overview') return null; return (k.m = k.m || baseMeeting({ name: S.tm.ev.title, date: 'Today', time: `${k.start} - ${hourEnd(k.start)}`, dur: '1 hour', speakers: k.speakers, translations: k.translations, status: 'scheduled' })); };
+  function tmKudoTab() {
+    const t = S.tm, k = t.kudo;
+    if (k.step === 'type') return h('div', { class: 'tm-kudo' }, h('div', { class: 'tm-kh' }, h('b', null, 'KUDO'), h('h2', null, 'Create meeting')),
+      h('div', { class: 'tm-kbox' }, h('small', null, 'Meeting type'), radio('tmtype', [['hi', 'Human Interpretation', 'Real time language interpretation powered by human interpreters.'], ['ai', 'AI Translation', 'Real time translated audio and/or captions powered by AI.']], k.type, (v) => { k.type = v; log('choose', `Teams KUDO: Meeting type ${v === 'ai' ? 'AI Translation' : 'Human Interpretation'}`); draw(); }),
+        h('div', { class: 'k-row end' }, h('button', { class: 'k-btn', type: 'button', on: { click: () => { if (!k.type) return toastK('Choose a meeting type'); k.step = 'settings'; t.draft = { ttype: 'speech', speakers: [], translations: [], desc: '', force: false, rec: true, auto: true, mobile: true, audio: false }; log('click', 'Teams KUDO: NEXT'); draw(); } } }, 'NEXT'))));
+    if (k.step === 'settings') {
+      const d = t.draft, ai = k.type === 'ai', tg = (key, label) => (v) => { d[key] = v; log('toggle', `Teams KUDO: ${label}: ${v}`); draw(); };
+      const lock = (x) => h('small', { class: 'tm-lock' }, x === 'c' ? 'This setting cannot be changed once the meeting has been created.' : 'This setting cannot be changed once the meeting starts.');
+      return h('div', { class: 'tm-kudo' }, h('div', { class: 'tm-kh' }, h('b', null, 'KUDO'), h('h2', null, 'Meeting settings')),
+        h('div', { class: 'tm-kbox' },
+          ai ? row(h('span', null, 'Translation type', lock('c')), radio('tmtt', [['speech', 'AI Speech and Captions', 'Offer multilingual audio, captions, recording, transcriptions, and AI customization for greater accuracy.'], ['captions', 'AI Captions Only', 'Supports multilingual closed captioning only, minimizing perceived latency.']], d.ttype, (v) => { d.ttype = v; log('choose', `Teams KUDO: Translation type ${v}`); draw(); })) : null,
+          row('Languages', h('small', null, ai ? 'Speaker language(s)' : 'Spoken language(s)'), picker('Teams speaker language', SPEAKER, d.speakers, { onChange: (l) => { if (ai && l === 'English' && !d.translations.includes('English (US)')) d.translations.unshift('English (US)'); } }),
+            ai ? h('small', null, 'Translation language(s)') : null, ai ? picker('Teams translation language', TRANSLATION, d.translations) : null),
+          row(h('span', null, 'Meeting Description', h('small', { class: 'k-mini' }, ' Optional')), h('textarea', { class: 'k-in', rows: 2, on: { input: (e) => { d.desc = e.target.value; } } }, d.desc)),
+          row(h('span', null, 'Force Close KUDO Meeting', lock('s')), toggle(d.force, null, tg('force', 'Force Close KUDO Meeting'))),
+          row(h('span', null, 'Recording and Transcript', lock('s')), toggle(d.rec, null, tg('rec', 'Recording and Transcript')), check(d.auto, 'Automatically record this meeting when it starts', (v) => { d.auto = v; log('toggle', `Teams KUDO: Automatically record: ${v}`); }, !d.rec)),
+          row(h('span', null, 'Mobile Link', lock('c')), toggle(d.mobile, null, tg('mobile', 'Mobile Link'))),
+          row(h('span', null, 'Audio Manager', lock('c')), toggle(d.audio, null, tg('audio', 'Audio Manager'))),
+          h('div', { class: 'k-row end' }, h('button', { class: 'k-btn ghost', type: 'button', on: { click: () => { k.step = 'type'; draw(); } } }, 'Back'),
+            h('button', { class: 'k-btn', type: 'button', on: { click: () => {
+              if (!d.speakers.length || (ai && !d.translations.length)) return toastK('Choose the languages');
+              Object.assign(k, { ttype: ai ? d.ttype : 'hi', speakers: [...d.speakers], translations: [...d.translations], desc: d.desc, force: d.force, rec: d.rec, auto: d.rec && d.auto, mobile: d.mobile, audio: d.audio, start: t.ev.start, step: 'overview', status: 'scheduled' });
+              log('save', `Teams KUDO: meeting created (${k.type}, ${k.speakers.join(', ')} to ${k.translations.join(', ')}, ${k.start})`); toastK('Meeting created'); draw(); } } }, 'SAVE'))));
+    }
+    const m = tmKudoMeeting(), url = m ? LINK.mobile(m) : '';
+    return h('div', { class: 'tm-kudo' }, h('div', { class: 'tm-ktabs' }, h('b', null, 'KUDO'), ...['Overview', 'Users', 'Recordings & transcripts', 'My glossaries'].map((x, i) => h('span', { class: i ? '' : 'on', on: { click: () => { if (i) { log('click', `Teams KUDO: ${x}`); detour(`Teams KUDO: ${x}`); } } } }, x))),
+      h('div', { class: 'tm-ov' }, h('div', null,
+        h('div', { class: 'k-row' }, h('b', null, 'Meeting Details'), h('button', { class: 'k-link', type: 'button', on: { click: () => { const was = k.start; k.start = t.ev.start; if (k.m) k.m.time = `${k.start} - ${hourEnd(k.start)}`; log('click', `Teams KUDO: Sync meeting (${was} to ${k.start})`); if (was !== k.start) S.flags.synced = true; toastK('Meeting synced with Teams'); draw(); } } }, 'Sync meeting'), h('span', { class: 'pv-gap' }),
+          h('button', { class: 'k-link', type: 'button', on: { click: () => { log('click', 'Teams KUDO: + Add bot'); if (['denied', 'gone'].includes(t.bot)) t.bot = k.status === 'live' ? 'lobby' : null; toastK('The bot is on its way to the meeting'); draw(); } } }, '+ Add bot')),
+        h('h3', null, t.ev.title), h('small', { class: k.status === 'live' ? 'tm-live' : 'k-mini' }, k.status === 'live' ? 'LIVE' : 'Scheduled'),
+        h('div', { class: 'k-kv' }, ...[['Description', k.desc || 'None'], ['Date', 'Today'], ['Time', `${k.start} - ${hourEnd(k.start)}`], ['Time zone', 'Europe/Brussels'], ['Languages', k.type === 'ai' ? k.translations.join(', ') : k.speakers.join(', ')]].map(([a, v]) => h('div', null, h('b', null, a), h('span', null, v))))),
+      h('div', null, k.mobile ? h('div', null, h('b', null, 'Mobile Link'), h('small', { class: 'k-mini k-break' }, url), h('button', { class: 'k-link', type: 'button', on: { click: () => clipItem('mobile', url, 'Mobile Link (KUDO tab)') } }, 'Copy')) : null,
+        h('div', { class: 'k-botbox' }, h('b', null, 'KUDO bot timeout'), h('p', { class: 'k-mini' }, 'The KUDO AI Translator bot will automatically disconnect if no participant is detected after 10 minutes. If the bot drops, simply click "Add bot" to reconnect and resume translation.')))));
+  }
+  function teamsScreen() {
+    const t = S.tm, ev = t.ev;
+    if (t.view === 'live') {
+      const k = t.kudo, live = k?.step === 'overview';
+      if (t.panel === 'chat' && t.bot === 'in' && !S.flags.tmSawChat) { S.flags.tmSawChat = true; log('view', 'Teams: the bot posted the Mobile Link in the chat'); }
+      const m = tmKudoMeeting(), url = m ? LINK.mobile(m) : '';
+      const opts = ['Original audio', ...(k?.translations || []).map((l) => [l, CODE[l] || l])], capOpts = [['', 'Off'], ...(k?.translations || []).map((l) => [l, CODE[l] || l])];
+      const kudoPanel = h('aside', { class: 'tm-side' }, h('b', null, 'KUDO'),
+        !t.ok ? h('div', { class: 'tm-disc' }, h('p', null, 'The interpretation and closed captions for this meeting are powered by Artificial Intelligence and automatically generated. The service provider has not actively reviewed the content for accuracy and disclaims any liability for errors or omissions. By continuing, you agree to our Terms of use and Privacy Policy.'), h('button', { class: 'k-btn', type: 'button', on: { click: () => { t.ok = true; log('click', 'Teams KUDO panel: OK'); draw(); } } }, 'OK'))
+          : t.bot !== 'in' ? h('p', { class: 'k-mini' }, 'Waiting for the KUDO AI Translator bot to join the meeting.')
+            : h('div', { class: 'tm-panel' }, h('div', { class: 'tm-keep' }, 'Keep this window open to continue the live translation and captions. To use the chat, please use the main meetings app.'),
+              h('div', { class: 'tm-caps' }, t.cap ? LINE[t.cap] || `(${t.cap} captions)` : h('small', { class: 'k-mini' }, 'Select your preferred listening language')),
+              h('small', { class: 'k-mini' }, 'Captions are AI generated'),
+              h('div', { class: 'k-row' }, h('label', null, h('small', null, 'Voice'), select(opts, t.voice, (v) => { t.voice = v; log('change', `Teams KUDO panel: Voice ${v}`); draw(); }, 'sm')), h('label', null, h('small', null, 'Captions'), select(capOpts, t.cap, (v) => { t.cap = v; log('change', `Teams KUDO panel: Captions ${v || 'Off'}`); draw(); }, 'sm')))));
+      const chat = h('aside', { class: 'tm-side' }, h('b', null, 'Meeting chat'), h('small', { class: 'k-mini' }, `${ev.title}: the meeting started`),
+        live ? h('small', { class: 'k-mini' }, 'KUDO was added to this meeting') : null,
+        t.bot === 'in' ? h('div', { class: 'vm-msg' }, h('b', null, 'KUDO AI Translator bot'), h('p', null, 'This is the KUDO AI Translator bot, which provides secure real-time speech translation and captions in this meeting. To access the meeting in the language of your choice, scan the QR code on screen. You can also join in your language directly via this link: ', h('button', { class: 'k-link', type: 'button', on: { click: () => clipItem('mobile', url, 'Mobile Link (from the bot)') } }, url))) : null);
+      const setPanel = (p) => { const was = t.panel; t.panel = t.panel === p ? null : p; if (was === 'kudo' && t.panel !== 'kudo' && t.bot === 'in' && t.ok) { log('view', 'Teams: KUDO panel closed, translation stopped'); toastK('KUDO closed: the translated audio and captions stopped'); } log('click', `Teams: ${p === 'kudo' ? 'KUDO' : 'Chat'}`); draw(); };
+      return h('div', { class: 'vm live tm' }, h('div', { class: 'tm-bar' }, h('b', null, ev.title), h('span', { class: 'pv-gap' }),
+          h('button', { type: 'button', class: t.panel === 'chat' ? 'on' : '', on: { click: () => setPanel('chat') } }, 'Chat'), ...['People', 'Raise', 'React', 'Apps'].map((x) => h('button', { type: 'button', on: { click: () => log('click', `Teams: ${x}`) } }, x)),
+          live ? h('button', { type: 'button', class: t.panel === 'kudo' ? 'on' : '', on: { click: () => setPanel('kudo') } }, 'KUDO') : null,
+          h('button', { type: 'button', on: { click: () => log('click', 'Teams: Camera') } }, 'Camera'), h('button', { type: 'button', on: { click: () => log('click', 'Teams: Mic') } }, 'Mic'),
+          h('button', { type: 'button', class: 'end', on: { click: () => { log('click', 'Teams: Leave'); S.flags.tmLeft = true; t.view = 'cal'; t.panel = null; draw(); } } }, 'Leave')),
+        t.bot === 'lobby' ? h('div', { class: 'vm-note' }, h('span', null, 'In the waiting room: KUDO AI Translator bot '), h('small', { class: 'tm-unv' }, 'Unverified'), h('span', { class: 'pv-gap' }),
+          h('button', { class: 'k-btn ghost', type: 'button', on: { click: () => { t.bot = 'denied'; S.flags.tmDenied = true; log('click', 'Teams: Deny the bot'); draw(); } } }, 'Deny'),
+          h('button', { class: 'k-btn', type: 'button', on: { click: () => { t.bot = 'in'; S.flags.tmAdmitted = true; log('click', 'Teams: Admit the bot'); toastK('KUDO AI Translator bot joined'); draw(); } } }, 'Admit')) : null,
+        t.bot === 'denied' ? h('div', { class: 'vm-note bad' }, 'The KUDO AI Translator bot was denied. Use "+ Add bot" in the KUDO tab of the meeting to bring it back.') : null,
+        h('div', { class: 'vm-stage' }, h('div', { class: 'vm-grid' }, h('div', { class: 'vm-tile' }, h('span', null, 'You (Organiser)')),
+          t.bot === 'in' ? h('div', { class: 'vm-tile bot' }, h('div', { class: 'vm-qr', 'aria-hidden': 'true' }, ...Array.from({ length: 49 }, (_, i) => h('i', { class: (i * 5 + (i >> 3)) % 3 ? '' : 'on' }))), h('span', null, 'KUDO AI Translator bot')) : null),
+        t.panel === 'chat' ? chat : t.panel === 'kudo' ? kudoPanel : null));
+    }
+    const store = t.store ? h('div', { class: 'k-modal-bg' }, h('div', { class: 'k-modal tm-store' }, h('div', { class: 'k-modal-h' }, h('b', null, 'Add an app to this meeting'), h('button', { type: 'button', on: { click: () => { t.store = null; draw(); } } }, '×')),
+      h('input', { class: 'k-in', placeholder: 'Search apps', value: t.store.q, on: { input: (e) => { t.store.q = e.target.value; }, change: (e) => { log('input', `Teams: app search "${e.target.value}"`); draw(); } } }),
+      ...[['KUDO', 'KUDO Inc.', 'Add live translation to any Teams meeting.'], ['Team Polls', 'Poll Labs', 'Quick polls in your meetings.'], ['Whiteboard Plus', 'Draw Co.', 'A shared canvas for your meetings.']].filter(([n]) => !t.store.q || n.toLowerCase().includes(t.store.q.toLowerCase())).map(([n, by, d]) => h('div', { class: 'vm-item' }, h('div', null, h('b', null, n), h('small', { class: 'k-mini' }, `${by}. ${d}`)), h('span', { class: 'pv-gap' }),
+        h('button', { class: 'k-btn soft', type: 'button', on: { click: () => { log('click', `Teams: Add ${n}`); t.store = null; if (n === 'KUDO') { t.signin = { region: 'us' }; } else detour(`Teams: added ${n}`); draw(); } } }, 'Add'))))) : null;
+    const signin = t.signin ? h('div', { class: 'k-modal-bg' }, h('div', { class: 'k-modal tm-signin' }, h('div', { class: 'k-modal-h' }, h('b', null, 'KUDO'), h('button', { type: 'button', on: { click: () => { t.signin = null; draw(); } } }, '×')),
+      h('h3', null, 'Log in'), h('small', null, 'Email'), h('div', { class: 'k-in fake' }, 'events@client-demo.com'), h('small', null, 'Password'), h('div', { class: 'k-in fake' }, '••••••••••  (filled in for you)'),
+      h('small', null, 'Meeting data will be processed in:'), select(REGIONS, t.signin.region, (v) => { t.signin.region = v; log('change', `Teams KUDO: data region ${REGIONS.find((r) => r[0] === v)[1]}`); draw(); }),
+      h('button', { class: 'k-link', type: 'button', on: { click: () => { log('click', 'Teams KUDO: Use meeting link instead'); detour('Use meeting link instead'); toastK('Use the client account here'); } } }, 'Use meeting link instead'),
+      h('p', { class: 'k-mini' }, 'Users must have an active KUDO account to access this integration. Please contact our Support Team to create an account.'),
+      h('div', { class: 'k-row end' }, h('button', { class: 'k-btn ghost', type: 'button', on: { click: () => { t.signin = null; draw(); } } }, 'Back'),
+        h('button', { class: 'k-btn', type: 'button', on: { click: () => { t.region = t.signin.region; t.signin = null; t.added = true; t.kudo = { step: 'type', type: null }; t.etab = 'kudo'; log('save', `Teams: KUDO added, data in ${REGIONS.find((r) => r[0] === t.region)[1]}`); draw(); } } }, 'Save')))) : null;
+    if (t.view === 'event') {
+      const f = t.form;
+      return h('div', { class: 'vm tm-light' }, h('div', { class: 'vm-top' }, h('b', null, 'Meeting'), h('span', { class: 'pv-gap' }),
+          h('button', { class: 'k-btn ghost', type: 'button', on: { click: () => { t.store = { q: '' }; log('click', 'Teams: Apps'); draw(); } } }, 'Apps'),
+          h('button', { class: 'k-btn ghost', type: 'button', on: { click: () => { ev.start = f.start; t.view = 'cal'; log('save', `Teams: meeting saved (${ev.start})`); toastK('Meeting updated'); draw(); } } }, 'Save and close'),
+          h('button', { class: 'k-btn', type: 'button', on: { click: () => {
+            ev.start = f.start; t.view = 'live'; t.panel = null; log('click', 'Teams: Join'); S.flags.tmJoined = true;
+            const k = t.kudo; if (k?.step === 'overview') { k.status = 'live'; if (!t.bot) { t.bot = 'lobby'; log('view', 'Teams: the bot waits in the lobby'); } }
+            draw(); } } }, 'Join')),
+        h('div', { class: 'tm-etabs' }, h('span', { class: t.etab === 'details' ? 'on' : '', on: { click: () => { t.etab = 'details'; draw(); } } }, 'Details'), t.added ? h('span', { class: t.etab === 'kudo' ? 'on' : '', on: { click: () => { t.etab = 'kudo'; log('click', 'Teams: KUDO tab'); draw(); } } }, 'KUDO') : null),
+        t.etab === 'kudo' && t.kudo ? tmKudoTab() : h('div', { class: 'vm-form' }, row('Title', h('div', { class: 'k-in fake' }, ev.title)),
+          row('Start', h('div', { class: 'k-row' }, h('span', { class: 'k-mini' }, 'Today'), select(['09:00', '10:00', '11:00', '13:00', '14:00', '15:00'], f.start, (v) => { f.start = v; log('change', `Teams: start ${v}`); draw(); }, 'sm'), h('span', { class: 'k-mini' }, `to ${hourEnd(f.start)}`))),
+          row('Attendees', h('div', null, 'All staff (412)')), row('Location', h('div', { class: 'k-mini' }, 'Teams meeting'))), store, signin);
+    }
+    return h('div', { class: 'vm tm-light' }, h('div', { class: 'vm-top' }, h('b', null, 'Calendar'), h('span', { class: 'k-mini' }, 'Client Events')),
+      h('div', { class: 'vm-list' }, h('h3', null, 'Today'), h('div', { class: 'vm-item k-click', on: { click: () => { t.view = 'event'; t.form = { start: ev.start }; t.etab = 'details'; log('click', `Teams: open ${ev.title}`); draw(); } } }, h('div', null, h('b', null, ev.title), h('small', { class: 'k-mini' }, `Today ${ev.start} - ${hourEnd(ev.start)}, Teams meeting`)), h('span', { class: 'pv-gap' }), h('span', { class: 'k-mini' }, 'Open')),
+        h('div', { class: 'vm-item' }, h('div', null, h('b', null, 'Team sync'), h('small', { class: 'k-mini' }, 'Today 16:00 - 16:30, Teams meeting')))));
+  }
   const SCREENS = { preview: previewScreen, rtmp: rtmpScreen, interpreters: interpretersScreen, broadcast: broadcastScreen, login: loginScreen, home: homeScreen, meetings: meetingsScreen, glossaries: glossariesScreen, usage: usageScreen, 'new-ai': () => formScreen('new'), 'new-hi': () => formScreen('new'), edit: () => formScreen('edit'), meeting: meetingScreen,
     users: () => usersScreen('all'), participants: () => usersScreen('participants'), operators: () => usersScreen('operators'), viewers: () => usersScreen('viewers'), polls: pollsScreen, 'poll-new': pollNewScreen, poll: pollScreen, files: filesScreen, messages: messagesScreen, recordings: recordingsScreen, av: avScreen, features: featuresScreen, mglossaries: mGlossariesScreen, stats: statsScreen };
   function draw() {
     drawTabs(); const tw = root.querySelector('.sbx-tabs-wrap'); if (tw && !tw.contains(tabStrip)) tw.append(tabStrip);
-    if (S.tab !== 'kudo') { root.querySelector('.sbx-url-t').textContent = S.tab === 'site' ? (S.site.mode === 'live' ? 'client-events.example.com/live' : 'editor.sitebuilder.example/client-events') : S.tab === 'vmeet' ? (S.vm.mode === 'live' ? 'meet.videoapp.example/meeting' : 'meet.videoapp.example/meetings') : 'studio.videoplatform.example/livestreaming'; app.replaceChildren(S.tab === 'site' ? siteScreen() : S.tab === 'vmeet' ? vmScreen() : studioScreen()); return; }
+    if (S.tab !== 'kudo') { root.querySelector('.sbx-url-t').textContent = S.tab === 'site' ? (S.site.mode === 'live' ? 'client-events.example.com/live' : 'editor.sitebuilder.example/client-events') : S.tab === 'vmeet' ? (S.vm.mode === 'live' ? 'meet.videoapp.example/meeting' : 'meet.videoapp.example/meetings') : S.tab === 'teams' ? (S.tm.view === 'live' ? 'meetings.teamapp.example/live' : 'meetings.teamapp.example/calendar') : 'studio.videoplatform.example/livestreaming'; app.replaceChildren(S.tab === 'site' ? siteScreen() : S.tab === 'vmeet' ? vmScreen() : S.tab === 'teams' ? teamsScreen() : studioScreen()); return; }
     root.querySelector('.sbx-url-t').textContent = S.screen === 'preview' ? (S.pv.role === 'mobile' ? LINK.mobile(S.pv.m).replace('https://', '') : `${LINK[S.pv.role](S.pv.m).replace('https://', '')}/join`) : url();
     app.replaceChildren(SCREENS[S.screen]());
   }
