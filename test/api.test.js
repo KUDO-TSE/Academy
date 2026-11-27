@@ -747,3 +747,19 @@ test('brag to the team: off without a webhook, previews first, posts once, never
     await q('UPDATE users SET is_demo=false WHERE id=$1', [id]);
   } finally { slack.post = real; delete process.env.SLACK_WEBHOOK_URL; }
 });
+
+test('card rarity: anonymous share of real trainees, test accounts never count', async () => {
+  const d = client(); await d('POST', '/api/auth/login', { email: 'dana@test.local', password: 'Quiet-valley-pass-73' });
+  const total = (await q("SELECT count(*)::int n FROM users WHERE active AND NOT is_demo AND (role='trainee' OR is_trainee)")).rows[0].n;
+  const holders = (await q("SELECT count(*)::int n FROM collectibles c JOIN users u ON u.id=c.user_id WHERE c.key='first-step' AND u.active AND NOT u.is_demo AND (u.role='trainee' OR u.is_trainee)")).rows[0].n;
+  const cards = (await d('GET', '/api/me/collectibles')).json.cards;
+  const fs = cards.find((c) => c.key === 'first-step');
+  assert.equal(fs.rarity.total, total); assert.equal(fs.rarity.n, holders);
+  assert.equal(fs.rarity.pct, Math.round((holders / total) * 100));
+  assert.ok(cards.every((c) => c.rarity && !('users' in c.rarity)), 'counts only, never names');
+  const id = (await q("SELECT id FROM users WHERE email='dana@test.local'")).rows[0].id;
+  await q('UPDATE users SET is_demo=true WHERE id=$1', [id]);
+  const after = (await d('GET', '/api/me/collectibles')).json.cards.find((c) => c.key === 'first-step').rarity;
+  assert.equal(after.total, total - 1); assert.equal(after.n, holders - 1, 'a test account is not counted');
+  await q('UPDATE users SET is_demo=false WHERE id=$1', [id]);
+});

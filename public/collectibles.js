@@ -86,7 +86,7 @@ export async function collectionView() {
       h('div', { class: 'muted small' }, `${d.cards.filter((c) => c.set === 'Scenarios' && c.earned).length} of 12 scenario cards`)),
     sets.map((s) => h('section', { class: 'coll-set' }, h('h2', null, s), h('p', { class: 'sub' }, intro[s]),
       h('div', { class: 'coll-grid' }, d.cards.filter((c) => c.set === s).map((c) => h('div', { class: `coll-card ${c.earned ? 'earned' : 'locked'}`, tabindex: 0 },
-        cardArt(c), h('div', { class: 'coll-meta' }, c.earned ? [h('span', { class: 'muted small' }, `Earned ${fmt(c.earned_at)}`, c.live ? ', kept while every new exercise is passed' : ''), d.brag?.on && !c.bragged ? h('button', { type: 'button', class: 'link-btn brag-link', on: { click: (e) => bragModal(c, d.brag, e.currentTarget) } }, 'Brag to the team') : c.bragged ? h('span', { class: 'muted small' }, ' Bragged.') : null] : h('span', { class: 'small' }, h('b', null, 'How to earn: '), c.earn, c.progress ? h('div', { class: 'muted small' }, c.progress) : null))))))));
+        cardArt(c), h('div', { class: 'coll-meta' }, c.earned ? [h('span', { class: 'muted small' }, `Earned ${fmt(c.earned_at)}`, c.live ? ', kept while every new exercise is passed' : ''), rarityLine(c), d.brag?.on && !c.bragged ? h('button', { type: 'button', class: 'link-btn brag-link', on: { click: (e) => bragModal(c, d.brag, e.currentTarget) } }, 'Brag to the team') : c.bragged ? h('span', { class: 'muted small' }, ' Bragged.') : null] : [h('span', { class: 'small' }, h('b', null, 'How to earn: '), c.earn, c.progress ? h('div', { class: 'muted small' }, c.progress) : null), rarityLine(c)])))))));
   if (d.cards.some((c) => c.isNew)) api('POST', '/api/me/collectibles/seen').catch(() => {});
   return page;
 }
@@ -126,7 +126,7 @@ export async function revealNew() {
       stage.replaceChildren(
         h('div', { class: 'reveal-k' }, fresh.length > 1 ? `New card ${i + 1} of ${fresh.length}` : 'New card collected'),
         flip, confetti(),
-        h('h2', null, c.title), h('p', { class: 'muted' }, h('b', null, 'Earned for: '), c.earn),
+        h('h2', null, c.title), h('p', { class: 'muted' }, h('b', null, 'Earned for: '), c.earn), rarityLine(c),
         h('div', { class: 'row', style: 'justify-content:center;gap:8px;margin-top:8px' },
           i < fresh.length - 1 ? h('button', { class: 'btn primary', on: { click: () => { i++; show(); } } }, 'Next card') : h('button', { class: 'btn primary', on: { click: close } }, 'Keep going'),
           h('a', { class: 'btn', href: '#collection', on: { click: close } }, 'My collection')),
@@ -179,4 +179,18 @@ function bragModal(c, brag, from) {
   const panel = bragPanel(c, brag, { onDone: () => { from.replaceWith(h('span', { class: 'muted small' }, ' Bragged.')); setTimeout(() => close?.(), 1800); } });
   close = modal(`Brag about ${c.title}`, h('div', null, h('div', { class: 'brag-card' }, cardArt(c, { size: 120 })), panel));
   panel.querySelector('.brag-btn')?.click();
+}
+
+/** How rare a card is across the team: anonymous share of real trainees who hold it. */
+export function rarityLine(c) {
+  const r = c.rarity; if (!r) return null;
+  const tag = h('span', { class: `rar-tag rar-${r.label.toLowerCase()}` }, r.label);
+  let text;
+  if (c.earned) {
+    if (r.n === 0) text = 'No trainee has this one yet.';
+    else if (r.n === 1) text = 'You are the first trainee to earn it. Good job!';
+    else if (r.pct <= 35) text = `Only ${r.pct}% of trainees have this one. Good job!`;
+    else text = `${r.pct}% of trainees have this one. Welcome to the club.`;
+  } else text = r.n === 0 ? 'Nobody has it yet. Be the first.' : `${r.pct}% of trainees have earned it so far.`;
+  return h('div', { class: 'rarity' }, tag, h('span', null, text));
 }

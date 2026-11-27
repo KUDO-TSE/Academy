@@ -134,10 +134,26 @@ export async function syncCollection(uid) {
   return CATALOG.map((c) => ({ ...c, progress: c.key === 'sbx-all' ? `${passedSbx} of ${SANDBOX_N} passed` : null, earned: mine.has(c.key), earned_at: mine.get(c.key)?.earned_at || null, bragged: !!mine.get(c.key)?.bragged_at, isNew: mine.has(c.key) && !mine.get(c.key).seen_at }));
 }
 
+// ---- Rarity: the share of real trainees (active, not test accounts) who hold each card. Anonymous counts only:
+// nobody sees who has a card, only how rare it is.
+export async function rarityCounts() {
+  const who = "u.active AND NOT u.is_demo AND (u.role = 'trainee' OR u.is_trainee)";
+  const total = (await q(`SELECT count(*)::int n FROM users u WHERE ${who}`)).rows[0].n;
+  const rows = (await q(`SELECT c.key, count(*)::int n FROM collectibles c JOIN users u ON u.id = c.user_id WHERE ${who} AND c.key NOT LIKE '\\_%' GROUP BY c.key`)).rows;
+  return { total, by: new Map(rows.map((r) => [r.key, r.n])) };
+}
+export function rarityOf(n, total) {
+  if (!total) return null;
+  const pct = (n / total) * 100;
+  const label = n === 0 ? 'Unclaimed' : pct <= 5 ? 'Legendary' : pct <= 15 ? 'Epic' : pct <= 35 ? 'Rare' : pct <= 65 ? 'Uncommon' : 'Common';
+  return { n, total, pct: n && pct < 1 ? 1 : Math.round(pct), label };
+}
+const withRarity = (cards, r) => cards.map((c) => ({ ...c, rarity: rarityOf(r.by.get(c.key) || 0, r.total) }));
+
 export const collectiblesRouter = Router();
 collectiblesRouter.get('/collectibles', async (req, res, next) => {
   try {
-    const cards = await syncCollection(req.user.id);
+    const cards = withRarity(await syncCollection(req.user.id), await rarityCounts());
     res.json({ cards, earned: cards.filter((c) => c.earned).length, total: cards.length, brag: bragOn(req) });
   } catch (e) { next(e); }
 });
@@ -167,13 +183,14 @@ function academyUrl() {
   const u = process.env.ACADEMY_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : '');
   return /^https:\/\//.test(u) ? u.replace(/\/$/, '') : null;
 }
-export function bragMessage(user, card, { line = 0, note = '', earned = 0, total = CATALOG.length } = {}) {
+export function bragMessage(user, card, { line = 0, note = '', earned = 0, total = CATALOG.length, rarity = null } = {}) {
   const first = slackEsc(String(user.name || '').trim().split(/\s+/)[0] || 'Someone');
   const [tier, medal] = TIER_LABEL[card.tier] || ['', ':star:'];
   const title = slackEsc(`${card.title}${tier ? ` (${tier})` : ''}`);
   const head = `${medal} ${BRAG_LINES[((Number(line) % BRAG_LINES.length) + BRAG_LINES.length) % BRAG_LINES.length](first, title)}`;
   const say = String(note || '').replace(/\s+/g, ' ').trim().slice(0, 140);
-  const ctx = `Earned for: ${slackEsc(card.earn)}  |  ${earned} of ${total} cards collected`;
+  const rare = rarity && rarity.n && rarity.pct <= 35 ? `  |  ${rarity.label}: only ${rarity.pct}% of trainees have it` : '';
+  const ctx = `Earned for: ${slackEsc(card.earn)}  |  ${earned} of ${total} cards collected${rare}`;
   const url = academyUrl();
   const blocks = [{ type: 'section', text: { type: 'mrkdwn', text: head } }];
   if (say) blocks.push({ type: 'section', text: { type: 'mrkdwn', text: `> ${slackEsc(say)}` } });
@@ -190,13 +207,14 @@ async function bragCard(req) {
   const card = cards.find((c) => c.key === req.params.key);
   if (!card || !card.earned) return { err: [404, 'You have not earned that card yet.'] };
   if (card.bragged) return { err: [409, 'You already bragged about this card. Once is classy.'] };
-  return { card, earned: cards.filter((c) => c.earned).length, total: cards.length };
+  const r = await rarityCounts();
+  return { card, earned: cards.filter((c) => c.earned).length, total: cards.length, rarity: rarityOf(r.by.get(card.key) || 0, r.total) };
 }
 collectiblesRouter.get('/collectibles/:key/brag', async (req, res, next) => {
   try {
     if (!bragOn(req).on) return res.status(409).json({ error: 'Sharing to Slack is not switched on.' });
     const b = await bragCard(req); if (b.err) return res.status(b.err[0]).json({ error: b.err[1] });
-    res.json({ preview: bragMessage(req.user, b.card, { line: req.query.line, note: req.query.note, earned: b.earned, total: b.total }).text });
+    res.json({ preview: bragMessage(req.user, b.card, { line: req.query.line, note: req.query.note, earned: b.earned, total: b.total, rarity: b.rarity }).text });
   } catch (e) { next(e); }
 });
 collectiblesRouter.post('/collectibles/:key/brag', async (req, res, next) => {
@@ -206,7 +224,7 @@ collectiblesRouter.post('/collectibles/:key/brag', async (req, res, next) => {
     // Claim the brag first so a double click cannot post twice; give it back if Slack refuses.
     const claim = await q('UPDATE collectibles SET bragged_at=now() WHERE user_id=$1 AND key=$2 AND bragged_at IS NULL', [req.user.id, b.card.key]);
     if (!claim.rowCount) return res.status(409).json({ error: 'You already bragged about this card. Once is classy.' });
-    const m = bragMessage(req.user, b.card, { line: req.body?.line, note: req.body?.note, earned: b.earned, total: b.total });
+    const m = bragMessage(req.user, b.card, { line: req.body?.line, note: req.body?.note, earned: b.earned, total: b.total, rarity: b.rarity });
     try { await slack.post(webhook(), m.payload); } catch {
       await q('UPDATE collectibles SET bragged_at=NULL WHERE user_id=$1 AND key=$2', [req.user.id, b.card.key]);
       return res.status(502).json({ error: 'Slack did not take the message. Try again in a minute.' });
