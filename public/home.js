@@ -1,4 +1,4 @@
-// Trainee Home: the four cards that matter. The 12 weeks (the programme, week by week), My next courses (the next five
+// Trainee Home: My 12-weeks program (the programme, week by week, course by course), My Readiness (from the starting
 // steps), Your readiness (from the starting point, test by test) and Your level (scenario by scenario).
 import { h, icon, svg, fmtDate } from './ui.js';
 import { small } from './charts.js';
@@ -8,8 +8,23 @@ export const weeksLabel = (p) => (p.weeks[0] === p.weeks[1] ? `Week ${p.weeks[0]
 export const mins = (m) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60}` : ''}`);
 const KIND = { scenario: 'Decide', explain: 'Explain it', survey: 'Survey', lesson: 'Lesson', practice: 'Practice', check: 'Check', review: 'Review', baseline: 'Baseline', missed: 'Revisit', teach: 'Teach-back', pair: 'Pairing', one_to_one: 'With your KUDO Trainer', milestone: 'Milestone' };
 const KIND_CHIP = { lesson: 'blue', practice: 'amber', check: 'green', review: 'green', scenario: 'grey', explain: 'grey', baseline: 'green' };
-const ACTION = new Proxy({}, { get: () => 'Take the course' }); // every step opens its course: one wording everywhere
 const mine = (i) => (i.owner || 'you') === 'you';
+const STEP = { lesson: 'Learn', practice: 'Practise', scenario: 'Decide', explain: 'Explain it', check: 'Check' };
+const COURSE_KINDS = new Set(['lesson', 'practice', 'scenario', 'explain', 'check']);
+/** A week's steps as courses: the steps of one module make one all-in-one course; anything else stands alone. */
+function courseGroups(its) {
+  const out = [], byMod = new Map();
+  for (const it of its) {
+    if (it.module && COURSE_KINDS.has(it.kind)) {
+      let g = byMod.get(it.module);
+      if (!g) { g = { title: it.title.replace(/^(Learn|Practise|Decide|Explain it|Check|Quick check):\s*/, ''), items: [] }; byMod.set(it.module, g); out.push(g); }
+      g.items.push(it);
+    } else out.push({ title: it.title, items: [it] });
+  }
+  // A course with a single quick check keeps its own wording ("Quick check: ...").
+  for (const g of out) if (g.items.length === 1) g.title = g.items[0].title;
+  return out;
+}
 
 /** A session with the KUDO Trainer: its short name and icon. */
 function event(it, shortOf) {
@@ -59,7 +74,7 @@ export function weeksCard({ items, week, weeks = 12, phases, levels = [], module
   const renderDetail = () => {
     const w = selected, p = phaseOf(w), st = stateOf(w), its = yours(w), jk = jacks(w);
     const d = its.filter((i) => i.done).length, left = its.filter((i) => !i.done);
-    const status = { done: ['green', 'Done'], now: ['amber', 'This week'], late: ['coral', `${left.length} to catch up`], next: ['grey', w === week + 1 ? 'Next week' : `In ${w - week} weeks`] }[st];
+    const status = { done: ['green', 'Done'], now: ['amber', 'This week'], late: ['coral', `${left.length} step${left.length > 1 ? 's' : ''} to catch up`], next: ['grey', w === week + 1 ? 'Next week' : `In ${w - week} weeks`] }[st];
     detail.replaceChildren(
       h('div', { class: 'wk-dh' },
         h('div', null, h('div', { class: 'wk-dk' }, `Week ${w}, ${p?.name || ''}`), h('h3', null, theme(w))),
@@ -67,15 +82,19 @@ export function weeksCard({ items, week, weeks = 12, phases, levels = [], module
       h('p', { class: 'wk-dm' }, its.length ? `${d} of ${its.length} step${its.length > 1 ? 's' : ''} done${left.length ? `, about ${mins(left.reduce((t, i) => t + (i.minutes || 0), 0))} left` : ''}` : 'No steps of yours this week: time to catch up or get ahead.'),
       jk.length ? h('ul', { class: 'wk-trainer' }, jk.map((it) => { const e = event(it, shortOf); return h('li', { class: it.done ? 'done' : '' },
         h('span', { class: 'wk-ti' }, icon(e.ic)), h('div', null, h('b', null, e.label), h('span', null, it.done ? 'Done' : `With your KUDO Trainer${it.minutes ? `, ${mins(it.minutes)}` : ''}. They book it with you.`))); })) : null,
-      its.length ? h('ul', { class: 'wk-steps' }, its.map((it) => {
-        const href = hrefFor(it);
-        return h('li', { class: it.done ? 'done' : '' },
-          h('span', { class: `wk-tk ${it.done ? 'on' : ''}`, 'aria-label': it.done ? 'Done' : 'Not done yet' }, it.done ? tick(12) : null),
+      its.length ? h('ul', { class: 'wk-steps' }, courseGroups(its).map((g) => {
+        // One all-in-one course: its steps in order, one button that opens the next step to take.
+        const left = g.items.filter((i) => !i.done), done = !left.length, nextIt = left[0] || g.items[0], href = hrefFor(nextIt);
+        const mins2 = g.items.reduce((t, i) => t + (i.minutes || 0), 0);
+        return h('li', { class: `wk-course ${done ? 'done' : ''}` },
+          h('span', { class: `wk-tk ${done ? 'on' : ''}`, 'aria-label': done ? 'Done' : 'Not done yet' }, done ? tick(12) : null),
           h('div', { class: 'wk-st' },
-            h('div', { class: 'wk-stt' }, href ? h('a', { href, on: { click: () => onStep(it) } }, it.title) : it.title),
-            h('div', { class: 'wk-stm' }, h('span', { class: `chip ${KIND_CHIP[it.kind] || 'grey'}` }, KIND[it.kind] || 'Step'), it.minutes ? h('span', null, mins(it.minutes)) : null,
-              it.recorded != null ? h('span', { class: `chip ${it.below ? 'amber' : 'green'}` }, `${it.recorded}%`) : null)),
-          href && !it.done ? h('a', { class: `btn sm ${st === 'now' || st === 'late' ? 'primary' : ''}`, href, on: { click: () => onStep(it) } }, ACTION[it.kind] || 'Open') : null);
+            h('div', { class: 'wk-stt' }, href ? h('a', { href, on: { click: () => onStep(nextIt) } }, g.title) : g.title),
+            h('div', { class: 'wk-stm' },
+              g.items.length > 1 ? g.items.map((i) => h('span', { class: `wk-step ${i.done ? 'on' : ''}`, title: i.done ? 'Done' : 'To do' }, i.done ? tick(10) : null, STEP[i.kind] || KIND[i.kind] || 'Step')) : h('span', { class: `chip ${KIND_CHIP[g.items[0].kind] || 'grey'}` }, KIND[g.items[0].kind] || 'Step'),
+              h('span', null, mins(mins2)),
+              g.items.filter((i) => i.recorded != null).map((i) => h('span', { class: `chip ${i.below ? 'amber' : 'green'}` }, `${STEP[i.kind] || 'Score'} ${i.recorded}%`)))),
+          href && !done ? h('a', { class: `btn sm ${st === 'now' || st === 'late' ? 'primary' : ''}`, href, on: { click: () => onStep(nextIt) } }, 'Take the course') : null);
       })) : null,
       h('div', { class: 'wk-nav' },
         h('button', { class: 'btn sm ghost', type: 'button', disabled: w <= 1, on: { click: () => select(w - 1, true) } }, 'Previous week'),
@@ -109,39 +128,19 @@ export function weeksCard({ items, week, weeks = 12, phases, levels = [], module
 
   const card = h('section', { class: 'card roadmap-card wk' },
     h('div', { class: 'wk-head' },
-      h('div', null, h('h2', null, title), h('p', { class: 'sub' }, `Week ${week} of ${weeks}, ${ph?.name || ''} phase. ${allDone} of ${all.length} steps done.`)),
+      h('div', null, h('h2', null, title), h('p', { class: 'sub' }, `Week ${week} of ${weeks}: ${ph?.name || ''}. ${allDone} of ${all.length} steps done.`)),
       pace ? h('span', { class: `chip ${pace[0]}` }, pace[1]) : null),
     board, detail);
   select(week);
   return card;
 }
 
-// ------------------------------------------------------------------ My next courses
-/** The next five steps on the trainee's side, in the order to take them, whatever their week. */
-export function upNextCard({ items, week, hrefFor = () => null, onStep = () => {}, readOnly = false }) {
-  const next = items.filter((i) => mine(i) && !i.done).sort((a, b) => a.week - b.week).slice(0, 5);
-  const total = next.reduce((t, i) => t + (i.minutes || 0), 0);
-  const when = (i) => (i.week < week ? ['late', `Week ${i.week}, to catch up`] : i.week === week ? ['now', 'This week'] : ['next', i.week === week + 1 ? 'Next week' : `Week ${i.week}`]);
-  return h('section', { class: 'card upnext-card' },
-    h('div', { class: 'un-head' }, h('div', null, h('h2', null, 'My next courses'), h('p', { class: 'sub' }, next.length ? `Your next ${next.length > 1 ? `${next.length} steps` : 'step'}, in order. About ${mins(total)} in total.` : 'Nothing waiting on your side.')),
-      readOnly ? null : h('a', { class: 'btn sm ghost', href: '#training' }, 'All my courses')),
-    next.length ? h('ol', { class: 'un-list' }, next.map((it, k) => {
-      const href = readOnly ? null : hrefFor(it), [wc, wl] = when(it);
-      return h('li', { class: k === 0 ? 'first' : '' },
-        h('span', { class: 'un-i', 'aria-hidden': 'true' }, String(k + 1)),
-        h('div', { class: 'un-main' },
-          h('div', { class: 'un-t' }, href ? h('a', { href, on: { click: () => onStep(it) } }, it.title) : it.title),
-          h('div', { class: 'un-m' }, h('span', { class: `chip ${KIND_CHIP[it.kind] || 'grey'}` }, KIND[it.kind] || 'Step'), it.minutes ? h('span', null, mins(it.minutes)) : null, h('span', { class: `un-w ${wc}` }, wl))),
-        href ? h('a', { class: `btn sm ${k === 0 ? 'primary' : ''}`, href, on: { click: () => onStep(it) } }, 'Take the course') : null);
-    })) : h('p', { class: 'empty-note' }, 'You are ahead of your plan. New steps appear here as your KUDO Trainer adds them.'));
-}
-
 // ------------------------------------------------------------------ Your readiness
 /** From the starting point (Self Assessment and knowledge test) to now, one step each time a result moves a level. */
-export function readinessCard({ progression = [], start, now, firstCheck = null }) {
+export function readinessCard({ progression = [], start, now, firstCheck = null, compact = false, cls = '' }) {
   const pts = progression.length ? progression : [{ v: start, what: 'Starting point', changes: [] }];
   const diff = now - start;
-  const W = 440, H = 170, P = { l: 30, r: 12, t: 12, b: 14 };
+  const W = compact ? 360 : 440, H = compact ? 120 : 170, P = { l: 30, r: 12, t: 10, b: 12 };
   const vals = pts.map((p) => p.v);
   const lo = Math.max(0, Math.floor((Math.min(...vals, start) - 6) / 10) * 10), hi = Math.min(100, Math.ceil((Math.max(...vals, start) + 6) / 10) * 10);
   const x = (k) => P.l + (pts.length > 1 ? (k / (pts.length - 1)) * (W - P.l - P.r) : (W - P.l - P.r) / 2);
@@ -159,19 +158,19 @@ export function readinessCard({ progression = [], start, now, firstCheck = null 
     <path d="${d}" class="rd-line"/>
     ${pts.map((p, k) => `<circle cx="${x(k)}" cy="${y(p.v)}" r="${k === pts.length - 1 ? 5.5 : 3.5}" class="rd-pt ${k === 0 ? 'first' : k === pts.length - 1 ? 'last' : ''}"><title>${esc(k ? `${label(p)}${p.at ? `, ${fmtDate(p.at)}` : ''}: ${p.v}%` : `Starting point: ${p.v}%`)}</title></circle>`).join('')}
   </svg>`);
-  const recent = pts.slice(1).reverse().slice(0, 3);
-  return h('section', { class: 'card readiness-card' },
-    h('div', { class: 'rd-head' }, h('div', null, h('h2', null, 'Your readiness'), h('p', { class: 'sub' }, 'The average of your scenario levels. It moves each time a test result changes one.'))),
+  const recent = pts.slice(1).reverse().slice(0, compact ? 1 : 3);
+  return h('section', { class: `card readiness-card ${compact ? 'compact' : ''} ${cls}` },
+    h('div', { class: 'rd-head' }, h('div', null, h('h2', null, 'My Readiness'), compact ? null : h('p', { class: 'sub' }, 'The average of your scenario levels. It moves each time a test result changes one.'))),
     h('div', { class: 'rd-figs' },
-      h('div', { class: 'rd-fig' }, h('span', null, 'Starting point'), h('b', null, `${start}%`), h('small', null, 'Self Assessment and knowledge test')),
-      h('div', { class: 'rd-fig now' }, h('span', null, 'Now'), h('b', null, `${now}%`), h('small', { class: diff > 0 ? 'up' : diff < 0 ? 'down' : '' }, diff ? `${diff > 0 ? '+' : ''}${diff} points since the start` : 'No change yet'))),
+      h('div', { class: 'rd-fig' }, h('span', null, 'Starting point'), h('b', null, `${start}%`), h('small', null, compact ? 'Self Assessment and test' : 'Self Assessment and knowledge test')),
+      h('div', { class: 'rd-fig now' }, h('span', null, 'Now'), h('b', null, `${now}%`), h('small', { class: diff > 0 ? 'up' : diff < 0 ? 'down' : '' }, diff ? `${diff > 0 ? '+' : ''}${diff} points` : 'No change yet'))),
     chart,
     recent.length ? h('ul', { class: 'rd-list' }, recent.map((p) => {
       const prev = pts[pts.indexOf(p) - 1]?.v ?? start, dv = p.v - prev;
       return h('li', null,
         h('div', null, h('b', null, p.moduleTitle || p.what), h('span', null, `${p.moduleTitle ? `${p.what}, ` : ''}${p.at ? fmtDate(p.at) : ''}${p.changes?.length ? `. ${p.changes.map((c) => `${c.short} ${c.from}% to ${c.to}%`).join(', ')}` : ''}`)),
         h('span', { class: `rd-d ${dv > 0 ? 'up' : dv < 0 ? 'down' : ''}` }, dv ? `${dv > 0 ? '+' : ''}${dv}` : '±0'));
-    })) : h('p', { class: 'empty-note' }, firstCheck ? `Your readiness starts moving with your first test: ${firstCheck}.` : 'Your readiness starts moving with your first module test.'));
+    })) : h('p', { class: compact ? 'rd-empty' : 'empty-note' }, firstCheck ? `It starts moving with your first test: ${firstCheck}.` : 'It starts moving with your first course test.'));
 }
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -182,7 +181,7 @@ export function levelsCard(levels) {
   const rows = [...levels].sort((a, b) => Number(b.focus) - Number(a.focus) || (a.now - a.target) - (b.now - b.target));
   return h('section', { class: 'card levels-card' },
     h('div', { class: 'lvl-head' },
-      h('div', null, h('h2', null, 'Your level, scenario by scenario'), h('p', { class: 'sub' }, 'Where you started, where you are now and your target. Your focus scenarios come first.')),
+      h('div', null, h('h2', null, "My Knowledge's breakdown"), h('p', { class: 'sub' }, 'Where you started, where you are now and your target. Your focus scenarios come first.')),
       h('div', { class: 'lvl-key', 'aria-hidden': 'true' }, h('span', null, h('i', { class: 'k-now' }), 'Now'), h('span', null, h('i', { class: 'k-start' }), 'Start'), h('span', null, h('i', { class: 'k-tgt' }), 'Target'))),
     h('div', { class: 'lvl-grid' }, rows.map((l) => {
       const b = l.band?.key || 'none', dv = l.baseline != null ? l.now - l.baseline : 0;

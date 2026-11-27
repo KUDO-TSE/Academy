@@ -21,10 +21,10 @@ export const DEFAULT_SETTINGS = {
   target: 80,
 };
 export const PHASES = [
-  { n: 1, name: 'Warm-up', weeks: [1, 2], aim: 'Baseline, foundations and your kick-off with your KUDO Trainer.' },
-  { n: 2, name: 'Build', weeks: [3, 7], aim: 'Your focus scenarios, in depth: learn, practise, prove it.' },
-  { n: 3, name: 'Broaden', weeks: [8, 10], aim: 'The rest of the scenarios and the cross-cutting topics, plus spaced reviews.' },
-  { n: 4, name: 'Prove it', weeks: [11, 12], aim: 'A mock client call with your KUDO Trainer and the retest.' },
+  { n: 1, name: 'Start with the essentials', short: 'Essentials', weeks: [1, 3], aim: 'The KUDO basics and the platform, your kick-off, then your first priority course.' },
+  { n: 2, name: 'Master your priority scenarios', short: 'Priority scenarios', weeks: [4, 6], aim: 'Your focus scenarios, one all-in-one course at a time: learn, practise, decide, explain and check.' },
+  { n: 3, name: 'Cover every scenario', short: 'Every scenario', weeks: [7, 9], aim: 'The other scenarios your role covers, by priority, with spaced reviews of your focus scenarios.' },
+  { n: 4, name: 'Expand and get certified', short: 'Certification', weeks: [10, 12], aim: 'The cross-cutting topics, a mock client call, final reviews and the retest.' },
 ];
 const clamp = (n, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
 const round = (n) => Math.round(n);
@@ -222,7 +222,7 @@ export function buildPlan(u, ctx, { keepFocus = null } = {}) {
     add({ key: `${mkey}.check`, kind: 'check', module: mkey, scenario: s, phase, week, title: `Check: ${m.title}`, why: `Your first attempt is the score we keep (aim for ${Math.round(PASS * 100)}%). Retake it afterwards as often as you like to practise.`, minutes: 10, mandatory: focusItem });
   };
 
-  // Phase 1: Warm-up: the kick-off, the baseline, the foundations, the platform and the October questions
+  // Section 1 (Start with the essentials): the kick-off, the baseline, the foundations, the platform, the October questions
   add({ key: 'kickoff', kind: 'one_to_one', phase: 1, week: 1, title: 'Kick-off with your KUDO Trainer', why: 'Agree your goal and walk through this plan together.', owner: 'jack', minutes: 30, mandatory: true });
   const estimatedFocus = focus.some((s) => ['self', 'estimated', 'none'].includes(levels.per[s].source));
   if (!levels.hasPerScenarioTest || estimatedFocus) block(1, () => add({ key: 'baseline', kind: 'baseline', phase: 1, title: 'Baseline check: one question per scenario', why: 'You have no per-scenario test result yet, so this short check replaces the estimate and sharpens your plan.', minutes: 15, mandatory: true }));
@@ -232,7 +232,7 @@ export function buildPlan(u, ctx, { keepFocus = null } = {}) {
   if (!focus.includes('platform')) block(1, () => moduleItems('platform', { phase: 1, full: levels.per.platform.est < tgt('platform'), s: 'platform' }));
   if (missed.length) block(1, () => add({ key: 'missed', kind: 'missed', phase: 1, title: `Revisit the ${missed.length} question${missed.length > 1 ? 's' : ''} you missed in October`, why: 'Answer each one out loud before revealing the answer: retrieval makes it stick.', minutes: 20, mandatory: true }));
 
-  // Phase 2: Build: the focus scenarios in depth, each with its coaching session when planned
+  // Section 2 (Master your priority scenarios): the focus scenarios, each an all-in-one course, with its coaching session
   const coachMax = pref === '1:1 Coaching' ? 2 : 1;
   const coachOn = new Set(focus.filter((s) => levels.per[s].est < 50 || pref === '1:1 Coaching').sort((a, b) => levels.per[a].est - levels.per[b].est).slice(0, coachMax));
   focus.forEach((s) => {
@@ -244,69 +244,44 @@ export function buildPlan(u, ctx, { keepFocus = null } = {}) {
   });
   if (focus.includes('ai') || levels.per.ai.est < tgt('ai')) block(2, () => moduleItems('glossary', { phase: 2, full: true }));
 
-  // Phase 3: Broaden: the other scenarios and the cross-cutting topics, by personal priority
+  // Sections 3 and 4 (Cover every scenario, Expand and get certified): the other scenarios and the cross-cutting topics, by personal priority
   const rest = pri.filter((p) => !focus.includes(p.scenario) && !placed.has(p.module));
   const restCross = ['glossary', 'network', 'marketplace', 'ringcentral'].filter((k) => !placed.has(k));
-  // A scenario already at target only needs a quick check: those confirm what you know, so they go to Prove it (week 11).
+  // A scenario already at target only needs a quick check: those confirm what you know, so they go to the certification week (week 12).
   const quick = [];
   [...rest.map((p) => ({ mk: p.module, s: p.scenario, full: levels.per[p.scenario].est < tgt(p.scenario) })), ...restCross.map((k) => ({ mk: k, s: null, full: true }))]
     .forEach((x) => { if (x.full) block(3, () => moduleItems(x.mk, { phase: 3, full: true, s: x.s })); else quick.push(x); });
   pri.filter((p) => p.under && levels.per[p.scenario].est >= tgt(p.scenario)).slice(0, 1).forEach((p) => block(3, () => add({ key: `teach.${p.module}`, kind: 'teach', module: p.module, scenario: p.scenario, phase: 3, title: `Teach ${short(p.scenario)} to a colleague`, why: `You scored ${levels.per[p.scenario].live}%, well above your own rating. You know more than you think: explaining it locks it in.`, minutes: 30 })));
 
-  // ---- Weeks. Weeks 1 to 10 carry the courses; 11 and 12 are for proving it. Each phase gets weeks in proportion to
-  // its work, then its courses are spread so that no week is much heavier than another. A course stays in one week,
-  // except a long one, which may split into "learn and practise" and, the week after, "decide, explain and check".
-  const CONTENT_WEEKS = 10;
+  // ---- Weeks. Four sections of three weeks. Weeks 1 to 11 carry the courses, in teaching order (the essentials, your
+  // priority scenarios, then every other scenario and topic), spread so that no week is much heavier than another.
+  // A course is all-in-one: learn, practise, decide, explain and check sit in the same week. Week 12 is for the final
+  // reviews, the quick checks that confirm what you know, and the retest.
+  const CONTENT_WEEKS = 11;
   const mineMin = (b) => b.items.filter((i) => i.owner === 'you').reduce((t, i) => t + (i.minutes || 0), 0);
-  const splitOf = (b) => { const k = b.items.findIndex((i) => ['scenario', 'explain', 'check'].includes(i.kind)); return k > 0 && k < b.items.length ? [{ ...b, items: b.items.slice(0, k) }, { ...b, items: b.items.slice(k) }] : null; };
-  const groups = [1, 2, 3].map((n) => blocks.filter((b) => b.phase === n));
-  const work = groups.map((g) => g.reduce((t, b) => t + mineMin(b), 0));
-  const total = work.reduce((t, x) => t + x, 0) || 1;
-  // Split the long courses first ("learn and practise", then "decide, explain and check" the week after).
-  const avgWeek = total / CONTENT_WEEKS;
-  groups.forEach((g) => {
-    for (let guard = 0; guard < 20; guard++) {
-      const i = g.findIndex((b) => mineMin(b) > avgWeek * 1.3 && splitOf(b));
-      if (i < 0) break;
-      g.splice(i, 1, ...splitOf(g[i]));
-    }
-  });
-  // Order-preserving split of a phase into k weeks, keeping its heaviest week as light as possible.
+  const courses = [1, 2, 3].flatMap((n) => blocks.filter((b) => b.phase === n));
+  // Order-preserving split into k weeks, keeping the heaviest week as light as possible.
   const partition = (ms, k) => {
-    const n = ms.length;
+    const n = ms.length; k = Math.max(1, Math.min(k, n));
     const pre = [0]; ms.forEach((m) => pre.push(pre.at(-1) + m));
     const best = Array.from({ length: k + 1 }, () => Array(n + 1).fill(Infinity)), cut = Array.from({ length: k + 1 }, () => Array(n + 1).fill(0));
     best[0][0] = 0;
     for (let j = 1; j <= k; j++) for (let i = j; i <= n; i++) for (let x = j - 1; x < i; x++) { const v = Math.max(best[j - 1][x], pre[i] - pre[x]); if (v < best[j][i]) { best[j][i] = v; cut[j][i] = x; } }
     const at = Array(n); let i = n;
     for (let j = k; j >= 1; j--) { const x = cut[j][i]; for (let y = x; y < i; y++) at[y] = j - 1; i = x; }
-    const loads = Array(k).fill(0); ms.forEach((m, y) => { loads[at[y]] += m; });
-    return { at, loads };
+    return at;
   };
-  // Try every way to share the ten weeks between the three phases (each at least one week, never more weeks than it has
-  // courses) and keep the one whose heaviest week is lightest, then the most even.
-  let alloc = null, plans = null, bestScore = null;
-  for (let a = 1; a <= CONTENT_WEEKS - 2; a++) for (let b2 = 1; a + b2 <= CONTENT_WEEKS - 1; b2++) {
-    const ks = [a, b2, CONTENT_WEEKS - a - b2];
-    if (ks.some((k, i) => (groups[i].length ? k > groups[i].length : k > 1))) continue;
-    const ps = groups.map((g, i) => (g.length ? partition(g.map(mineMin), ks[i]) : { at: [], loads: [0] }));
-    const loads = ps.flatMap((x) => x.loads), score = [Math.max(...loads), loads.reduce((t, l) => t + (l - avgWeek) ** 2, 0)];
-    if (!bestScore || score[0] < bestScore[0] - 5 || (Math.abs(score[0] - bestScore[0]) <= 5 && score[1] < bestScore[1])) { bestScore = score; alloc = ks; plans = ps; }
-  }
-  if (!alloc) { // fewer courses than weeks: one course a week, the remaining weeks as buffers at the end of each phase
-    alloc = groups.map((g) => Math.max(1, g.length)); let i = 0; while (alloc.reduce((t, x) => t + x, 0) < CONTENT_WEEKS) alloc[(i++) % 3]++;
-    while (alloc.reduce((t, x) => t + x, 0) > CONTENT_WEEKS) alloc[alloc.indexOf(Math.max(...alloc))]--;
-    plans = groups.map((g, gi) => ({ at: g.map((_, y) => Math.min(y, alloc[gi] - 1)) }));
-  }
-  const phaseWeeks = []; let w0 = 1;
-  groups.forEach((g, gi) => {
-    const n = alloc[gi]; phaseWeeks.push([w0, w0 + n - 1]);
-    const at = plans[gi].at;
-    g.forEach((b, i) => b.items.forEach((it) => items.push({ ...it, phase: gi + 1, week: w0 + at[i] })));
-    w0 += n;
-  });
-  phaseWeeks.push([CONTENT_WEEKS + 1, CONTENT_WEEKS + 2]);
-  const phaseOfWeek = (w) => phaseWeeks.findIndex(([a, b]) => w >= a && w <= b) + 1 || 4;
+  const sectionOf = (w) => PHASES.find((p) => w >= p.weeks[0] && w <= p.weeks[1])?.n || 4;
+  // The essentials and the priority courses fill sections 1 and 2 (weeks 1 to 6); every other scenario and topic fills
+  // weeks 7 to 11, so each section's title stays true. Within each part, the weeks are balanced. With fewer courses
+  // than weeks, they are spread out evenly instead of bunched at the start.
+  const place = (list, from, k) => {
+    const at = list.length >= k ? partition(list.map(mineMin), k) : list.map((_, i) => Math.floor((i * k) / Math.max(1, list.length)));
+    list.forEach((b, i) => b.items.forEach((it) => { const week = from + at[i]; items.push({ ...it, week, phase: sectionOf(week) }); }));
+  };
+  place(courses.filter((b) => b.phase <= 2), 1, 6);
+  place(courses.filter((b) => b.phase === 3), 7, CONTENT_WEEKS - 6);
+  const phaseOfWeek = sectionOf;
   const weekOf = (key) => items.find((i) => i.key === key)?.week;
 
   // Fixed points: the mid-point review halfway, a spaced review three weeks after each focus course, then in week 11 a
@@ -315,14 +290,14 @@ export function buildPlan(u, ctx, { keepFocus = null } = {}) {
   focus.forEach((s) => {
     const mk = MODULE_FOR_SCENARIO[s], wk = Math.min(CONTENT_WEEKS, (weekOf(`${mk}.check`) || weekOf(`${mk}.lesson`) || 5) + 3);
     add({ key: `review.${mk}`, kind: 'review', module: mk, scenario: s, phase: phaseOfWeek(wk), week: wk, title: `Spaced review: ${short(s)}`, why: 'Weeks after learning it, retrieve it again. This is what makes it last.', minutes: 10, mandatory: true });
-    add({ key: `review.final.${mk}`, kind: 'review', module: mk, scenario: s, phase: 4, week: CONTENT_WEEKS + 1, title: `Final review: ${short(s)}`, why: 'One last retrieval before the mock call and the retest.', minutes: 10, mandatory: true });
+    add({ key: `review.final.${mk}`, kind: 'review', module: mk, scenario: s, phase: 4, week: 12, title: `Final review: ${short(s)}`, why: 'One last retrieval before the mock call and the retest.', minutes: 10, mandatory: true });
   });
-  quick.forEach((x) => moduleItems(x.mk, { phase: 4, week: CONTENT_WEEKS + 1, full: false, s: x.s }));
+  quick.forEach((x) => moduleItems(x.mk, { phase: 4, week: 12, full: false, s: x.s }));
   const lead = focus[0];
-  add({ key: 'mock', kind: 'one_to_one', phase: 4, week: CONTENT_WEEKS + 1, title: `Mock client call with your KUDO Trainer${lead ? `: ${short(lead)}` : ''}`, why: 'Your KUDO Trainer plays the client. You set up the scenario, answer the hard questions and say when you would hand over.', owner: 'jack', minutes: 30, mandatory: true });
-  add({ key: 'survey', kind: 'survey', phase: 4, week: CONTENT_WEEKS + 2, title: 'Tell us how the programme worked for you', why: 'Ten questions. Your answers shape the next round of the Academy.', minutes: 5 });
-  add({ key: 'retest', kind: 'milestone', phase: 4, week: CONTENT_WEEKS + 2, title: 'Retest: the January knowledge test', why: 'Same format as October, so your progress is measured like for like.', owner: 'jack', minutes: 45, mandatory: true });
-  const phases = PHASES.map((p, i) => ({ ...p, weeks: phaseWeeks[i] }));
+  add({ key: 'mock', kind: 'one_to_one', phase: 4, week: 11, title: `Mock client call with your KUDO Trainer${lead ? `: ${short(lead)}` : ''}`, why: 'Your KUDO Trainer plays the client. You set up the scenario, answer the hard questions and say when you would hand over.', owner: 'jack', minutes: 30, mandatory: true });
+  add({ key: 'survey', kind: 'survey', phase: 4, week: 12, title: 'Tell us how the programme worked for you', why: 'Ten questions. Your answers shape the next round of the Academy.', minutes: 5 });
+  add({ key: 'retest', kind: 'milestone', phase: 4, week: 12, title: 'Retest: the January knowledge test', why: 'Same format as October, so your progress is measured like for like.', owner: 'jack', minutes: 45, mandatory: true });
+  const phases = PHASES;
 
   const skip = new Set(Array.isArray(ov.skip) ? ov.skip : []);
   const kept = items.filter((i) => !skip.has(i.key)).sort((a, b) => a.week - b.week || (a.owner === 'jack' ? -1 : 0) - (b.owner === 'jack' ? -1 : 0));

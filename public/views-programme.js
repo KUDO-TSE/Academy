@@ -1,5 +1,5 @@
 import { h, api, toast, fmtDate, svg, tipI, metaRow, mark } from './ui.js';
-import { weeksCard, upNextCard, readinessCard, levelsCard, weeksLabel } from './home.js';
+import { weeksCard, readinessCard, levelsCard, weeksLabel } from './home.js';
 import { SCENARIOS as SANDBOXES } from './sandbox.js';
 import { storyPlayer } from './story.js';
 import { revealNew } from './collectibles.js';
@@ -58,9 +58,9 @@ function videoBlock(m, admin) {
 // Warm-up before a recorded check: the formats on neutral content, marked in the browser, never stored.
 function warmUp() {
   const items = [
-    { t: 'mcq', q: 'How long is the Academy programme?', o: ['6 weeks', '12 weeks', '6 months', 'One year'], a: 1, why: 'Twelve weeks in four phases' },
-    { t: 'multi', q: 'Which of these are phases of your plan?', pick: 2, o: ['Warm-up', 'Prove it', 'Holiday', 'Onboarding'], a: [0, 1], why: 'Warm-up, Build, Broaden and Prove it' },
-    { t: 'order', q: 'Put the four phases in order', steps: ['Warm-up', 'Build', 'Broaden', 'Prove it'], why: 'From the basics to proving it with your KUDO Trainer' },
+    { t: 'mcq', q: 'How long is the Academy programme?', o: ['6 weeks', '12 weeks', '6 months', 'One year'], a: 1, why: 'Twelve weeks in four sections of three weeks' },
+    { t: 'multi', q: 'Which of these are sections of your 12 weeks?', pick: 2, o: ['Start with the essentials', 'Expand and get certified', 'Holiday', 'Onboarding'], a: [0, 1], why: 'Start with the essentials, Master your priority scenarios, Cover every scenario, Expand and get certified' },
+    { t: 'order', q: 'Put the four sections in order', steps: ['Start with the essentials', 'Master your priority scenarios', 'Cover every scenario', 'Expand and get certified'], why: 'From the basics to the retest, three weeks each' },
   ];
   const shuffle = (a) => a.map((x) => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map((p) => p[1]);
   const box = h('div');
@@ -122,27 +122,23 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
   // ---- Home: a tiled dashboard built around what to do next. One step leads; everything else is context.
   const nextHref = nextUp && !readOnly ? itemHref(nextUp) : null;
   const home = [
-    h('div', { class: 'bento' },
-      h('section', { class: 'hero span-8' },
+    h('div', { class: 'bento home-top' },
+      h('section', { class: 'hero span-5' },
         h('div', { class: 'hero-main' },
-          h('div', { class: 'hero-kicker' }, metaRow([`Week ${st.week} of ${st.weeks}`, data.phases.find((p) => st.week >= p.weeks[0] && st.week <= p.weeks[1])?.name, st.started_on ? `started ${fmtDate(st.started_on)}` : null])),
+          h('div', { class: 'hero-kicker' }, metaRow([`Week ${st.week} of ${st.weeks}`, data.phases.find((p) => st.week >= p.weeks[0] && st.week <= p.weeks[1])?.short])),
           h('h1', null, `Welcome back, ${first(data.user?.name) || 'there'}`),
           h('p', { class: 'hero-goal' }, settings.goal || 'Your custom programme to become a KUDO Champion.'),
           data.message ? h('div', { class: 'hero-msg' }, h('b', null, 'From your KUDO Trainer: '), data.message) : null,
           readOnly ? null : h('div', { class: 'hero-cta' },
             nextUp ? h('a', { class: 'btn primary lg', href: nextHref || '#training', on: { click: () => focusStep(nextUp.kind) } }, 'Take the course') : null,
-            nextUp ? h('span', { class: 'hero-next' }, nextUp.title) : h('span', { class: 'hero-next' }, 'Everything on your side is done for now.')))),
-      h('section', { class: 'card span-4 prog-tile' },
-        h('div', { class: 'row spread' }, h('h2', null, 'Your progress'), h('span', { class: `chip ${paceChip[0]}` }, paceChip[1])),
+            h('span', { class: 'hero-next' }, nextUp ? nextUp.title : 'Everything on your side is done for now.')))),
+      h('section', { class: 'card span-3 prog-tile' },
+        h('div', { class: 'row spread' }, h('h2', null, 'My Progress'), h('span', { class: `chip ${paceChip[0]}` }, paceChip[1])),
         h('div', { class: 'pt-ring' }, h('div', { class: 'ring big', style: `--p:${myPct}`, role: 'img', 'aria-label': `${myPct}% of your steps done` }, h('b', null, `${myPct}%`)),
           h('div', null, h('div', { class: 'pt-big' }, `${myDone} of ${mySteps.length}`), h('div', { class: 'muted small' }, 'steps done'))),
-        h('div', { class: 'pt-bar' }, h('div', { class: 'row spread small' }, h('span', { class: 'muted' }, 'Readiness'), h('b', null, `${st.readiness.now}%`)),
-          h('div', { class: 'bar' }, h('i', { style: `width:${Math.min(100, st.readiness.now)}%` }))),
-        h('div', { class: 'muted small' }, st.readiness.now !== st.readiness.start ? `${st.readiness.now - st.readiness.start >= 0 ? '+' : ''}${st.readiness.now - st.readiness.start} points since your starting point of ${st.readiness.start}%` : `Your starting point: ${st.readiness.start}%`))),
-    weeksCard({ items: st.items, week: st.week, weeks: st.weeks, phases: data.phases, levels: st.levels, modules: data.modules, hrefFor: readOnly ? () => null : itemHref, onStep: (it) => focusStep(it.kind), pace: paceChip }),
-    h('div', { class: 'home-pair' },
-      upNextCard({ items: st.items, week: st.week, hrefFor: itemHref, onStep: (it) => focusStep(it.kind), readOnly }),
-      readinessCard({ progression: st.progression || [], start: st.readiness.start, now: st.readiness.now, firstCheck: st.items.find((i) => mine(i) && !i.done && ['check', 'baseline', 'review'].includes(i.kind))?.title || null })),
+        h('div', { class: 'muted small' }, `${data.phases.find((p) => st.week >= p.weeks[0] && st.week <= p.weeks[1])?.name || ''}, weeks ${(data.phases.find((p) => st.week >= p.weeks[0] && st.week <= p.weeks[1]) || { weeks: [1, 3] }).weeks.join(' to ')}`)),
+      readinessCard({ progression: st.progression || [], start: st.readiness.start, now: st.readiness.now, compact: true, cls: 'span-4', firstCheck: st.items.find((i) => mine(i) && !i.done && ['check', 'baseline', 'review'].includes(i.kind))?.title || null })),
+    weeksCard({ title: 'My 12-weeks program', items: st.items, week: st.week, weeks: st.weeks, phases: data.phases, levels: st.levels, modules: data.modules, hrefFor: readOnly ? () => null : itemHref, onStep: (it) => focusStep(it.kind), pace: paceChip }),
     levelsCard(st.levels),
     data.shared?.length ? h('div', { class: 'card' }, h('h2', null, 'Notes from your KUDO Trainer sessions'), data.shared.map((n) => h('div', { class: 'note-box' }, h('b', null, n.title), h('div', null, n.text), h('div', { class: 'when' }, fmtDate(n.on))))) : null,
   ];

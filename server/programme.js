@@ -61,8 +61,6 @@ export async function programmeFor(userId, { useDraft = false } = {}) {
   const shared = (ctx.inputs.get(userId) || []).filter((i) => i.shared_summary).map((i) => ({ title: i.title, on: i.happened_on, text: i.shared_summary })).reverse();
   const base = { user: { name: u.name, team: u.team, region: u.region }, settings: ctx.settings, phases: PHASES, modules: moduleMeta(), depth: DEPTH, message: u.plan_overrides?.message || null, shared, folder: ACADEMY_FOLDER };
   if (!row) return { ...base, status: 'pending' };
-  // Each plan carries its own phase weeks (the courses decide how many weeks each phase needs).
-  if (row.data?.phases) base.phases = row.data.phases;
   return { ...base, status: row.status, version: row.version, plan: row.data, state: liveState(u, row, ctx) };
 }
 
@@ -533,7 +531,7 @@ adminProgramme.get('/trainees/:id/programme', async (req, res, next) => {
     const { levels } = buildPlan(u, ctx);
     res.json({
       user: { id: u.id, name: u.name, team: u.team, learning_pref: u.profile?.learning_pref || null, demo: u.is_demo },
-      overrides: u.plan_overrides || {}, settings: ctx.settings, phases: (approved || draft)?.data?.phases || PHASES, modules: moduleMeta(),
+      overrides: u.plan_overrides || {}, settings: ctx.settings, phases: PHASES, modules: moduleMeta(),
       approved: approved ? { version: approved.version, approved_at: approved.approved_at, started_on: approved.started_on, plan: approved.data, state: liveState(u, approved, ctx) } : null,
       draft: draft ? { version: draft.version, created_at: draft.created_at, plan: draft.data, state: liveState(u, { ...draft, started_on: approved?.started_on || null }, ctx), diff: diffPlans(approved?.data, draft.data) } : null,
       levels: SCENARIOS.map((s) => ({ scenario: s.key, short: s.short, ...levels.per[s.key] })),

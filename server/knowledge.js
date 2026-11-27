@@ -38,6 +38,18 @@ async function corpus() {
     const byKey = Object.fromEntries(MODULES.map((m) => [m.key, m.title]));
     for (const f of faq) chunks.push({ module: f.module_key, title: `${byKey[f.module_key] || 'Academy'}: FAQ from your KUDO Trainer`, text: `Q: ${f.question}\nA: ${f.answer}` });
   } catch { /* no field notes yet */ }
+  // KUDO releases (the ones in KUDO News): each change with its version and date, and the release summary. They are
+  // newer than the lessons: KUDOG says so when they differ.
+  try {
+    const KIND = { feature: 'New feature', fix: 'Improvement or fix', known: 'Known issue', removed: 'Removed' };
+    const rels = (await q("SELECT title,version,released_on,summary,items FROM releases WHERE status='applied' OR in_news ORDER BY released_on DESC LIMIT 80")).rows;
+    const day = (d) => (d instanceof Date ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : String(d).slice(0, 10));
+    for (const r of rels) {
+      const tag = `KUDO ${r.version || r.title} release (${day(r.released_on)})`;
+      if (r.summary) chunks.push({ module: null, title: `${tag}: summary`, text: r.summary });
+      for (const it of (r.items || []).filter((i) => i.status !== 'skipped')) chunks.push({ module: it.modules?.[0] || null, title: `${tag}: ${it.title}`, text: `${KIND[it.kind] || 'Change'}. ${it.body}` });
+    }
+  } catch { /* no releases yet */ }
   const df = new Map();
   for (const c of chunks) { c.terms = words(`${c.title} ${c.text}`); for (const w of new Set(c.terms)) df.set(w, (df.get(w) || 0) + 1); }
   cache = { chunks, df, n: chunks.length }; cachedAt = Date.now();

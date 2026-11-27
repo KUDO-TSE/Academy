@@ -628,3 +628,31 @@ td.nowrap{white-space:nowrap;font-variant-numeric:tabular-nums}
 .hero-cta .btn.primary:hover{background:#174E70;border-color:#174E70;color:#fff}
 .hero :focus-visible{outline-color:var(--kudo-blue)}
 .hero .tip-i{color:#3D6A88}
+
+/* Home v3: top row with My Readiness, courses as all-in-one blocks */
+.home-top{align-items:stretch}
+.hero.span-5{grid-column:span 5;padding:var(--s-6);display:flex;flex-direction:column;justify-content:center}
+.span-5{grid-column:span 5}.span-3{grid-column:span 3}
+.hero.span-5 h1{font-size:28px}
+.hero.span-5 .hero-goal{font-size:14.5px}
+.hero.span-5 .hero-cta{gap:var(--s-3)}
+.hero.span-5 .hero-next{font-size:13.5px}
+.prog-tile.span-3 .pt-ring{gap:var(--s-4)}
+.prog-tile.span-3 .ring.big{width:96px;height:96px}
+.readiness-card.compact{display:flex;flex-direction:column;gap:var(--s-2)}
+.readiness-card.compact .rd-figs{margin:var(--s-2) 0 0;gap:var(--s-2)}
+.readiness-card.compact .rd-fig{padding:var(--s-2) var(--s-3)}
+.readiness-card.compact .rd-fig b{font-size:22px}
+.readiness-card.compact .rd-chart{margin:0}
+.readiness-card.compact .rd-list li{padding:6px 0;font-size:12.5px}
+.rd-empty{font-size:12.5px;color:var(--ink-500);margin:0}
+@media (max-width:1200px){.hero.span-5{grid-column:span 12}.prog-tile.span-3{grid-column:span 5}.readiness-card.span-4{grid-column:span 7}}
+@media (max-width:760px){.prog-tile.span-3,.readiness-card.span-4{grid-column:span 12}}
+.wk-step{display:inline-flex;align-items:center;gap:3px;font-size:11.5px;font-weight:600;color:var(--ink-500);background:var(--bg-sunken);border:1px solid var(--border-soft);border-radius:99px;padding:1px 8px}
+.wk-step.on{color:#1E7A50;background:#EAF6EF;border-color:#CBE8D6}
+.wk-step svg{width:10px;height:10px}
+.wk .wk-steps{grid-template-columns:minmax(0,1fr)}
+.wk .wk-steps li:nth-child(2){border-top:1px solid var(--border-soft)}
+.wk-gh-top{align-items:flex-start}
+.wk-gh-top span{white-space:nowrap;padding-top:2px}
+.wk-gh-top b{line-height:1.3}
