@@ -3,7 +3,7 @@
 import { h, api } from './ui.js';
 import { kudogSays } from './kudog.js';
 
-const SB_TITLE = { 'platform-1': 'Sandbox: run a meeting', 'platform-2': 'Sandbox: second meeting', 'hi-1': 'Sandbox: hybrid event', 'rtmp-1': 'Sandbox: stream to YouTube', 'hls-1': 'Sandbox: web page broadcast', 'widget-1': 'Sandbox: embed the widget', 'ringcentral-1': 'Sandbox: RingCentral Events' };
+const SB_TITLE = { 'platform-1': 'Sandbox: run a meeting', 'platform-2': 'Sandbox: second meeting', 'hi-1': 'Sandbox: hybrid event', 'rtmp-1': 'Sandbox: stream to YouTube', 'hls-1': 'Sandbox: web page broadcast', 'widget-1': 'Sandbox: embed the widget', 'ringcentral-1': 'Sandbox: RingCentral Events', 'zoom-1': 'Sandbox: KUDO in Zoom', 'teams-1': 'Sandbox: KUDO in Teams', 'meet-1': 'Sandbox: KUDO in Google Meet', 'webex-1': 'Sandbox: KUDO in Webex' };
 const href = (k) => `${document.body.dataset.me === '1' ? 'me-' : ''}${k}`;
 
 function scoreTable(r) {

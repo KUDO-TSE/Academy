@@ -319,12 +319,12 @@ export const MODULES = [
         'Recording and transcript: tick "Automatically record this meeting when it starts". Check both show the same time zone, especially with a VPN. The glossary chosen on KUDO carries over automatically.',
       ] },
       { title: 'On the day and after', points: [
-        'Start the KUDO meeting from the Overview (the play button, then "Every attendee can join from now"). The bot tries to join 1 minute before the start; with a waiting room on, the host admits it.',
+        'Nothing to start in KUDO: the KUDO meeting starts by itself when the Zoom meeting starts, so the host stays in Zoom. The bot tries to join 1 minute before the start; with a waiting room on, the host admits it.',
         'In Zoom the host sees "KUDO AI Translator bot is requesting to record to computer": tick "Apply these permissions to all future requests in this meeting" and Approve. Without approval the bot hears nothing.',
         'Once in, the bot shows a QR code on its video and posts the Mobile Link in the Zoom chat. On the Mobile Link page attendees pick a language and Join, then choose voice and captions separately (for example hear German, read English), next to Zoom.',
         'KUDO bot timeout: the bot disconnects if no participant is detected after 10 minutes. Missing bot: Add bot. Disconnected: Restart bot service. Both are on the KUDO Overview.',
         'Bot will not join: check the link, that the schedules match, recording permissions, and host approval. Last step: a new Zoom meeting, reconnected.',
-        'Afterwards check KUDO for the multilingual recordings, not Zoom.',
+        'Afterwards: ending the Zoom meeting closes KUDO when Force close meeting is ticked. The multilingual recordings are in KUDO, not Zoom: log in to the KUDO client account, open the meeting, Content, Recordings & transcripts, then Download (they appear 15 to 20 minutes after the end and are kept 30 days).',
       ] },
     ],
     learn: [video('KUDO for Zoom'), guide('Product 04 KUDO for Zoom'), hc('40516264139415', 'Connect KUDO to Zoom, Google Meet or ON24'), hc('41125087550487', 'Why is the KUDO Bot not joining my Zoom meeting?'), hc('41124967575447', 'Why is the KUDO AI Bot requesting recording permissions in Zoom?')],
@@ -354,14 +354,21 @@ export const MODULES = [
     ],
     sections: [
       { title: 'The shared model', points: [
-        'A KUDO bot joins as an external guest, listens and translates. AI Translation only.',
+        'Google Meet and Webex work exactly like Zoom: a KUDO bot joins as an external guest, listens and translates. AI Translation only.',
         'Platform rules: a standard meeting (not a webinar, seminar or live stream), a new meeting ID, not recurring.',
-        'In KUDO: AI Translation, same title, date and time, turn on External Meeting, choose the platform and paste the full link. No option: ask the Client Manager. Automatic Language Detection and Auto-Record on, same time zone.',
-        'The bot tries to join 1 minute before the start and must be let in by the host. Without that it hears nothing. The glossary carries over automatically.',
-        'Attendees use the Mobile Link, ideally on a second device. On the same computer, mute the meeting tab to avoid two audio sources.',
+        'In KUDO: New meeting, AI speech translation meeting, same name, date and time; tick Force close meeting; turn on "External meeting: Using KUDO on another platform?", choose the Meeting platform (Microsoft Teams, Google Meet, Zoom or Webex) and paste the full join link. No option: ask the Client Manager. Detect language automatically and "Automatically record this meeting when it starts" on, same time zone.',
+        'Nothing to start in KUDO: it starts by itself when the client\'s meeting starts. The bot tries to join 1 minute before the start and must be let in by the host. Without that it hears nothing. The glossary carries over automatically.',
+        'Attendees use the Mobile Link the bot posts in the chat (or its QR code), ideally on a second device. On the same computer, mute the meeting tab to avoid two audio sources.',
+        'Afterwards: the recordings are in KUDO, not in the platform. KUDO client account, the meeting, Content, Recordings & transcripts, Download.',
+      ] },
+      { title: 'Google Meet', points: [
+        'In the Calendar event: Add video conferencing, then Video call options, Host controls, Meeting access type: Open (nobody asks to join), Trusted or Restricted.',
+        'With Trusted or Restricted, keep "Anyone with the meeting link can ask to join" ticked: with it off, everyone who asks, the KUDO bot included, is denied automatically. A host then admits the bot when it asks to join.',
+        'With Host management on, only the host and co-hosts can admit people: the person who admits the bot must be one of them.',
       ] },
       { title: 'Webex', points: [
-        'Four settings can block the bot: blocked email domains (Control Hub, Services, Meeting, Settings), the guest rule ("Guests can\'t join" when unlocked), the lobby, and auto-lock.',
+        'Four settings can block the bot: blocked email domains (Control Hub, Services, Meeting, Settings), the guest rule (when the meeting is unlocked: "Guests can join directly", "Guests wait in the lobby until the host admits them" or "Guests can\'t join"), the lobby, and the automatic lock after the meeting starts.',
+        'The bot joins as a guest: allow guests in, directly or through the lobby (the host admits it), and turn off the automatic lock so the bot can rejoin if it drops.',
         'These belong to the client\'s Webex admin. If the bot is missing, check the lobby list first.',
       ] },
       { title: 'ON24', points: [
@@ -374,6 +381,7 @@ export const MODULES = [
     ],
     learn: [guide('Product 10 External Meeting Link'), hc('40516264139415', 'Connect KUDO to Zoom, Google Meet or ON24'), hc('40601760089367', 'Start KUDO translation in a Zoom or Google Meet meeting'), hc('40629295397271', 'Add the KUDO Widget to an ON24 webinar')],
     practice: [
+      'Sandbox: the Google Meet and Webex exercises, from the client call to the recordings.',
       'Link a Google Meet or Webex test meeting to KUDO, let the bot in and follow the translation on your phone.',
       'Explain to a colleague, as to an ON24 client, why the webcast player must stay muted.',
     ],
