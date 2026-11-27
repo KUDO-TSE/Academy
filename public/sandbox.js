@@ -5,6 +5,7 @@
 import { h, api, toast, svg, metaRow, mark } from './ui.js';
 // Line icons (stroke) in the style of the KUDO screens.
 const I = {
+  cog: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
   cal: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>', clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
   lang: '<path d="M4 6h9M8.5 4v2M6 6c.5 3 2.5 5.5 5 7M11 6c-.6 3.4-3 6.4-6 8M13 20l4-9 4 9M14.5 17h5"/>', play: '<path d="M8 5l11 7-11 7z"/>', edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
   x: '<path d="M6 6l12 12M18 6L6 18"/>', stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>', restart: '<path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v5h5"/>',
@@ -198,7 +199,7 @@ export const SCENARIOS = {
         { id: 'widget', label: 'The KUDO widget (iframe) on their intranet', why: 'Attendees are in Meet, not on a web page.' },
       ],
     },
-    expert: ['Ask the client the six questions that decide the set-up', 'Choose an AI speech translation meeting linked to their Google Meet', 'Calendar and video app: Create "Benefits Briefing", today 11:00, 1 hour, Add video conferencing', 'Host controls: keep Restricted but tick "Anyone with the meeting link can ask to join" (or choose Open), Save', 'Copy the link', 'KUDO: New meeting, AI speech translation meeting, the same name, Force close meeting, English to German and Italian', 'External meeting on: platform Google Meet, paste the link; automatic recording; Save', 'Join the call (KUDO starts by itself) and Admit the bot when it asks to join', 'Open the chat: the bot posted the Mobile Link', 'End the call: KUDO closes with it', 'KUDO: Content, Recordings & transcripts, Download'],
+    expert: ['Ask the client the six questions that decide the set-up', 'Choose an AI speech translation meeting linked to their Google Meet', 'Calendar and video app: + Create, title "Benefits Briefing", today 11:00, Add Google Meet video conferencing', 'Gear (Video call options), Host controls: keep Restricted, tick "Anyone with the meeting link can ask to join", Save, then Save the event', 'Open the event in the calendar: Copy link', 'KUDO: New meeting, AI speech translation meeting, the same name, Force close meeting, English to German and Italian', 'External meeting on: platform Google Meet, paste the link; automatic recording; Save', 'Calendar: Join with Google Meet, then Join now (KUDO starts by itself)', '"Someone wants to join this call": Admit the KUDO AI Translator bot', 'Chat (In-call messages): the bot posted the Mobile Link', 'Leave call, then End the call (for everyone): KUDO closes with it', 'KUDO: Content, Recordings & transcripts, Download'],
     expertSeconds: 300,
     screens: ['login', 'home', 'meetings', 'new-ai', 'meeting', 'preview', 'recordings'],
   },
@@ -225,7 +226,7 @@ export const SCENARIOS = {
         { id: 'hls', label: 'HLS broadcast on their intranet', why: 'Attendees are in Webex, not on a web page.' },
       ],
     },
-    expert: ['Ask the client the seven questions that decide the set-up', 'Choose an AI speech translation meeting linked to their Webex', 'Web conferencing app: Schedule "Sales Kickoff", today 15:00, 1 hour', 'Advanced options, Security: let guests in (directly or through the lobby), turn off the automatic lock, Save', 'Copy the join link', 'KUDO: New meeting, AI speech translation meeting, the same name, Force close meeting, English to Japanese and Portuguese', 'External meeting on: platform Webex, paste the link; automatic recording; Save', 'Start the meeting (KUDO starts by itself) and admit the bot if it waits in the lobby', 'Open the chat: the bot posted the Mobile Link', 'End the meeting: KUDO closes with it', 'KUDO: Content, Recordings & transcripts, Download'],
+    expert: ['Ask the client the seven questions that decide the set-up', 'Choose an AI speech translation meeting linked to their Webex', 'Web conferencing app, Meetings: Schedule, topic "Sales Kickoff", today 15:00, 1 hour', 'Show advanced options, Scheduling options: Unlocked meetings, guests wait in the lobby (or join directly); untick Automatic lock; Schedule', 'On the meeting page: Copy link next to Meeting link', 'KUDO: New meeting, AI speech translation meeting, the same name, Force close meeting, English to Japanese and Portuguese', 'External meeting on: platform Webex, paste the link; automatic recording; Save', 'Web conferencing app: Start (KUDO starts by itself)', '"1 person is waiting in the lobby": View lobby, Let in the KUDO AI Translator bot (Unverified)', 'Chat: the bot posted the Mobile Link', 'Red X, End meeting for all: KUDO closes with it', 'KUDO: Content, Recordings & transcripts, Download'],
     expertSeconds: 300,
     screens: ['login', 'home', 'meetings', 'new-ai', 'meeting', 'preview', 'recordings'],
   },
@@ -910,17 +911,17 @@ export function sandboxView(key, { onExit } = {}) {
         const x = S.vm.meet, m = S.mine, app = PL.app;
         if (!x) return `${app} tab: schedule "${want.label}", today ${want.time}, for 1 hour.`;
         if (!S.vm.ended && PL.bad(x)) return `${app}: ${PL.fix}`;
-        if (!S.clip.some((c) => c.kind === 'vm-link')) return 'Copy the join link from the invitation ("Copy link").';
+        if (!S.clip.some((c) => c.kind === 'vm-link')) return PL.copy;
         if (!m) return `KUDO portal: New meeting, AI speech translation meeting, with the same name as in the ${app.toLowerCase()}.`;
         if (!m.force && m.status === 'scheduled') return 'Edit the KUDO meeting: tick "Force close meeting" so KUDO ends with the client\'s meeting.';
         if (!linked(m, x)) return m.external ? `The KUDO meeting must point at the client's meeting: platform ${PL.kudo} and the join link only (not the whole invitation). The External meeting switch is locked once created: create the meeting again.` : `Create the KUDO meeting with "External meeting" on: platform ${PL.kudo}, paste the join link. The switch is locked once the meeting is created.`;
         if (!m.autoRecord && m.status === 'scheduled') return 'Edit meeting: tick "Automatically record this meeting when it starts".';
-        if (!S.vm.ended && S.vm.mode !== 'live') return `${app}: start the meeting. The KUDO meeting starts by itself with it.`;
-        if (!S.vm.ended && S.vm.bot === 'waiting') return 'The KUDO AI Translator bot is at the door: Admit it.';
+        if (!S.vm.ended && S.vm.mode !== 'live') return `${app}: ${PL.start}. The KUDO meeting starts by itself with it.`;
+        if (!S.vm.ended && S.vm.bot === 'waiting') return `The KUDO AI Translator bot is asking to come in: ${PL.admit}.`;
         if (!S.vm.ended && S.vm.bot === 'request') return 'Approve the bot\'s recording request: without it the bot hears nothing.';
         if (!S.vm.ended && S.vm.bot === 'denied') return 'The bot was turned away: KUDO Overview, "Add bot", then let it in this time.';
         if (!S.vm.ended && !S.flags.sawBotChat) return 'Open the Chat: the bot posted the Mobile Link for attendees.';
-        if (!S.vm.ended) return 'The meeting is over: End it for all.';
+        if (!S.vm.ended) return sc.vm === 'meet' ? 'The meeting is over: Leave call, then End the call (for everyone).' : sc.vm === 'webex' ? 'The meeting is over: the red X, then End meeting for all.' : 'The meeting is over: End it for all.';
         if (m.status === 'live') return 'KUDO stays open for the 1-hour grace period (no Force close): End meeting on the KUDO Overview.';
         if (!S.flags.foundRecording) return 'KUDO portal: open the meeting, Content, Recordings & transcripts, then Download.';
         return null;
@@ -1334,6 +1335,7 @@ export function sandboxView(key, { onExit } = {}) {
       blocked: (x) => (x.enc === 'e2e' ? 'End-to-end encryption is on: apps and bots cannot join this meeting. End the meeting, edit it and choose Enhanced encryption.' : null),
       lobby: (x) => x.waiting, lobbyText: 'KUDO AI Translator entered the waiting room.',
       fix: 'Edit the meeting. Keep the passcode, untick the Waiting Room and choose Enhanced encryption, then Save.',
+      copy: 'Copy the join link from the invitation ("Copy link").', start: 'start the meeting', admit: 'Admit', 
       bad: (x) => x.enc === 'e2e' || x.waiting || !x.passcode,
       checks: (x) => [
         ['A new, non-recurring meeting ID (not the Personal Meeting ID)', !!x && !x.recurring && x.idMode === 'auto', 4],
@@ -1356,7 +1358,8 @@ export function sandboxView(key, { onExit } = {}) {
           check(f.hostFirst, 'Host must join before anyone else can join', tick('hostFirst', 'Host must join before anyone else'))) : null],
       blocked: (x) => (x.access !== 'open' && !x.ask ? 'KUDO AI Translator bot asked to join and was denied automatically: asking to join is turned off for this meeting. End the call, edit the event (Video call options) and allow asking to join.' : null),
       lobby: (x) => x.access !== 'open', lobbyText: 'KUDO AI Translator bot wants to join this call.',
-      fix: 'Edit the event: Video call options, Host controls. Allow "Anyone with the meeting link can ask to join" (or choose Open), then Save.',
+      fix: 'Open the event, Edit event, then the gear (Video call options), Host controls: tick "Anyone with the meeting link can ask to join" (or choose Open), Save, then Save the event.',
+      copy: 'Open the event in the calendar and use "Copy link" (the link only, not the joining info).', start: 'open the event, Join with Google Meet, then Join now', admit: 'Admit', 
       bad: (x) => !x.conf || (x.access !== 'open' && !x.ask),
       checks: (x) => [
         ['Video conferencing added to the event, not repeating', !!x && x.conf && x.repeat === 'none', 6],
@@ -1376,7 +1379,8 @@ export function sandboxView(key, { onExit } = {}) {
           f.autoLock ? h('div', { class: 'k-row' }, select(['0', '5', '10', '15', '20'], f.lockMin, set2('lockMin', 'Lock after (minutes)'), 'sm'), h('small', { class: 'k-mini' }, 'minutes after the meeting starts. Once locked, nobody new gets in without the host.')) : null)],
       blocked: (x) => (x.guests === 'cant' ? 'A guest tried to join and was refused: guests can\'t join this meeting. The KUDO AI Translator bot joins as a guest. End the meeting, edit it (Advanced options, Security) and let guests in.' : null),
       lobby: (x) => x.guests === 'lobby', lobbyText: 'KUDO AI Translator bot is waiting in the lobby.',
-      fix: 'Edit the meeting: Advanced options, Security. Let guests in (directly or through the lobby) and turn off the automatic lock, then Save.',
+      fix: 'Open the meeting, Edit, Show advanced options, Scheduling options: under Unlocked meetings let guests in (directly or through the lobby) and untick Automatic lock, then Save.',
+      copy: 'Open the meeting and use "Copy link" next to Meeting link (not the whole invitation).', start: 'open the meeting and click Start', admit: 'Let in', 
       bad: (x) => x.guests === 'cant' || x.autoLock,
       checks: (x) => [
         ['Not recurring', !!x && !x.recurring, 4],
@@ -1410,7 +1414,144 @@ export function sandboxView(key, { onExit } = {}) {
     if (m === S.mine && ['denied', 'gone'].includes(S.vm.bot)) S.vm.bot = null;
     toastK(what === 'Add bot' ? 'The bot is on its way to the meeting' : 'Bot service restart in progress'); draw();
   }
+  // Shared moves for the three platforms.
+  const vmSave = (f) => { const v = S.vm, keep = v.editing && v.meet ? v.meet : null; v.meet = { ...f, topic: f.topic.trim(), ...PL.ids(f, keep) }; v.editing = false; log('save', `App: meeting saved (${v.meet.topic}, ${v.meet.time}, ${v.meet.dur})`, { vm: { ...v.meet } }); };
+  const vmStart = () => { const v = S.vm; v.mode = 'live'; v.started++; S.flags.vmStarted = true; log('click', 'App: Start the meeting'); };
+  const vmAdmit = () => { const v = S.vm; v.bot = PL.record ? 'request' : 'in'; if (v.bot === 'in') { S.flags.botIn = true; toastK('KUDO AI Translator bot joined'); } log('click', 'App: Admit the bot'); draw(); };
+  const vmDeny = () => { S.vm.bot = 'denied'; S.flags.botDenied = true; log('click', 'App: Deny the bot'); draw(); };
+  const vmEnd = (forAll) => {
+    const v = S.vm, x = v.meet, m = S.mine; v.chat = false; v.panel = null; v.menu = null;
+    if (!forAll) { v.mode = 'home'; log('click', 'App: Leave (the meeting goes on)'); toastK('You left. The meeting goes on without you'); draw(); return; }
+    log('click', 'App: End the meeting for everyone'); v.mode = 'home'; v.ended = true; S.flags.vmEnded = true; if (['in', 'waiting', 'request'].includes(v.bot)) v.bot = 'gone';
+    if (m && m.status === 'live' && linked(m, x) && m.force) { m.status = 'finished'; S.flags.ended = true; S.flags.forceClosed = true; log('view', 'KUDO meeting closed with the client\'s meeting (Force close)'); toastK('The meeting ended. KUDO closed with it (Force close meeting)'); }
+    else if (m && m.status === 'live' && linked(m, x)) { log('view', 'KUDO meeting still open: 1-hour grace period'); toastK('The meeting ended. The KUDO meeting stays open for the 1-hour grace period'); }
+    else toastK('The meeting ended'); draw();
+  };
+  const botMsg = (url) => h('div', { class: 'vm-msg' }, h('b', null, 'KUDO AI Translator bot'), h('p', null, 'This is the KUDO AI Translator bot, which provides secure real-time speech translation and captions in this meeting. To access the meeting in the language of your choice, scan the QR code on screen. You can also join in your language directly via this link: ', h('button', { class: 'k-link', type: 'button', on: { click: () => clipItem('mobile', url, 'Mobile Link (from the bot)') } }, url)));
+  const botTile = () => h('div', { class: 'vm-tile bot' }, h('div', { class: 'vm-qr', 'aria-hidden': 'true' }, ...Array.from({ length: 49 }, (_, i) => h('i', { class: (i * 7 + (i >> 2)) % 3 ? '' : 'on' }))), h('span', null, 'KUDO AI Translator bot'));
+  const sawChat = () => { if (S.vm.bot === 'in' && !S.flags.sawBotChat) { S.flags.sawBotChat = true; log('view', 'App: the bot posted the Mobile Link in the chat'); } };
+  const TIMES = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
+  const plus1 = (t) => `${String(Number(t.slice(0, 2)) + 1).padStart(2, '0')}:00`;
+
+  // ---- Google Meet-like: a calendar, the event editor with "Add video conferencing" and Video call options (gear),
+  // a "Ready to join?" screen, then the call with the join request, In-call messages and Leave call.
+  function meetScreen() {
+    const v = S.vm, x = v.meet, m = S.mine;
+    if (v.mode === 'schedule') {
+      const f = v.f, set2 = (k, l) => (val) => { f[k] = val; log('change', `App: ${l}: ${val}`); draw(); };
+      const title = h('input', { class: 'gm-title', value: f.topic, placeholder: 'Add title', 'aria-label': 'Title', on: { input: (e) => { f.topic = e.target.value; }, change: (e) => log('input', `App: Title: ${e.target.value}`) } });
+      const opts = v.dlg === 'vco' ? h('div', { class: 'k-modal-bg' }, h('div', { class: 'k-modal gm-vco' }, h('div', { class: 'k-modal-h' }, h('b', null, 'Video call options'), h('button', { type: 'button', 'aria-label': 'Close', on: { click: () => { v.dlg = null; draw(); } } }, '×')),
+        h('div', { class: 'gm-vtabs' }, h('span', { class: 'on' }, 'Host controls'), h('span', null, 'Co-hosts'), h('span', null, 'Meeting records')),
+        h('div', { class: 'gm-row' }, h('div', null, h('b', null, 'Host management'), h('small', { class: 'k-mini' }, 'Lets you control what participants can do in the meeting')), toggle(true, null, () => {})),
+        h('b', null, 'Meeting access'), h('small', { class: 'k-mini' }, 'These settings also apply to future instances of this meeting'),
+        radio('vmacc', [['open', 'Open', 'No one has to ask to join. Anyone can dial in.'], ['trusted', 'Trusted', 'People in your organisation and guests invited with the Calendar event join without asking. Everyone else must ask to join.'], ['restricted', 'Restricted', 'Only people invited with the Calendar event or by a host join without asking. Everyone else must ask to join.']], f.access, set2('access', 'Meeting access type')),
+        check(f.access === 'open' || f.ask, 'Anyone with the meeting link can ask to join', (val) => { f.ask = val; log('toggle', `App: Anyone with the meeting link can ask to join: ${val}`); draw(); }, f.access === 'open'),
+        h('div', { class: 'gm-row' }, h('span', null, 'Host must join before anyone else'), toggle(f.hostFirst, null, (val) => { f.hostFirst = val; log('toggle', `App: Host must join first: ${val}`); draw(); })),
+        h('div', { class: 'k-row end' }, h('button', { class: 'gm-btn', type: 'button', on: { click: () => { v.dlg = null; log('click', 'App: Video call options saved'); draw(); } } }, 'Save')))) : null;
+      return h('div', { class: 'gm' }, h('div', { class: 'gm-edtop' }, h('button', { class: 'gm-x', type: 'button', 'aria-label': 'Close', on: { click: () => { v.mode = 'home'; v.editing = false; log('click', 'App: close the editor'); draw(); } } }, '×'), title, h('span', { class: 'pv-gap' }),
+          h('button', { class: 'gm-btn', type: 'button', on: { click: () => { if (!f.topic.trim()) return toastK('Add a title'); vmSave(f); v.mode = 'home'; v.pop = true; toastK('Event saved'); draw(); } } }, 'Save')),
+        h('div', { class: 'gm-when' }, h('span', null, 'Today'), select(TIMES, f.time, (val) => { f.time = val; f.dur = '1 hour'; log('change', `App: Start: ${val}`); draw(); }, 'sm'), h('span', null, `to ${plus1(f.time)}`),
+          select([['none', 'Does not repeat'], ['weekly', 'Weekly on Friday'], ['daily', 'Every weekday']], f.repeat, set2('repeat', 'Repeat'), 'sm')),
+        h('div', { class: 'gm-body' }, h('div', { class: 'gm-main' }, h('div', { class: 'gm-tabs' }, h('span', { class: 'on' }, 'Event details'), h('span', null, 'Find a time')),
+            f.conf ? h('div', { class: 'gm-conf' }, h('div', { class: 'gm-meetbtn' }, 'Join with Google Meet'), h('small', { class: 'k-mini' }, 'Link created when you save'),
+              h('button', { class: 'gm-gear', type: 'button', title: 'Video call options', 'aria-label': 'Video call options', on: { click: () => { v.dlg = 'vco'; log('click', 'App: Video call options'); draw(); } } }, ic('cog', 16)))
+              : h('button', { class: 'gm-btn', type: 'button', on: { click: () => { f.conf = true; log('click', 'App: Add video conferencing'); draw(); } } }, 'Add Google Meet video conferencing'),
+            h('div', { class: 'gm-field' }, 'Add location'), h('div', { class: 'gm-field' }, 'Notification: 10 minutes before'), h('div', { class: 'gm-field tall' }, 'Add description')),
+          h('div', { class: 'gm-side' }, h('div', { class: 'gm-tabs' }, h('span', { class: 'on' }, 'Guests')), h('div', { class: 'gm-field' }, 'Add guests'), h('small', { class: 'k-mini' }, 'Guest permissions: invite others, see guest list'))), opts);
+    }
+    if (v.mode === 'prejoin' && x) return h('div', { class: 'gm gm-pre' }, h('div', { class: 'gm-pretile' }, h('span', null, 'Camera is off')), h('div', { class: 'gm-prego' }, h('h2', null, 'Ready to join?'), h('small', { class: 'k-mini' }, x.topic), h('button', { class: 'gm-btn big', type: 'button', on: { click: () => { vmStart(); draw(); } } }, 'Join now')));
+    if (v.mode === 'live' && x) {
+      botTick();
+      const bot = v.bot, url = m ? LINK.mobile(m) : '';
+      if (v.panel === 'chat') sawChat();
+      const blockedWhy = m?.status === 'live' && linked(m, x) ? PL.blocked(x) : null;
+      const panel = v.panel === 'chat' ? h('aside', { class: 'gm-panel' }, h('b', null, 'In-call messages'), h('small', { class: 'k-mini' }, 'Messages can only be seen by people in the call'), bot === 'in' ? botMsg(url) : h('small', { class: 'k-mini' }, 'No chat messages yet'))
+        : v.panel === 'people' ? h('aside', { class: 'gm-panel' }, h('b', null, 'People'), bot === 'waiting' ? h('div', { class: 'gm-wait' }, h('small', null, 'Waiting to join'), h('div', { class: 'k-row' }, h('span', null, 'KUDO AI Translator bot'), h('span', { class: 'pv-gap' }), h('button', { class: 'k-link', type: 'button', on: { click: vmDeny } }, 'Deny entry'), h('button', { class: 'k-link', type: 'button', on: { click: vmAdmit } }, 'Admit'))) : null,
+          h('small', { class: 'k-mini' }, 'In the meeting'), h('div', null, 'You (Meeting host)'), bot === 'in' ? h('div', null, 'KUDO AI Translator bot') : null)
+          : v.panel === 'info' ? h('aside', { class: 'gm-panel' }, h('b', null, 'Meeting details'), h('small', { class: 'k-mini' }, 'Joining info'), h('span', { class: 'k-break' }, vmLink(x).replace('https://', '')), h('button', { class: 'k-link small', type: 'button', on: { click: () => clipItem('vm-invite', vmInvite(x), 'Joining info (whole text)') } }, 'Copy joining info'))
+          : v.panel === 'host' ? h('aside', { class: 'gm-panel' }, h('b', null, 'Host controls'), h('small', { class: 'k-mini' }, `Meeting access type: ${{ open: 'Open', trusted: 'Trusted', restricted: 'Restricted' }[x.access]}`), h('small', { class: 'k-mini' }, `Anyone with the meeting link can ask to join: ${x.access === 'open' || x.ask ? 'on' : 'off'}`)) : null;
+      const knock = bot === 'waiting' && v.panel !== 'people' ? h('div', { class: 'gm-knock', role: 'alert' }, h('b', null, 'Someone wants to join this call'), h('span', null, 'KUDO AI Translator bot'), h('div', { class: 'k-row end' }, h('button', { class: 'k-link', type: 'button', on: { click: vmDeny } }, 'Deny entry'), h('button', { class: 'k-link', type: 'button', on: { click: vmAdmit } }, 'Admit'))) : null;
+      const snack = blockedWhy ? h('div', { class: 'gm-snack' }, 'A request to join was denied automatically: asking to join is off for this call.') : bot === 'denied' ? h('div', { class: 'gm-snack' }, 'You denied the KUDO AI Translator bot. Use "Add bot" on the KUDO Overview to bring it back.') : null;
+      const btn = (label, on, cls = '') => h('button', { type: 'button', class: `gm-c ${cls}`, title: label, 'aria-label': label, on: { click: on } }, label);
+      const side = (k, label) => h('button', { type: 'button', class: `gm-c side ${v.panel === k ? 'on' : ''}`, 'aria-label': label, on: { click: () => { v.panel = v.panel === k ? null : k; log('click', `App: ${label}`); draw(); } } }, label);
+      const leave = v.menu === 'leave' ? h('div', { class: 'k-modal-bg' }, h('div', { class: 'k-modal gm-leave' }, h('b', null, 'Leave call'), h('p', { class: 'k-mini' }, 'You can leave and let others stay, or end the call for everyone.'),
+        h('div', { class: 'k-row end' }, h('button', { class: 'gm-btn ghost', type: 'button', on: { click: () => vmEnd(false) } }, 'Just leave the call'), h('button', { class: 'gm-btn red', type: 'button', on: { click: () => vmEnd(true) } }, 'End the call')))) : null;
+      return h('div', { class: 'gm gm-call' }, h('div', { class: 'gm-stage' }, h('div', { class: 'gm-grid' }, h('div', { class: 'gm-tile' }, h('span', { class: 'gm-av' }, 'C'), h('small', null, 'You')), bot === 'in' ? botTile() : null), panel), knock, snack,
+        h('div', { class: 'gm-bar' }, h('small', null, `${x.time} | ${x.id}`), h('div', { class: 'gm-mid' }, btn('Microphone', () => log('click', 'App: Microphone')), btn('Camera', () => log('click', 'App: Camera')), btn('Captions', () => log('click', 'App: Captions')), btn('Raise hand', () => log('click', 'App: Raise hand')), btn('Present now', () => log('click', 'App: Present now')),
+          btn('Leave call', () => { v.menu = 'leave'; log('click', 'App: Leave call'); draw(); }, 'red')), h('div', { class: 'gm-right' }, side('info', 'Meeting details'), side('people', 'People'), side('chat', 'Chat'), side('host', 'Host controls'))), leave);
+    }
+    // The calendar: today, with the event and its pop-up card.
+    const hours = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
+    const card = v.pop && x ? h('div', { class: 'gm-pop' }, h('div', { class: 'k-row end' }, h('button', { class: 'k-link small', type: 'button', on: { click: () => { v.mode = 'schedule'; v.editing = true; v.f = { ...x }; v.pop = false; log('click', 'App: Edit event'); draw(); } } }, 'Edit event'), h('button', { class: 'k-link small', type: 'button', 'aria-label': 'Close', on: { click: () => { v.pop = false; draw(); } } }, '×')),
+      h('b', { class: 'gm-poptitle' }, x.topic), h('small', { class: 'k-mini' }, `Today, ${x.time} to ${plus1(x.time)}${x.repeat !== 'none' ? ', repeats' : ''}`),
+      x.conf ? h('div', { class: 'stack' }, v.ended ? h('small', { class: 'k-mini' }, 'The call has ended') : h('button', { class: 'gm-btn', type: 'button', on: { click: () => { v.mode = 'prejoin'; v.pop = false; log('click', 'App: Join with Google Meet'); draw(); } } }, 'Join with Google Meet'),
+        h('div', { class: 'k-row' }, h('small', { class: 'k-break' }, vmLink(x).replace('https://', '')), h('button', { class: 'k-link small', type: 'button', on: { click: () => clipItem('vm-link', vmLink(x), 'Video meeting join link') } }, 'Copy link'), h('button', { class: 'k-link small', type: 'button', on: { click: () => clipItem('vm-invite', vmInvite(x), 'Joining info (whole text)') } }, 'Copy joining info')))
+        : h('small', { class: 'k-mini' }, 'No video conferencing on this event: edit it and add one')) : null;
+    return h('div', { class: 'gm' }, h('div', { class: 'gm-top' }, h('b', null, 'Calendar'), h('small', { class: 'k-mini' }, 'Client People Team'), h('span', { class: 'pv-gap' }), h('span', { class: 'k-mini' }, 'Today, Friday')),
+      h('div', { class: 'gm-cal' }, h('div', { class: 'gm-left' }, h('button', { class: 'gm-create', type: 'button', on: { click: () => { v.mode = 'schedule'; v.editing = false; v.f = PL.fresh(); v.pop = false; log('click', 'App: Create'); draw(); } } }, '+ Create'), h('small', { class: 'k-mini' }, 'My calendars'), h('small', null, 'Client People Team')),
+        h('div', { class: 'gm-day' }, ...hours.map((t) => h('div', { class: 'gm-slot' }, h('small', null, t), x && x.time === t ? h('button', { class: `gm-ev ${v.ended ? 'past' : ''}`, type: 'button', on: { click: () => { v.pop = true; log('click', `App: open ${x.topic}`); draw(); } } }, `${x.topic}, ${x.time}`) : null)), card)));
+  }
+
+  // ---- Webex-like: the Webex site (Meetings, Schedule a Meeting with Show advanced options, Scheduling options),
+  // the meeting's page (link, number, password, Start), then the meeting with the lobby, Participants, Chat and the red X.
+  function webexScreen() {
+    const v = S.vm, x = v.meet, m = S.mine;
+    const nav = h('nav', { class: 'wx-nav' }, ...['Home', 'Meetings', 'Recordings', 'Preferences'].map((l) => h('span', { class: l === 'Meetings' ? 'on' : '' }, l)));
+    if (v.mode === 'schedule') {
+      const f = v.f, set2 = (k, l) => (val) => { f[k] = val; log('change', `App: ${l}: ${val}`); draw(); }, tick = (k, l) => (val) => { f[k] = val; log('toggle', `App: ${l}: ${val}`); draw(); };
+      const topic = h('input', { class: 'k-in', value: f.topic, placeholder: 'Enter meeting topic', on: { input: (e) => { f.topic = e.target.value; }, change: (e) => log('input', `App: Meeting topic: ${e.target.value}`) } });
+      const adv = v.adv ? h('div', { class: 'wx-adv' }, h('div', { class: 'wx-advtabs' }, h('span', null, 'Agenda'), h('span', { class: 'on' }, 'Scheduling options'), h('span', null, 'Audio connection options'), h('span', null, 'Attendee privileges')),
+        row('Exclude password', check(false, 'Exclude password from email invitation', () => log('toggle', 'App: Exclude password'))),
+        row('Automatic lock', check(f.autoLock, 'Automatically lock my meeting', tick('autoLock', 'Automatic lock')), f.autoLock ? h('div', { class: 'k-row' }, select(['0', '5', '10', '15', '20'], f.lockMin, set2('lockMin', 'Lock after (minutes)'), 'sm'), h('small', { class: 'k-mini' }, 'minutes after the meeting starts')) : null),
+        row('Unlocked meetings', radio('vmguest', [['direct', 'Guests can join directly'], ['lobby', 'Guests wait in the lobby until the host admits them'], ['cant', 'Guests can\'t join the meeting']], f.guests, set2('guests', 'Unlocked meetings'))),
+        row('Join before host', check(false, 'Attendees can join before the host', () => log('toggle', 'App: Join before host')))) : null;
+      return h('div', { class: 'wx' }, h('div', { class: 'wx-top' }, h('b', null, 'Meetings'), h('small', { class: 'k-mini' }, 'Client Sales Operations site')), h('div', { class: 'wx-body' }, nav,
+        h('div', { class: 'wx-main' }, h('h2', null, v.editing ? 'Edit a Meeting' : 'Schedule a Meeting'),
+          row('Meeting templates', select(['Webex Meetings default'], 'Webex Meetings default', () => {}, 'sm')),
+          row('Meeting topic', topic), row('Meeting password', h('div', { class: 'k-row' }, h('div', { class: 'k-in fake' }, 'mP3vK8qw'), h('small', { class: 'k-mini' }, 'Generated'))),
+          row('Date and time', h('div', { class: 'k-row' }, h('span', { class: 'k-mini' }, 'Friday, Today'), select(TIMES, f.time, set2('time', 'Start time'), 'sm'), h('small', { class: 'k-mini' }, 'Duration'), select(['30 minutes', '1 hour', '1 hour 30 minutes', '2 hours'], f.dur, set2('dur', 'Duration'), 'sm'))),
+          row('Recurrence', check(f.recurring, 'Recurrence', tick('recurring', 'Recurrence'))),
+          row('Attendees', h('div', { class: 'k-in fake' }, 'Enter email addresses')),
+          h('button', { class: 'k-link', type: 'button', on: { click: () => { v.adv = !v.adv; log('click', `App: ${v.adv ? 'Show' : 'Hide'} advanced options`); draw(); } } }, v.adv ? 'Hide advanced options' : 'Show advanced options'), adv,
+          h('div', { class: 'k-row end' }, h('button', { class: 'wx-btn ghost', type: 'button', on: { click: () => { v.mode = 'home'; v.editing = false; draw(); } } }, 'Cancel'),
+            h('button', { class: 'wx-btn', type: 'button', on: { click: () => { if (!f.topic.trim()) return toastK('Enter a meeting topic'); vmSave(f); v.mode = 'info'; toastK('Your meeting is scheduled'); draw(); } } }, v.editing ? 'Save' : 'Schedule')))));
+    }
+    if (v.mode === 'info' && x) return h('div', { class: 'wx' }, h('div', { class: 'wx-top' }, h('b', null, 'Meetings'), h('small', { class: 'k-mini' }, 'Client Sales Operations site')), h('div', { class: 'wx-body' }, nav,
+      h('div', { class: 'wx-main' }, h('button', { class: 'k-link small', type: 'button', on: { click: () => { v.mode = 'home'; draw(); } } }, 'Back to Meetings'), h('h2', null, x.topic), h('small', { class: 'k-mini' }, `Today, ${x.time} to ${plus1(x.time)}${v.ended ? ', ended' : ''}`),
+        h('div', { class: 'wx-info' }, h('div', null, h('small', null, 'Meeting link'), h('div', { class: 'k-row' }, h('span', { class: 'k-break' }, vmLink(x)), h('button', { class: 'k-link small', type: 'button', on: { click: () => clipItem('vm-link', vmLink(x), 'Video meeting join link') } }, 'Copy link'))),
+          h('div', null, h('small', null, 'Meeting number'), h('b', null, x.id)), h('div', null, h('small', null, 'Meeting password'), h('b', null, x.pwd)),
+          h('div', null, h('small', null, 'Security'), h('span', null, { direct: 'Guests can join directly', lobby: 'Guests wait in the lobby', cant: 'Guests can\'t join' }[x.guests], x.autoLock ? `, locks ${x.lockMin} minutes after the start` : ', no automatic lock'))),
+        h('div', { class: 'k-row' }, v.ended ? null : h('button', { class: 'wx-btn', type: 'button', on: { click: () => { vmStart(); draw(); } } }, 'Start'), v.ended ? null : h('button', { class: 'wx-btn ghost', type: 'button', on: { click: () => { v.mode = 'schedule'; v.editing = true; v.f = { ...x }; log('click', 'App: Edit'); draw(); } } }, 'Edit'),
+          h('button', { class: 'wx-btn ghost', type: 'button', on: { click: () => clipItem('vm-invite', vmInvite(x), 'Meeting invitation (whole text)') } }, 'Copy invitation')))));
+    if (v.mode === 'live' && x) {
+      botTick();
+      const bot = v.bot, url = m ? LINK.mobile(m) : '';
+      if (v.panel === 'chat') sawChat();
+      const blockedWhy = m?.status === 'live' && linked(m, x) ? PL.blocked(x) : null;
+      const lobby = bot === 'waiting' ? h('div', { class: 'wx-lobby' }, h('small', null, 'Waiting in lobby (1)'), h('div', null, h('span', null, 'KUDO AI Translator bot '), h('small', { class: 'tm-unv' }, 'Unverified')), h('small', { class: 'k-mini' }, 'Guest, not signed in'), h('div', { class: 'k-row end' }, h('button', { class: 'wx-btn ghost sm', type: 'button', on: { click: vmDeny } }, 'Remove'), h('button', { class: 'wx-btn sm', type: 'button', on: { click: vmAdmit } }, 'Let in'))) : null;
+      const panel = v.panel === 'chat' ? h('aside', { class: 'wx-panel' }, h('b', null, 'Chat'), h('small', { class: 'k-mini' }, 'To: Everyone'), bot === 'in' ? botMsg(url) : h('small', { class: 'k-mini' }, 'No messages yet'))
+        : v.panel === 'people' ? h('aside', { class: 'wx-panel' }, h('b', null, 'Participants'), lobby, h('small', { class: 'k-mini' }, 'In the meeting'), h('div', null, 'You (Host, me)'), bot === 'in' ? h('div', null, 'KUDO AI Translator bot ', h('small', { class: 'tm-unv' }, 'Unverified')) : null) : null;
+      const note = bot === 'waiting' && v.panel !== 'people' ? h('div', { class: 'wx-note', role: 'alert' }, h('span', null, '1 person is waiting in the lobby'), h('button', { class: 'wx-btn sm', type: 'button', on: { click: () => { v.panel = 'people'; log('click', 'App: View the lobby'); draw(); } } }, 'View lobby'))
+        : blockedWhy ? h('div', { class: 'wx-note bad' }, 'A guest could not join: guests can\'t join this meeting.') : bot === 'denied' ? h('div', { class: 'wx-note bad' }, 'You removed the KUDO AI Translator bot. Use "Add bot" on the KUDO Overview to bring it back.') : null;
+      const c = (label) => h('button', { type: 'button', class: 'wx-c', on: { click: () => log('click', `App: ${label}`) } }, label);
+      const pbtn = (k, label) => h('button', { type: 'button', class: `wx-c ${v.panel === k ? 'on' : ''}`, on: { click: () => { v.panel = v.panel === k ? null : k; log('click', `App: ${label}`); draw(); } } }, label);
+      const endMenu = v.menu === 'end' ? h('div', { class: 'wx-endmenu' }, h('button', { class: 'wx-btn red', type: 'button', on: { click: () => vmEnd(true) } }, 'End meeting for all'), h('button', { class: 'wx-btn ghost', type: 'button', on: { click: () => vmEnd(false) } }, 'Leave meeting'), h('button', { class: 'k-link small', type: 'button', on: { click: () => { v.menu = null; draw(); } } }, 'Cancel')) : null;
+      return h('div', { class: 'wx wx-live' }, h('div', { class: 'wx-livetop' }, h('b', null, x.topic), h('small', null, `Meeting number ${x.id}`), h('span', { class: 'pv-gap' }), h('small', null, x.autoLock ? `Locks ${x.lockMin} min after start` : 'Unlocked')),
+        note, h('div', { class: 'wx-stage' }, h('div', { class: 'gm-grid' }, h('div', { class: 'wx-tile' }, h('span', null, 'You')), bot === 'in' ? botTile() : null), panel),
+        h('div', { class: 'wx-bar' }, c('Mute'), c('Stop video'), c('Share'), c('Record'), c('Reactions'), c('More'),
+          h('button', { type: 'button', class: 'wx-x', 'aria-label': 'Leave or end the meeting', title: 'Leave or end', on: { click: () => { v.menu = v.menu === 'end' ? null : 'end'; log('click', 'App: red X'); draw(); } } }, '×'),
+          h('span', { class: 'pv-gap' }), pbtn('people', 'Participants'), pbtn('chat', 'Chat')), endMenu);
+    }
+    return h('div', { class: 'wx' }, h('div', { class: 'wx-top' }, h('b', null, 'Meetings'), h('small', { class: 'k-mini' }, 'Client Sales Operations site')), h('div', { class: 'wx-body' }, nav,
+      h('div', { class: 'wx-main' }, h('div', { class: 'k-row' }, h('h2', null, 'Meetings'), h('span', { class: 'pv-gap' }), h('button', { class: 'wx-btn ghost', type: 'button', on: { click: () => { log('click', 'App: Start a meeting (personal room)'); detour('Personal room meeting'); toastK('Use a scheduled meeting for KUDO: not the personal room'); } } }, 'Start a meeting'),
+        h('button', { class: 'wx-btn', type: 'button', on: { click: () => { v.mode = 'schedule'; v.editing = false; v.adv = false; v.f = PL.fresh(); log('click', 'App: Schedule'); draw(); } } }, 'Schedule')),
+        h('div', { class: 'wx-tabs' }, h('span', { class: 'on' }, 'Upcoming'), h('span', null, 'Recent')),
+        x ? h('button', { class: 'wx-row', type: 'button', on: { click: () => { v.mode = 'info'; log('click', `App: open ${x.topic}`); draw(); } } }, h('b', null, x.topic), h('small', { class: 'k-mini' }, `Today ${x.time} to ${plus1(x.time)}${v.ended ? ', ended' : ''}`)) : h('p', { class: 'k-mini' }, 'No upcoming meetings.'))));
+  }
+
   function vmScreen() {
+    if (sc.vm === 'meet') return meetScreen();
+    if (sc.vm === 'webex') return webexScreen();
     const v = S.vm, x = v.meet;
     const top = (extra) => h('div', { class: 'vm-top' }, h('b', null, sc.vm === 'meet' ? 'Calendar' : 'Meetings'), h('span', { class: 'k-mini' }, PL.client), h('span', { class: 'pv-gap' }), extra);
     if (v.mode === 'schedule') {
