@@ -369,3 +369,7 @@ td.none{color:var(--ink-400);font-weight:400}
 .kp .kp-ic{box-sizing:border-box;width:18px;height:18px;min-width:18px;padding:0;line-height:1;position:relative}
 .kp .kp-ic.kp-ok::after{content:'';position:absolute;left:5px;top:2px;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
 .kp .kp-ic.kp-none{width:6px;height:6px;min-width:6px}
+/* Suggested week: days share the full width (one day left = one full-width card), tasks flow in columns inside each day */
+.weekgrid{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.wday{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));column-gap:var(--s-5);align-content:start}
+.wday>.wday-h,.wday>.muted{grid-column:1/-1}
