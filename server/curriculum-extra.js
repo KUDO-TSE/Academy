@@ -28,12 +28,12 @@ export const EXTRA_ITEMS = {
   teams: [
     { t: 'multi', q: 'Which Teams setups does the KUDO app support?', o: ['A scheduled meeting on Teams desktop', 'A recurring scheduled meeting', 'Teams in a web browser', 'A town hall', 'The Teams mobile app'], a: [0, 1, 4], why: 'Scheduled meetings, including recurring, on desktop and mobile. Not browser Teams, town halls, webinars, channel meetings or breakout rooms.' },
     { t: 'order', q: 'Day one of an AI meeting in Teams: put it in order.', steps: ['The bot arrives about 1 minute before and waits in the lobby', 'The host opens People and admits the bot', 'Attendees open the KUDO tab', 'Attendees choose Captions, Voice or both'], why: 'The bot always waits in the lobby; once admitted, attendees use the KUDO tab.' },
-    { t: 'match', q: 'Match each problem to the fix.', pairs: [['The bot left after waiting too long in the lobby', 'Add Bot, then admit it again'], ['The Teams meeting moved to Thursday', 'Sync Meeting'], ['An attendee hears nothing in the KUDO tab', 'Match the audio device in Teams and on the computer'], ['1,500 attendees expected', 'Share the Mobile Link for the overflow']], why: 'Each has a standard fix; the in-app limit is 1,000 attendees.' },
+    { t: 'match', q: 'Match each problem to the fix.', pairs: [['The bot left after waiting too long in the lobby', 'Add bot, then admit it again'], ['The Teams meeting moved to Thursday', 'Sync Meeting'], ['An attendee hears nothing in the KUDO tab', 'Match the audio device in Teams and on the computer'], ['1,500 attendees expected', 'Share the Mobile Link for the overflow']], why: 'Each has a standard fix; the in-app limit is 1,000 attendees.' },
   ],
   zoom: [
     { t: 'multi', q: 'Which Zoom settings can stop the KUDO bot?', o: ['"Only authenticated users can join"', 'A waiting room where nobody admits it', 'End-to-end encryption', 'Gallery view', 'A recording request the host did not approve', 'Speaker view', 'Meeting chat turned off'], a: [0, 1, 2, 4], why: 'Authentication, the waiting room, end-to-end encryption and recording approval all block or silence the bot.' },
     { t: 'order', q: 'Linking a Zoom meeting to KUDO: put the steps in order.', steps: ['Create a standard, new, non-recurring Zoom meeting', 'Set encryption to Enhanced', 'Create the KUDO AI meeting with the same title, date and time', 'Turn on Zoom Meeting and paste the full invite link'], why: 'Zoom first, by the rules, then KUDO with the full link.' },
-    { q: 'The bot was in the meeting and disconnected. What do you use?', o: ['Add Bot', 'Restart Bot Service', 'A new Zoom meeting', 'Nothing'], a: 1, why: 'Add Bot brings a missing bot; Restart Bot Service reconnects one that dropped.' },
+    { q: 'The bot was in the meeting and disconnected. What do you use?', o: ['Add bot', 'Restart bot service', 'A new Zoom meeting', 'Nothing'], a: 1, why: 'Add bot brings a missing bot; Restart bot service reconnects one that dropped.' },
   ],
   external: [
     { t: 'multi', q: 'Which Webex settings can keep the KUDO bot out?', o: ['Blocked email domains', 'The guest rule ("Guests can\'t join")', 'The lobby', 'Auto-lock', 'Virtual backgrounds', 'Screen sharing limited to the host', 'Meeting chat turned off'], a: [0, 1, 2, 3], why: 'These four belong to the client\'s Webex admin.' },
@@ -100,7 +100,7 @@ export const WALKTHROUGHS = {
       { text: 'Event day, one minute before the start: "The KUDO bot is stuck in the lobby, even though our lobby is open to everyone. Is it broken?"', choices: [
         { t: 'That is expected: open People and admit "KUDO AI Translator".', q: 2, fb: 'Correct. Teams holds detected bots in the lobby by default.' },
         { t: 'Cancel and recreate the KUDO meeting, then send the new link to everyone.', q: 0, fb: 'Nothing is broken. Recreating it now would lose the setup.' },
-        { t: 'Wait: the bot comes in by itself once the meeting has started.', q: 0, fb: 'It will not. After 10 minutes in the lobby it leaves, and you need Add Bot.' }] },
+        { t: 'Wait: the bot comes in by itself once the meeting has started.', q: 0, fb: 'It will not. After 10 minutes in the lobby it leaves, and you need Add bot.' }] },
       { text: '"Done. One attendee says he hears nothing in the KUDO tab."', choices: [
         { t: 'Check his audio device is the same in Teams and on his computer.', q: 2, fb: 'The usual cause. If he closed and reopened the panel, clicking away and back also helps.' },
         { t: 'Restart the whole meeting so every attendee reconnects to the audio.', q: 0, fb: 'That disrupts 600 people for one person\'s device problem.' },
@@ -121,7 +121,7 @@ export const WALKTHROUGHS = {
         { t: 'Just turn the waiting room off so the bot can always get in, and leave the rest.', q: 1, fb: 'Helps, but encryption and recording permissions matter more.' }] },
       { text: 'On the day: "The bot is in, but nothing is being translated."', choices: [
         { t: 'Has the host approved the bot\'s recording request?', q: 2, fb: 'Zoom treats the bot as a recorder: without approval it hears nothing.' },
-        { t: 'Use Restart Bot Service so the bot reconnects to the audio.', q: 1, fb: 'Right tool if it disconnected, but a bot that is in and hears nothing usually lacks approval.' },
+        { t: 'Use Restart bot service so the bot reconnects to the audio.', q: 1, fb: 'Right tool if it disconnected, but a bot that is in and hears nothing usually lacks approval.' },
         { t: 'Add more translation languages so the bot has something to translate.', q: 0, fb: 'Languages are not the problem.' }] },
       { text: '"How do attendees get French?"', choices: [
         { t: 'The Mobile Link or its QR code: no login or Zoom account. Put it in the invite.', q: 2, fb: 'Yes, on a phone or a second tab.' },
@@ -165,7 +165,7 @@ export const WALKTHROUGHS = {
         { t: 'Publish anyway: attendees can scroll, and you can fix it later.', q: 0, fb: 'Test before you publish.' }] },
       { text: 'Live: attendees say they hear two voices.', choices: [
         { t: 'Ask attendees to keep the ON24 player muted: KUDO is the audio source.', q: 2, fb: 'Yes. Share this rule with attendees in advance.' },
-        { t: 'Restart Bot Service so the KUDO audio reconnects cleanly.', q: 0, fb: 'The bot is fine; the player is still on.' },
+        { t: 'Restart bot service so the KUDO audio reconnects cleanly.', q: 0, fb: 'The bot is fine; the player is still on.' },
         { t: 'Switch the meeting to AI Captions Only so attendees hear just one voice.', q: 0, fb: 'The meeting type cannot change live, and it is not the cause.' }] },
     ],
   },

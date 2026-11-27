@@ -1,7 +1,7 @@
 // Sandbox: a replica of the KUDO screens a scenario needs, rebuilt from an expert's screen recording.
 // The trainee does the task here instead of in a test account. Everything they do is recorded (clicks, fields,
 // screens, time, detours, hints) and the run is scored: outcome first, then path, then time.
-// Seven exercises (see SCENARIOS); scenarios with a brief start with a client call. Test data only.
+// Eight exercises (see SCENARIOS); scenarios with a brief start with a client call. Test data only.
 import { h, api, toast, svg, metaRow, mark } from './ui.js';
 // Line icons (stroke) in the style of the KUDO screens.
 const I = {
@@ -145,6 +145,33 @@ export const SCENARIOS = {
     screens: ['login', 'home', 'meetings', 'meeting', 'preview'],
     reply: [{ id: 'wid', label: 'Widget ID for the producer', type: 'text', placeholder: 'The ID only, not the whole link' }],
     setup: ({ base }) => { const m = base({ name: 'Sales Town Hall', date: 'Mon, Nov 30, 2026', time: '16:00 - 17:30', dur: '1 hour 30 minutes', speakers: ['English'], translations: ['English (US)', 'Portuguese (Brazil)', 'Spanish (Mexico)'], status: 'scheduled' }); return { list: [m], mine: m }; },
+  },
+  'zoom-1': {
+    module: 'zoom', num: 6, title: 'Bring KUDO AI translation into the client\'s Zoom meeting', apps: ['vmeet'],
+    request: 'Build what the client needs from your notes: schedule the meeting in their video-meeting app, link it in KUDO, start both and check that the KUDO bot is in and translating.',
+    brief: {
+      who: 'Internal communications manager at the client', event: '"Leadership Q&A", today 14:00 to 15:00',
+      opening: 'Hi! Our leadership team hosts a Q&A for all staff today at 14:00, for an hour, on our usual video-meeting app. Many colleagues would follow better in French or Spanish. Can KUDO help?',
+      questions: [
+        { id: 'plat', key: true, q: 'Which platform is it on, and who schedules the meeting?', a: 'Zoom, on our company account. I schedule it, and I gave you access: it is the "Video meeting app" tab.', note: 'Zoom, scheduled by the client; access in the "Video meeting app" tab', why: 'KUDO joins Zoom as a bot: you need a Zoom meeting scheduled for it, and its join link.' },
+        { id: 'stay', key: true, q: 'Do attendees stay in Zoom, and do they speak?', a: 'Everyone stays in Zoom. Staff ask questions at the end, in English.', note: 'Attendees stay in Zoom; questions at the end, in English', why: 'They stay in Zoom: the bot listens there, and attendees follow the translation on the Mobile Link next to Zoom.' },
+        { id: 'lang', key: true, q: 'Which language do the speakers use, and which do attendees need?', a: 'Everyone speaks English. Attendees need French and Spanish.', note: 'Speakers: English. Translation: French and Spanish', why: 'Speaker language English, translation languages French and Spanish, nothing extra.' },
+        { id: 'sec', key: true, q: 'How are your Zoom meetings secured by default?', a: 'End-to-end encryption, a passcode and the waiting room, for every meeting.', note: 'Default: end-to-end encryption, passcode, waiting room', why: 'The bot cannot join an end-to-end encrypted meeting, and a waiting room holds it at the door: Enhanced encryption, passcode on, waiting room off.' },
+        { id: 'rec', key: true, q: 'Do you need a recording?', a: 'Yes, with the translations, for colleagues who miss it.', note: 'Recording with the translations', why: 'KUDO records the translations: turn on automatic recording before the start.' },
+        { id: 'end', key: true, q: 'Should the translation stop when you close Zoom?', a: 'Yes. Nothing should keep running once we end the meeting.', note: 'KUDO must end with Zoom', why: '"Force close meeting" ends KUDO with Zoom; otherwise it stays open for the 1-hour grace period.' },
+        { id: 'budget', q: 'What is the budget for this event?', a: 'That is with our account manager.', why: 'Pricing is the account manager\'s: it does not change the set-up.' },
+        { id: 'brand', q: 'Would you like your logo on the KUDO page?', a: 'Not needed today.', why: 'It does not change what you build.' },
+      ],
+      options: [
+        { id: 'zoom', ok: true, label: 'An AI speech translation meeting linked to their Zoom (External meeting, platform Zoom, their join link)', why: 'They stay in Zoom: the KUDO bot joins, listens and gives attendees the Mobile Link, with the recording in KUDO.' },
+        { id: 'move', label: 'Move the Q&A into KUDO and send everyone the Participant link', why: 'They want to stay in their Zoom, and a Participant link gives everyone a microphone and camera.' },
+        { id: 'rtmp', label: 'Stream the Zoom meeting to a video platform (RTMP)', why: 'Attendees are in Zoom and ask questions: a one-way stream does not fit.' },
+        { id: 'widget', label: 'The KUDO widget (iframe) on their intranet', why: 'Attendees are in Zoom, not on a web page: the bot brings the Mobile Link into Zoom.' },
+      ],
+    },
+    expert: ['Ask the client the six questions that decide the set-up (platform, attendees, languages, Zoom security, recording, the end)', 'Choose an AI speech translation meeting linked to their Zoom', 'Video meeting app: Schedule "Leadership Q&A", today 14:00, 1 hour', 'Keep the passcode, untick the waiting room, choose Enhanced encryption, Save', 'Copy the join link from the invitation', 'KUDO: log in, New meeting, AI speech translation meeting, the same name; tick Force close meeting', 'Speaker language English with Detect language automatically; translation languages French and Spanish', 'External meeting on: platform Zoom, paste the join link', 'Tick "Automatically record this meeting when it starts", Save', 'Start meeting from the Overview', 'Video meeting app: Start the meeting, Approve the bot\'s recording request', 'Open the chat: the bot posted the Mobile Link'],
+    expertSeconds: 300,
+    screens: ['login', 'home', 'meetings', 'new-ai', 'meeting', 'preview'],
   },
 };
 
@@ -393,9 +420,9 @@ export function sandboxView(key, { onExit } = {}) {
           toggle(f.detect, 'Detect language automatically', set(f, 'detect', 'Detect language automatically'), live), h('small', { class: 'k-mini' }, 'Up to 10 speaker languages, accuracy may be affected'), h('small', null, 'Translation language(s)'), picker('Translation language', TRANSLATION, f.translations)),
       warn(created),
       row('External meeting: Using KUDO on another platform?', toggle(f.external, null, set(f, 'external', 'External meeting'), editing),
-        f.external ? h('div', null, h('small', null, 'Meeting platform *'), select([['', 'Please select'], 'Google Meet', 'Microsoft Teams', 'Zoom', 'Webex', 'ON24'], f.platform, set(f, 'platform', 'Meeting platform')), h('small', null, 'Meeting link *'), h('input', { class: 'k-in', placeholder: 'Enter your meeting link', value: f.link, on: { change: (e) => { f.link = e.target.value; log('input', 'Meeting link'); } } })) : null),
+        f.external ? h('div', null, h('small', null, 'Meeting platform *'), select([['', 'Please select'], 'Microsoft Teams', 'Google Meet', 'Zoom', 'Webex'], f.platform, set(f, 'platform', 'Meeting platform')), h('div', { class: 'k-rowsp' }, h('small', null, 'Meeting link *'), sc.apps?.includes('vmeet') ? pasteSel((t) => { f.link = t; log('input', 'Meeting link'); draw(); }) : null), h('input', { class: 'k-in', placeholder: 'Enter your meeting link', value: f.link, on: { change: (e) => { f.link = e.target.value; log('input', 'Meeting link'); } } })) : null),
       hi ? warn(starts) : null, hi ? row('AI Assist & Transcripts', toggle(f.aiAssist, null, (v) => { if (v) { S.modal = { kind: 'aiassist' }; log('click', 'AI Assist & Transcripts on'); draw(); } else set(f, 'aiAssist', 'AI Assist & Transcripts')(false); }, live)) : null,
-      editing ? null : row(h('span', null, 'Host', h('small', { class: 'k-mini' }, ' Optional')), ...f.hosts.map((x) => h('div', { class: 'k-hostrow' }, ic('user', 14), x)), h('button', { class: 'k-link', type: 'button', on: { click: () => { S.modal = { kind: 'addhost' }; log('click', '+ Add host'); draw(); } } }, '+ Add host'), h('small', { class: 'k-mini' }, 'Max. 2 hosts per meeting')),
+      editing || f.external ? null : row(h('span', null, 'Host', h('small', { class: 'k-mini' }, ' Optional')), ...f.hosts.map((x) => h('div', { class: 'k-hostrow' }, ic('user', 14), x)), h('button', { class: 'k-link', type: 'button', on: { click: () => { S.modal = { kind: 'addhost' }; log('click', '+ Add host'); draw(); } } }, '+ Add host'), h('small', { class: 'k-mini' }, 'Max. 2 hosts per meeting')),
       warn(starts),
       row(hi ? 'Recording' : 'Recording and transcript', toggle(f.recording, null, set(f, 'recording', 'Recording'), live), check(f.autoRecord, 'Automatically record this meeting when it starts', (v) => { f.autoRecord = v; log('toggle', `Automatically record: ${v}`); }, live || !f.recording)),
       f.advOpen ? advancedBlock(f, editing, live) : null,
@@ -416,7 +443,7 @@ export function sandboxView(key, { onExit } = {}) {
     if (!f.name.trim()) return toastK('Meeting name is required');
     if (!f.speakers.length || (f.kind === 'ai' && !f.translations.length)) return toastK('Choose the languages');
     if (f.external && (!f.platform || !f.link)) return toastK('Choose the meeting platform and paste the meeting link');
-    S.meeting = { day: f.day || TODAY, kind: f.kind, name: f.name.trim(), type: f.kind === 'ai' ? f.type : 'hi', speakers: [...f.speakers], translations: f.kind === 'ai' ? [...f.translations] : [], sign: [...f.sign], recording: f.recording, autoRecord: f.autoRecord, external: f.external, adv: { ...f.adv }, prep: f.prep, aiAssist: f.aiAssist,
+    S.meeting = { day: f.day || TODAY, kind: f.kind, name: f.name.trim(), type: f.kind === 'ai' ? f.type : 'hi', speakers: [...f.speakers], translations: f.kind === 'ai' ? [...f.translations] : [], sign: [...f.sign], recording: f.recording, autoRecord: f.autoRecord, external: f.external, platform: f.external ? f.platform : '', link: f.external ? f.link.trim() : '', force: !!f.force, detect: !!f.detect, adv: { ...f.adv }, prep: f.prep, aiAssist: f.aiAssist,
       participants: f.hosts.map((e) => ({ email: e, name: e.split('@')[0], role: 'Host', via: 'form' })), operators: [], viewers: [], polls: [], files: [], status: 'scheduled', glossary: null,
       av: { res: 'Auto (adaptive)', fps: 'Auto (adaptive)', bitrate: 'Auto (adaptive)', stereo: false, level: 50, processing: true },
       features: { lobby: false, lobbyP: false, lobbyV: false, users: true, docs: true, msg: true, polls: true, request: false, share: true } };
@@ -429,7 +456,7 @@ export function sandboxView(key, { onExit } = {}) {
     if (m.status === 'scheduled' && !confirmed) { S.modal = { kind: 'editconfirm' }; log('click', 'Update'); draw(); return; }
     const added = f.translations.filter((l) => !m.translations.includes(l)), removed = m.translations.filter((l) => !f.translations.includes(l));
     m.translations = [...f.translations]; m.name = f.name.trim() || m.name; Object.assign(m.adv, f.adv);
-    if (m.status !== 'live') { m.speakers = [...f.speakers]; m.autoRecord = f.autoRecord; m.recording = f.recording; m.sign = [...f.sign]; m.aiAssist = f.aiAssist; m.prep = f.prep; if (f.day && f.day !== m.day) log('change', `Meeting moved to ${fmtForm(f.day)}`); m.day = f.day; }
+    if (m.status !== 'live') { m.speakers = [...f.speakers]; m.autoRecord = f.autoRecord; m.recording = f.recording; m.sign = [...f.sign]; m.aiAssist = f.aiAssist; m.prep = f.prep; m.force = !!f.force; m.detect = !!f.detect; if (m.external) { m.platform = f.platform; m.link = (f.link || '').trim(); } if (f.day && f.day !== m.day) log('change', `Meeting moved to ${fmtForm(f.day)}`); m.day = f.day; }
     if (added.length && m.status === 'live') { m.pendingRestart = true; F().liveAdded = [...(F().liveAdded || []), ...added]; }
     if (added.length && m.status === 'scheduled') F().addedBeforeStart = [...(F().addedBeforeStart || []), ...added];
     if (removed.length) F().removed = [...(F().removed || []), ...removed];
@@ -553,6 +580,9 @@ export function sandboxView(key, { onExit } = {}) {
       m.kind === 'hi' ? h('div', { class: 'k-def' }, h('span', null, 'Languages'), h('div', null, h('small', null, 'Translation languages'), h('div', null, m.speakers.map((l) => h('span', { class: 'k-lchip' }, l))), (m.sign || []).length ? h('small', null, 'Sign languages') : null, h('div', null, (m.sign || []).map((l) => h('span', { class: 'k-lchip' }, l))),
           h('button', { class: `k-book ${canBook(m) ? 'on' : ''}`, type: 'button', disabled: !canBook(m), on: { click: () => { S.bk = { subject: '', topics: [], agree: false, q: '' }; S.modal = { kind: 'book' }; log('click', 'Book Interpreters'); draw(); } } }, ic('user', 13), ' Book Interpreters')))
         : h('div', { class: 'k-def' }, h('span', null, 'Languages'), h('div', null, h('small', null, 'Speaker languages'), h('div', null, m.speakers.map((l) => h('span', { class: 'k-lchip' }, l))), h('small', null, 'Translation languages'), h('div', null, m.translations.map((l) => h('span', { class: 'k-lchip' }, l))))),
+      m.external ? h('div', { class: 'k-def' }, h('span', null, 'External meeting'), h('div', null, h('b', null, m.platform), h('small', { class: 'k-mini k-break' }, m.link),
+        h('div', { class: 'k-botbox' }, h('b', null, 'KUDO bot timeout'), h('p', { class: 'k-mini' }, 'The bot will disconnect if no participant is detected after 10 minutes. Use "Add bot" or "Restart bot service" to bring it back.'),
+          h('div', { class: 'k-row' }, h('button', { class: 'k-btn soft', type: 'button', disabled: m.status !== 'live', on: { click: () => botAgain('Add bot') } }, 'Add bot'), h('button', { class: 'k-btn soft', type: 'button', disabled: m.status !== 'live', on: { click: () => botAgain('Restart bot service') } }, 'Restart bot service'))))) : null,
       m.booked ? h('div', { class: 'k-def' }, h('span', null, 'Interpreters'), h('div', null, '✓ Booked')) : null,
       m.booked ? h('div', { class: 'k-def' }, h('span', null, 'Preparation materials for interpreters'), h('div', null, h('div', { class: 'k-red' }, '! No preparation materials/information added'), h('button', { class: 'k-link', type: 'button', on: { click: () => { log('click', 'Add preparation materials'); S.modal = { kind: 'notyet' }; draw(); } } }, '+ Add preparation materials securely and exclusively for interpreters'))) : null,
       S.ovAdv ? h('div', { class: 'k-def' }, h('span', null, 'Advanced settings'), h('div', { class: 'k-mini k-advlist' }, ...[['Meeting type', a.size === 'large' ? 'Large' : 'Small'], ['Mobile link and iframe widget', a.widget ? 'On' : 'Off'], ['Auto-floor', a.autoFloor ? 'On' : 'Off'], ['Speaking mode', a.speaking === 'rts' ? 'Request-to-speak' : 'Open microphone'], ['Raise hand', a.raise ? 'On' : 'Off'], ['Invite method', a.invite === 'pre' ? 'Pre-approved users' : 'Shareable links and user invites'], ['PIN protection', a.pin ? 'On' : 'Off'], ['Audio manager', a.audioMgr ? 'On' : 'Off'], ['Recording', m.recording ? (m.autoRecord ? 'Automatic' : 'Manual') : 'Off']].map(([k, v]) => h('div', null, h('span', null, k), h('b', null, v))))) : null,
@@ -641,7 +671,7 @@ export function sandboxView(key, { onExit } = {}) {
   function editForm() {
     const m = S.meeting; log('click', 'Edit meeting');
     if (m.status === 'finished') return;
-    S.form = { day: m.day || TODAY, kind: m.kind, name: m.name, type: m.type, speakers: [...m.speakers], translations: [...m.translations], sign: [...(m.sign || [])], detect: false, recording: m.recording, autoRecord: m.autoRecord, hosts: [], external: m.external, adv: { ...m.adv }, advOpen: false, prep: m.prep, aiAssist: m.aiAssist };
+    S.form = { day: m.day || TODAY, kind: m.kind, name: m.name, type: m.type, speakers: [...m.speakers], translations: [...m.translations], sign: [...(m.sign || [])], detect: !!m.detect, recording: m.recording, autoRecord: m.autoRecord, hosts: [], external: m.external, platform: m.platform || '', link: m.link || '', force: !!m.force, adv: { ...m.adv }, advOpen: false, prep: m.prep, aiAssist: m.aiAssist };
     go('edit', 'Edit meeting');
   }
   function usersScreen(kind) {
@@ -999,6 +1029,53 @@ export function sandboxView(key, { onExit } = {}) {
         if (v.includes(ids.p) || v.includes(ids.o)) t.push(['Gave the Participant or Operator meeting ID: the Widget ID is the one in the Mobile Link', 8]);
         return t; },
     },
+    'zoom-1': {
+      next() {
+        const x = S.vm.meet, m = S.mine;
+        if (!x) return 'Video meeting app tab: Schedule the "Leadership Q&A", today 14:00, for 1 hour.';
+        if (x.enc === 'e2e' || x.waiting || !x.passcode) return 'Video meeting app: Edit the meeting. Keep the passcode, untick the Waiting Room and choose Enhanced encryption, then Save.';
+        if (!S.clip.some((c) => c.kind === 'vm-link')) return 'Copy the join link from the invitation ("Copy link").';
+        if (!m) return 'KUDO portal: New meeting, AI speech translation meeting, with the same name as in the video meeting app.';
+        if (!m.force) return 'Edit the KUDO meeting: tick "Force close meeting" so KUDO ends with the video meeting.';
+        if (!linked(m, x)) return m.external ? 'The KUDO meeting must point at the video meeting: platform Zoom and the join link only (not the whole invitation). The External meeting switch is locked once created: create the meeting again.' : 'Create the KUDO meeting with "External meeting" on: platform Zoom, paste the join link. The switch is locked once the meeting is created.';
+        if (!m.autoRecord) return 'Edit meeting: tick "Automatically record this meeting when it starts".';
+        if (m.status === 'scheduled') return 'Start the KUDO meeting from the Overview.';
+        if (S.vm.mode !== 'live' && !S.flags.botApproved) return 'Video meeting app: Start the meeting.';
+        if (S.vm.bot === 'waiting') return 'The bot is in the waiting room: Admit it.';
+        if (S.vm.bot === 'request') return 'Approve the bot\'s recording request: without it the bot hears nothing.';
+        if (S.vm.bot === 'denied') return 'The recording request was denied: KUDO Overview, "Add bot", then Approve this time.';
+        if (!S.flags.sawBotChat) return 'Open the Chat in the video meeting: the bot posted the Mobile Link for attendees.';
+        return null;
+      },
+      checks(m) {
+        const x = S.vm.meet, own = !!S.mine, extra = m.translations.filter((l) => !['English (US)', 'English (UK)'].includes(l) && !fr(l) && !es(l));
+        return [
+          ['Video meeting scheduled: "Leadership Q&A", today 14:00, 1 hour', !!x && /leadership q&a/i.test(x.topic) && x.time === '14:00' && x.dur === '1 hour', 8],
+          ['A new, non-recurring meeting ID (not the Personal Meeting ID)', !!x && !x.recurring && x.idMode === 'auto', 4],
+          ['Enhanced encryption, not end-to-end', !!x && x.enc === 'enhanced', 12],
+          ['Waiting Room off, passcode kept on', !!x && !x.waiting && x.passcode, 6],
+          ['AI speech & captions meeting with the same name', own && m.kind === 'ai' && m.type === 'speech' && named(S.mine, 'leadership q&a'), 8],
+          ['English speaker, French and Spanish translation, nothing extra', own && m.speakers.length === 1 && m.speakers[0] === 'English' && m.translations.some(fr) && m.translations.some(es) && !extra.length, 8],
+          ['"Force close meeting" ticked', own && !!m.force, 8],
+          ['External meeting on, platform Zoom', own && m.external && m.platform === 'Zoom', 8],
+          ['The video meeting join link pasted in KUDO', own && linked(m, x), 10],
+          ['Automatic recording on', own && !!m.autoRecord && !!m.recording, 6],
+          ['KUDO meeting started', !!S.flags.started, 4],
+          ['Bot recording request approved', !!S.flags.botApproved, 12],
+          ['Checked the Mobile Link the bot posted in the chat', !!S.flags.sawBotChat, 6],
+        ];
+      },
+      traps(m) {
+        const t = [], F = S.flags;
+        if (F.vmStartedE2e) t.push(['Started the video meeting with end-to-end encryption: the bot cannot join', 6]);
+        if (S.mine?.external && S.mine.platform && S.mine.platform !== 'Zoom') t.push([`Chose ${S.mine.platform} as the meeting platform: the client is on Zoom`, 5]);
+        if (/Topic:|Passcode:/.test(S.mine?.link || '')) t.push(['Pasted the whole invitation in Meeting link: KUDO needs the join link only', 4]);
+        if (F.botDenied) t.push(['Denied the bot\'s recording request: it cannot translate without it', 4]);
+        if (F.botWaited) t.push(['Left the Waiting Room on: the bot had to be admitted by hand', 2]);
+        if (S.vm.meet?.idMode === 'pmi') t.push(['Used the Personal Meeting ID: KUDO needs a new meeting ID', 3]);
+        if (F.cancelled) t.push(['Cancelled the meeting', 10]);
+        return t; },
+    },
   });
   const RULE = RULES[key];
   function nextStep() {
@@ -1035,7 +1112,7 @@ export function sandboxView(key, { onExit } = {}) {
   // ---------------------------------------------------------------- third-party look-alikes
   // Generic replicas of the client's own tools (no brand, no logo): a website builder (Wix-like) and a video
   // platform studio (YouTube-like). The trainee does the client's side too, so they can show a client how.
-  const APPS = { site: 'Client website', studio: 'Video studio' };
+  const APPS = { site: 'Client website', studio: 'Video studio', vmeet: 'Video meeting app' };
   const viewLog = (what) => { if (!S.events.some((e) => e.type === 'view' && e.what === what)) log('view', what); };
   S.tab = 'kudo';
   S.site = { blocks: [{ type: 'video' }, { type: 'embed', code: '' }], published: null, mode: 'editor', dlg: null };
@@ -1106,11 +1183,91 @@ export function sandboxView(key, { onExit } = {}) {
         field('Stream URL', st.url, 'yt-url'), field('Backup server URL', `${st.url.replace('//a.', '//b.')}?backup=1`, 'yt-url2'), field('Stream key (paste in encoder)', k.key, 'yt-key', true),
         h('small', { class: 'k-mini' }, 'One stream key per stream: a key used by two streams interrupts both.')));
   }
+  // A generic video-meeting app (Zoom-like, no name or logo): the client's scheduler, the invitation and the live
+  // meeting where the KUDO bot asks to record, shows its QR code and posts the Mobile Link in the chat.
+  S.vm = { mode: 'home', meet: null, dlg: null, chat: false, bot: null, f: null, started: 0 };
+  const vmLink = (x) => `https://meet.videoapp.example/j/${x.id.replace(/\s/g, '')}?pwd=${x.pwd}`;
+  const vmInvite = (x) => `Client Communications is inviting you to a scheduled meeting.\nTopic: ${x.topic}\nTime: today ${x.time}\nJoin the meeting:\n${vmLink(x)}\nMeeting ID: ${x.id}\nPasscode: ${x.pwdShow}`;
+  const vmNew = () => ({ topic: '', time: '10:00', dur: '1 hour', recurring: false, idMode: 'auto', passcode: true, waiting: true, enc: 'e2e' });
+  // Does the KUDO meeting point at this app meeting? The bot joins only when both are live and nothing blocks it.
+  const linked = (m, x) => !!(m && x && m.external && m.platform === 'Zoom' && m.link && m.link.trim() === vmLink(x));
+  function botTick() {
+    const v = S.vm, x = v.meet, m = S.mine;
+    if (!x || v.mode !== 'live' || !m || m.status !== 'live' || !linked(m, x)) return;
+    if (x.enc === 'e2e') { if (!S.flags.e2eLive) { S.flags.e2eLive = true; log('trap', 'Bot blocked: end-to-end encryption'); } return; }
+    if (v.bot) return;
+    v.bot = x.waiting ? 'waiting' : 'request'; log('view', v.bot === 'waiting' ? 'Bot in the waiting room' : 'Bot asks to record');
+    if (x.waiting) S.flags.botWaited = true;
+  }
+  function botAgain(what) {
+    const m = S.meeting; log('click', what); F()[what === 'Add bot' ? 'addBot' : 'restartBot'] = true;
+    if (m === S.mine && ['denied', 'gone'].includes(S.vm.bot)) S.vm.bot = null;
+    toastK(what === 'Add bot' ? 'The bot is on its way to the meeting' : 'Bot service restart in progress'); draw();
+  }
+  function vmScreen() {
+    const v = S.vm, x = v.meet;
+    const top = (extra) => h('div', { class: 'vm-top' }, h('b', null, 'Meetings'), h('span', { class: 'k-mini' }, 'Client Communications'), h('span', { class: 'pv-gap' }), extra);
+    if (v.mode === 'schedule') {
+      const f = v.f, set2 = (k, l) => (val) => { f[k] = val; log('change', `App: ${l}: ${val}`); draw(); };
+      const topic = h('input', { class: 'k-in', value: f.topic, placeholder: 'My Meeting', on: { input: (e) => { f.topic = e.target.value; }, change: (e) => log('input', `App: Topic: ${e.target.value}`) } });
+      return h('div', { class: 'vm' }, top(null), h('div', { class: 'vm-form' }, h('h2', null, x && v.editing ? 'Edit meeting' : 'Schedule meeting'),
+        row('Topic', topic),
+        row('When', h('div', { class: 'k-row' }, h('span', { class: 'k-mini' }, 'Today'), select(['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'], f.time, set2('time', 'Time'), 'sm'))),
+        row('Duration', select(['30 minutes', '1 hour', '1 hour 30 minutes', '2 hours'], f.dur, set2('dur', 'Duration'), 'sm')),
+        row('Recurring meeting', check(f.recurring, 'Recurring meeting', (val) => { f.recurring = val; log('toggle', `App: Recurring: ${val}`); })),
+        row('Meeting ID', radio('vmid', [['auto', 'Generate automatically'], ['pmi', 'Personal Meeting ID 555 010 4477']], f.idMode, set2('idMode', 'Meeting ID'))),
+        row('Security', check(f.passcode, 'Passcode', (val) => { f.passcode = val; log('toggle', `App: Passcode: ${val}`); }), h('small', { class: 'k-mini' }, 'Only users who have the invite link or passcode can join the meeting'),
+          check(f.waiting, 'Waiting Room', (val) => { f.waiting = val; log('toggle', `App: Waiting Room: ${val}`); }), h('small', { class: 'k-mini' }, 'Only users admitted by the host can join the meeting')),
+        row('Encryption', radio('vmenc', [['enhanced', 'Enhanced encryption'], ['e2e', 'End-to-end encryption']], f.enc, set2('enc', 'Encryption')), h('small', { class: 'k-mini' }, f.enc === 'e2e' ? 'Some features, such as apps and recording, are not available with end-to-end encryption.' : 'Encryption keys are stored in the cloud.')),
+        h('div', { class: 'k-row end' }, h('button', { class: 'k-btn ghost', type: 'button', on: { click: () => { v.mode = 'home'; v.editing = false; log('click', 'App: Cancel'); draw(); } } }, 'Cancel'),
+          h('button', { class: 'k-btn', type: 'button', on: { click: () => {
+            if (!f.topic.trim()) return toastK('Enter a topic');
+            const keep = v.editing && x ? { id: x.id, pwd: x.pwd, pwdShow: x.pwdShow } : null;
+            const id = f.idMode === 'pmi' ? '555 010 4477' : (keep && keep.id !== '555 010 4477' ? keep.id : '842 6619 3075');
+            v.meet = { ...f, topic: f.topic.trim(), id, pwd: f.passcode ? 'Rk7Qm2xV9pLwT4cZ' : 'none', pwdShow: f.passcode ? '508214' : 'none' };
+            v.mode = 'home'; v.dlg = 'invite'; v.editing = false;
+            log('save', `App: meeting saved (${v.meet.topic}, ${v.meet.time}, ${v.meet.dur}, ${v.meet.enc === 'e2e' ? 'end-to-end' : 'enhanced'}, waiting room ${v.meet.waiting ? 'on' : 'off'}, passcode ${v.meet.passcode ? 'on' : 'off'})`, { vm: { ...v.meet } });
+            draw(); } } }, 'Save'))));
+    }
+    if (v.mode === 'live' && x) {
+      botTick();
+      const bot = v.bot, m = S.mine, url = m ? LINK.mobile(m) : '';
+      const chatMsg = bot === 'in' ? h('div', { class: 'vm-msg' }, h('b', null, 'KUDO AI Translator'), h('p', null, 'This is the KUDO AI Translator bot. To follow the meeting in your language, scan the QR code on my video, or join from your phone or computer via this link: ', h('button', { class: 'k-link', type: 'button', on: { click: () => clipItem('mobile', url, 'Mobile Link (from the bot)') } }, url))) : null;
+      if (v.chat && bot === 'in' && !S.flags.sawBotChat) { S.flags.sawBotChat = true; log('view', 'App: the bot posted the Mobile Link in the chat'); }
+      if (bot === 'in' && !S.flags.sawQr) { S.flags.sawQr = true; log('view', 'App: the bot shows its QR code'); }
+      const tiles = [h('div', { class: 'vm-tile' }, h('span', null, 'You (Host)'))];
+      if (bot === 'in') tiles.push(h('div', { class: 'vm-tile bot' }, h('div', { class: 'vm-qr', 'aria-hidden': 'true' }, ...Array.from({ length: 49 }, (_, i) => h('i', { class: (i * 7 + (i >> 2)) % 3 ? '' : 'on' }))), h('span', null, 'KUDO AI Translator'), h('small', null, 'Scan to follow in your language')));
+      const banner = x.enc === 'e2e' && m?.status === 'live' && linked(m, x) ? h('div', { class: 'vm-note bad' }, 'End-to-end encryption is on: apps and bots cannot join this meeting. End the meeting, edit it and choose Enhanced encryption.')
+        : bot === 'waiting' ? h('div', { class: 'vm-note' }, h('span', null, 'KUDO AI Translator entered the waiting room.'), h('button', { class: 'k-btn soft', type: 'button', on: { click: () => { v.bot = 'request'; log('click', 'App: Admit the bot'); draw(); } } }, 'Admit'))
+          : bot === 'denied' ? h('div', { class: 'vm-note bad' }, 'KUDO AI Translator cannot translate without permission to record. Use "Add bot" in KUDO to ask again.') : null;
+      const req = bot === 'request' ? h('div', { class: 'k-modal-bg' }, h('div', { class: 'k-modal vm-req' }, h('b', null, 'KUDO AI Translator bot is requesting to record to computer'), h('p', { class: 'k-mini' }, 'The recording will be saved on the computer of the participant who records.'),
+        check(!!v.applyAll, 'Apply these permissions to all future requests in this meeting', (val) => { v.applyAll = val; }),
+        h('div', { class: 'k-row end' }, h('button', { class: 'k-btn ghost', type: 'button', on: { click: () => { v.bot = 'denied'; S.flags.botDenied = true; log('click', 'App: Deny the bot recording'); draw(); } } }, 'Deny'),
+          h('button', { class: 'k-btn', type: 'button', on: { click: () => { v.bot = 'in'; S.flags.botApproved = true; log('click', `App: Approve the bot recording${v.applyAll ? ' (all future requests)' : ''}`); toastK('KUDO AI Translator joined'); draw(); } } }, 'Approve')))) : null;
+      return h('div', { class: 'vm live' }, h('div', { class: 'vm-top dark' }, h('b', null, x.topic), h('span', { class: 'k-mini' }, `Meeting ID ${x.id}`), h('span', { class: 'pv-gap' }), h('span', { class: 'vm-enc' }, x.enc === 'e2e' ? 'End-to-end encrypted' : 'Enhanced encryption')),
+        banner, h('div', { class: 'vm-stage' }, h('div', { class: 'vm-grid' }, ...tiles), v.chat ? h('aside', { class: 'vm-chat' }, h('b', null, 'Chat'), chatMsg || h('small', { class: 'k-mini' }, 'No messages yet')) : null),
+        h('div', { class: 'vm-bar' }, ...['Mute', 'Stop video', 'Participants'].map((l) => h('button', { type: 'button', on: { click: () => log('click', `App: ${l}`) } }, l)),
+          h('button', { type: 'button', class: v.chat ? 'on' : '', on: { click: () => { v.chat = !v.chat; log('click', 'App: Chat'); draw(); } } }, 'Chat'), h('span', { class: 'pv-gap' }),
+          h('button', { type: 'button', class: 'end', on: { click: () => {
+            log('click', 'App: End meeting for all'); v.mode = 'home'; v.chat = false; if (v.bot === 'in' || v.bot === 'waiting' || v.bot === 'request') v.bot = 'gone';
+            if (m && m.status === 'live' && linked(m, x) && m.force) { m.status = 'finished'; S.flags.ended = true; S.flags.forceClosed = true; log('view', 'KUDO meeting closed with the video meeting (Force close)'); toastK('The meeting ended. KUDO closed with it (Force close meeting)'); }
+            else toastK('The meeting ended'); draw(); } } }, 'End')), req);
+    }
+    const inv = v.dlg === 'invite' && x ? h('div', { class: 'k-modal-bg' }, h('div', { class: 'k-modal vm-inv' }, h('div', { class: 'k-modal-h' }, h('b', null, 'Meeting saved'), h('button', { type: 'button', on: { click: () => { v.dlg = null; draw(); } } }, '×')),
+      h('pre', { class: 'vm-invtext' }, vmInvite(x)),
+      h('div', { class: 'k-row end' }, h('button', { class: 'k-btn ghost', type: 'button', on: { click: () => clipItem('vm-invite', vmInvite(x), 'Meeting invitation (whole text)') } }, 'Copy invitation'), h('button', { class: 'k-btn', type: 'button', on: { click: () => clipItem('vm-link', vmLink(x), 'Video meeting join link') } }, 'Copy link')))) : null;
+    return h('div', { class: 'vm' }, top(h('button', { class: 'k-btn', type: 'button', on: { click: () => { v.mode = 'schedule'; v.editing = false; v.f = vmNew(); log('click', 'App: Schedule'); draw(); } } }, 'Schedule')),
+      h('div', { class: 'vm-list' }, h('h3', null, 'Upcoming'), x ? h('div', { class: 'vm-item' }, h('div', null, h('b', null, x.topic), h('small', { class: 'k-mini' }, `Today ${x.time}, ${x.dur}, Meeting ID ${x.id}`)), h('span', { class: 'pv-gap' }),
+        h('button', { class: 'k-btn ghost', type: 'button', on: { click: () => { v.dlg = 'invite'; log('click', 'App: Show invitation'); draw(); } } }, 'Invitation'),
+        h('button', { class: 'k-btn ghost', type: 'button', on: { click: () => { v.mode = 'schedule'; v.editing = true; v.f = { ...x }; log('click', 'App: Edit'); draw(); } } }, 'Edit'),
+        h('button', { class: 'k-btn', type: 'button', on: { click: () => { v.mode = 'live'; v.started++; S.flags.vmStarted = true; if (x.enc === 'e2e') S.flags.vmStartedE2e = true; log('click', 'App: Start the meeting'); draw(); } } }, 'Start'))
+        : h('p', { class: 'k-mini' }, 'No upcoming meetings. Schedule one.')), inv);
+  }
   const SCREENS = { preview: previewScreen, rtmp: rtmpScreen, interpreters: interpretersScreen, broadcast: broadcastScreen, login: loginScreen, home: homeScreen, meetings: meetingsScreen, glossaries: glossariesScreen, usage: usageScreen, 'new-ai': () => formScreen('new'), 'new-hi': () => formScreen('new'), edit: () => formScreen('edit'), meeting: meetingScreen,
     users: () => usersScreen('all'), participants: () => usersScreen('participants'), operators: () => usersScreen('operators'), viewers: () => usersScreen('viewers'), polls: pollsScreen, 'poll-new': pollNewScreen, poll: pollScreen, files: filesScreen, messages: messagesScreen, recordings: recordingsScreen, av: avScreen, features: featuresScreen, mglossaries: mGlossariesScreen, stats: statsScreen };
   function draw() {
     drawTabs(); const tw = root.querySelector('.sbx-tabs-wrap'); if (tw && !tw.contains(tabStrip)) tw.append(tabStrip);
-    if (S.tab !== 'kudo') { root.querySelector('.sbx-url-t').textContent = S.tab === 'site' ? (S.site.mode === 'live' ? 'client-events.example.com/live' : 'editor.sitebuilder.example/client-events') : 'studio.videoplatform.example/livestreaming'; app.replaceChildren(S.tab === 'site' ? siteScreen() : studioScreen()); return; }
+    if (S.tab !== 'kudo') { root.querySelector('.sbx-url-t').textContent = S.tab === 'site' ? (S.site.mode === 'live' ? 'client-events.example.com/live' : 'editor.sitebuilder.example/client-events') : S.tab === 'vmeet' ? (S.vm.mode === 'live' ? 'meet.videoapp.example/meeting' : 'meet.videoapp.example/meetings') : 'studio.videoplatform.example/livestreaming'; app.replaceChildren(S.tab === 'site' ? siteScreen() : S.tab === 'vmeet' ? vmScreen() : studioScreen()); return; }
     root.querySelector('.sbx-url-t').textContent = S.screen === 'preview' ? (S.pv.role === 'mobile' ? LINK.mobile(S.pv.m).replace('https://', '') : `${LINK[S.pv.role](S.pv.m).replace('https://', '')}/join`) : url();
     app.replaceChildren(SCREENS[S.screen]());
   }
