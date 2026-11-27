@@ -27,7 +27,7 @@ function slideView(s, { onNext, toPractice }) {
   if (s.kind === 'stakes') return h('div', { class: 'st-slide' }, h('h3', { class: 'st-title' }, s.title),
     h('div', { class: 'st-tiles' }, s.points.map(([a, b], i) => h('div', { class: 'st-tile' }, h('span', { class: 'st-n' }, i + 1), h('b', null, a), h('span', null, b)))), h('p', { class: 'st-say' }, s.say));
   if (s.kind === 'show') return h('div', { class: 'st-slide show' },
-    h('div', { class: 'st-text' }, h('div', { class: 'st-tag' }, `Step ${s.step}`), h('h3', { class: 'st-title' }, s.title), h('p', { class: 'st-say' }, s.say)), mockView(s.mock));
+    h('div', { class: 'st-text' }, h('h3', { class: 'st-title' }, h('span', { class: 'st-num', 'aria-label': `Step ${s.step}` }, s.step), s.title), h('p', { class: 'st-say' }, s.say)), mockView(s.mock));
   if (s.kind === 'decide') {
     const out = h('div', { class: 'st-then', 'aria-live': 'polite' });
     // A fixed order per decision, mixed so the right answer has no predictable place (same every visit).
