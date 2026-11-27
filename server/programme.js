@@ -8,8 +8,20 @@ import { CASES } from './curriculum-bank.js';
 import { faqFor } from './sessions.js';
 import { updatesFor, editedIn } from './releases.js';
 // Videos set in code until an admin sets another link for the module (the admin's link wins).
-const DEFAULT_VIDEOS = { hybrid: 'https://player.vimeo.com/video/1218279487' };
+const DEFAULT_VIDEOS = {
+  rtmp: 'https://player.vimeo.com/video/1217980049', hls: 'https://player.vimeo.com/video/1218024898', widget: 'https://player.vimeo.com/video/1218040557',
+  teams: 'https://player.vimeo.com/video/1218241764', zoom: 'https://player.vimeo.com/video/1218045790', hybrid: 'https://player.vimeo.com/video/1218279487',
+};
 async function videoLinks() { return { ...DEFAULT_VIDEOS, ...((await q("SELECT value FROM app_settings WHERE key='videos'")).rows[0]?.value || {}) }; }
+/** Once: the explainer videos Nils sent on 27 Nov replace any older link for those modules. Admins can change them after. */
+export async function applyDefaultVideos() {
+  const done = (await q("SELECT 1 FROM app_settings WHERE key='videos_vimeo_nov27'")).rowCount;
+  if (done) return;
+  const cur = (await q("SELECT value FROM app_settings WHERE key='videos'")).rows[0]?.value || {};
+  await q("INSERT INTO app_settings (key,value) VALUES ('videos',$1) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value", [{ ...cur, ...DEFAULT_VIDEOS }]);
+  await q("INSERT INTO app_settings (key,value) VALUES ('videos_vimeo_nov27',$1) ON CONFLICT (key) DO NOTHING", [{ at: new Date().toISOString() }]);
+  console.log(`Explainer videos set for ${Object.keys(DEFAULT_VIDEOS).join(', ')}`);
+}
 /** A Vimeo page or management link becomes its player link, so it plays inside the lesson. */
 export function vimeoEmbed(url) {
   try {

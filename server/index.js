@@ -10,7 +10,7 @@ import { pool, q, migrate, audit } from './db.js';
 import { ensureAdmins, loadUser, requireAuth, requireAdmin, csrfGuard, login, hash, verify, checkNewPassword } from './auth.js';
 import { meRouter } from './routes-me.js';
 import { adminRouter } from './routes-admin.js';
-import { meProgramme, adminProgramme } from './programme.js';
+import { meProgramme, adminProgramme, applyDefaultVideos } from './programme.js';
 import { ensureDemo } from './demo.js';
 import { boardRouter } from './board.js';
 import { warmUp, resumePending } from './autoreview.js';
@@ -27,6 +27,7 @@ export async function createApp() {
   await migrate();
   await ensureAdmins();
   await ensureDemo();
+  await applyDefaultVideos();
   await loadFieldItems(); await failInterrupted(); await loadContentEdits();
   if (process.env.AUTO_REVIEW !== 'off') { warmUp(); resumePending().catch((e) => console.error(e)); }
 
