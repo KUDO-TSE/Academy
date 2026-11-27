@@ -41,6 +41,8 @@ function runTour() {
     onEnd: async () => {
       if (!me.tourSeen) { me.tourSeen = true; try { await api('POST', '/api/auth/tour-seen'); } catch { /* shown again next time */ } }
       if (location.hash.replace(/^#/, '') !== start) { history.replaceState(null, '', start ? `#${start}` : location.pathname); route(); }
+      // Anything KUDOG held back during the tour (a module recap, a new card) shows now.
+      else if (me.role !== 'admin' || me.isTrainee) revealRecap(() => revealNew()).then((shown) => { if (!shown) revealNew(); });
     },
   });
 }

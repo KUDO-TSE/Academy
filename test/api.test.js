@@ -799,3 +799,26 @@ test('module recap: scores per task, KUDOG celebrates or supports, never waits f
   assert.equal((await d('GET', '/api/me/recaps/pending')).status, 200);
   assert.equal((await d('POST', '/api/me/recaps/zoom/seen')).status, 409);
 });
+
+test('KUDOG with Claude: grounded in the lessons, mood and hand-off parsed, falls back to built-in answers', async () => {
+  const { relevantKnowledge } = await import('../server/knowledge.js');
+  const { claudeAnswer, coachContext } = await import('../server/coach.js');
+  const k = await relevantKnowledge('Who watches the Technical Support chat behind the scenes?');
+  assert.ok(k.some((p) => /Roles in the live meeting/.test(p)), 'the roles passage is picked');
+  const realFetch = global.fetch; const realKey = process.env.ANTHROPIC_API_KEY;
+  let sent = null;
+  process.env.ANTHROPIC_API_KEY = 'test-key-not-real';
+  global.fetch = async (url, opts) => { if (!String(url).startsWith('https://api.anthropic.com')) return realFetch(url, opts); sent = JSON.parse(opts.body); return { ok: true, json: async () => ({ content: [{ type: 'text', text: 'The Operator does. See [the lesson](#module-platform).\n[mood:excited] [trainer]' }] }) }; };
+  try {
+    const r = await claudeAnswer([{ role: 'me', text: 'hi' }, { role: 'coach', text: 'Woof!' }], 'Who watches the Technical Support chat?', await coachContext((await q("SELECT id FROM users WHERE email='dana@test.local'")).rows[0].id));
+    assert.equal(r.text, 'The Operator does. See [the lesson](#module-platform).');
+    assert.equal(r.mood, 'excited'); assert.equal(r.trainer, true);
+    assert.match(sent.system, /KUDO KNOWLEDGE/); assert.match(sent.system, /Roles in the live meeting/); assert.match(sent.system, /You are KUDOG/);
+    assert.equal(sent.messages[0].role, 'user', 'the conversation starts with the trainee');
+    // Claude down: the trainee still gets the built-in answer.
+    global.fetch = async (url, opts) => (String(url).startsWith('https://api.anthropic.com') ? { ok: false, status: 529, json: async () => ({}) } : realFetch(url, opts));
+    const d = client(); await d('POST', '/api/auth/login', { email: 'dana@test.local', password: 'Quiet-valley-pass-73' });
+    const fb = (await d('POST', '/api/me/coach', { message: 'How is my score evaluated?' })).json;
+    assert.equal(fb.mode, 'built-in'); assert.match(fb.text, /80%/);
+  } finally { global.fetch = realFetch; if (realKey === undefined) delete process.env.ANTHROPIC_API_KEY; else process.env.ANTHROPIC_API_KEY = realKey; }
+});

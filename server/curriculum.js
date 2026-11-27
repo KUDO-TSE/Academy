@@ -77,6 +77,7 @@ export const MODULES = [
       'Coach a Host on the live controls and the first troubleshooting step.',
       'Explain billing, the grace period and multi-session events.',
       'Guide the client to the Content tab and the 30-day rule.',
+      'Brief the Host and the Operator on the live meeting: roles, polls, documents, screen sharing and ending it.',
     ],
     sections: [
       { title: 'Create the meeting', points: [
@@ -90,6 +91,20 @@ export const MODULES = [
         'Viewer Only link: livestream attendees, browser only, no mic.',
         'Widget embed code: an iFrame for third-party event platforms.',
         'Mobile Link and QR: onsite or mobile attendees, no login.',
+        'Operator link: the behind-the-scenes seat, often Technical Support. Not seen or heard; watches the chats, the user list and the language channels.',
+      ] },
+      { title: 'Roles in the live meeting', points: [
+        'Participant: speaks with mic and camera, picks the language to listen to and the captions to read.',
+        'Host: a participant you promote (Users, Participants, Make host). Can start and stop the recording, run polls, share documents, mute a microphone or turn off a camera, remove someone and end the meeting.',
+        'Operator: added under Users, Operators, joins with the Operator link. Watches the Technical Support and interpreter chats, listens to the language channels and keeps an eye on the user list. Agree in advance whether they also run the recording, the polls, documents or the end of the meeting.',
+        'Viewer: watches and listens in the language they choose, never speaks. The right seat when the audience is larger than the speakers.',
+        'Removing someone is final: they cannot come back into that meeting. For a noisy line, mute the microphone instead.',
+      ] },
+      { title: 'In the meeting: polls, documents, screen sharing', points: [
+        'Polls are prepared when scheduling. The Host or Operator starts one, attendees answer, then the Host or Operator ends it and publishes the results: until then attendees do not see them.',
+        'Documents: the organiser adds them when scheduling, and a Host or Operator can upload one live (PDF, document, presentation or image) for attendees to download. Preparation material for interpreters goes under Users, Interpreters instead.',
+        'Screen sharing: a browser tab, a window or the whole screen. Only a shared Chrome tab carries its sound, so play videos from a tab. On a Mac, the browser may first need Screen Recording permission (System Settings, Privacy & Security).',
+        'End meeting ends it for everyone, interpreters and viewers included, and nobody can join again: carrying on means a new meeting. Agree before the event who ends it, the Host or the Operator.',
       ] },
       { title: 'Running it live', points: [
         'The Host joins from the email link in Chrome, Firefox or Edge (not Safari) and checks the source audio reaches KUDO.',
@@ -114,6 +129,11 @@ export const MODULES = [
       'Joining or audio problems on a corporate network: use the IT and network module, then Technical Support.',
     ],
     quiz: [
+      { q: 'A client wants someone behind the scenes to watch the chats and the language channels without being seen. Which role?', o: ['Host', 'Viewer', 'Operator', 'A second participant'], a: 2, why: 'The Operator is the behind-the-scenes seat (often Technical Support): not seen or heard, watching the chats, the user list and the channels.' },
+      { q: 'A presenter plays a video in the meeting, but attendees hear nothing. What fixes it?', o: ['Share the whole screen instead', 'Play the video in a Chrome tab and share that tab', 'Unmute the presenter', 'Restart the translation service'], a: 1, why: 'Only a shared Chrome tab carries its sound. A shared window or screen sends the picture only.' },
+      { q: 'Attendees answered a poll but cannot see the results. Why?', o: ['Polls never show results', 'The Host or Operator has not ended and published it yet', 'Viewers cannot answer polls', 'Results only appear in the recording'], a: 1, why: 'Results stay hidden until the Host or Operator ends the poll and publishes them.' },
+      { q: 'A participant has a noisy line and keeps disturbing the meeting. What is the right first move?', o: ['Remove them from the meeting', 'Mute their microphone from the user list', 'End the meeting', 'Ask them to rejoin as a Viewer'], a: 1, why: 'Muting solves it. Removing is final: they could not come back into the meeting.' },
+      { q: 'The Host clicks End meeting ten minutes early by mistake. What now?', o: ['Restart it from the Overview', 'Everyone rejoins with the same links', 'Create a new meeting: an ended meeting cannot be rejoined', 'Technical Support reopens it'], a: 2, why: 'End meeting ends it for everyone and for good. Agree before the event who ends it.' },
       { q: 'An attendee will only watch a livestream in a browser and never speak. Which link do they get?', o: ['Participant link', 'Viewer Only link', 'Host email link', 'Operator link'], a: 1, why: 'Viewer Only is browser only with no mic. The Participant link is for people with mic and camera.' },
       { q: 'Translation quality drops during a live AI meeting. What is the first step?', o: ['End the meeting and recreate it with the same links', 'Restart the translation service', 'Change the speaker language to match the speaker', 'Ask every participant to leave and rejoin'], a: 1, why: 'Restarting the translation service resolves most real-time quality issues without disrupting the meeting.' },
       { q: 'Which browser is not recommended for joining KUDO?', o: ['Chrome', 'Edge', 'Firefox', 'Safari'], a: 3, why: 'KUDO needs the latest Chrome, Firefox or Edge. Safari has limitations, such as no screen sharing.' },
@@ -184,6 +204,11 @@ export const MODULES = [
         'Tell the KUDO Project Manager or Language Services about any change to date, languages or schedule. Cancellation charges may apply within 72 hours.',
         'Lead time: the sooner the better. Language Services can usually accommodate 48 hours before the meeting, down to 24 hours for common pairs such as French-English or German-English.',
       ] },
+      { title: 'When the client brings its own interpreters', points: [
+        'Skip Book Interpreters. Add each interpreter under Users, Interpreters with their email (and their name the first time): KUDO emails each one an invitation with their link.',
+        'Good practice: also send the interpreter link yourself, in one email with every interpreter in copy, and keep it somewhere safe for the day.',
+        'Their preparation material goes under Users, Interpreters too, and they join early for the sound check like Marketplace interpreters.',
+      ] },
       { title: 'Timing', points: [
         'On Human Interpretation meetings the bot joins 15 minutes before the start, so interpreters have preparation time. (AI meetings: 1 minute before.)',
         'Interpreters join at least 15 minutes early for a sound check. The Host should join early too.',
@@ -201,6 +226,7 @@ export const MODULES = [
     ],
     escalate: ['Bookings under 48 hours, uncommon pairs, date or language changes after booking: Language Services, straight away.'],
     quiz: [
+      { q: 'The client brings its own interpreters. How do they get into the meeting?', o: ['Book Interpreters anyway', 'Add them under Users, Interpreters with their email', 'Send them the Participant link', 'Make them Hosts'], a: 1, why: 'Own interpreters are added under Users, Interpreters: KUDO emails each one their invitation and link.' },
       { q: 'When does the KUDO bot join a Human Interpretation meeting?', o: ['1 minute before', '5 minutes before', '15 minutes before', 'At the start time'], a: 2, why: 'Fifteen minutes before, so interpreters can prepare. On AI meetings it joins 1 minute before.' },
       { q: 'Where should the client upload preparation materials so interpreters receive them?', o: ['The Documents tab', 'Users, Interpreters', 'The Mobile Link', 'By email to the Host'], a: 1, why: 'Users, Interpreters. The Documents tab does not reach interpreters.' },
       { q: 'Venue Audio IN (bringing booth audio into KUDO) is available for which meetings?', o: ['AI meetings only', 'Human Interpretation only', 'AI and Human Interpretation meetings', 'Neither'], a: 1, why: 'Human Interpretation only. On AI meetings the channels are already used by the AI translation.' },
@@ -375,6 +401,7 @@ export const MODULES = [
         'Voice and Captions are independent. Wired earphones are best; keep a supply at registration.',
         'Auto Floor (on by default) sends the original audio. Horizontal Screen Projection suits captions on a big screen. Dynamic QR suits permanent signage.',
         'Each session has its own Mobile Link and QR. Plan one session per block.',
+        'Download the QR as an image or PDF for signage, printed handouts or a slide. On their phone, attendees can make captions bigger or switch to a dark display.',
       ] },
       { title: 'Event day', points: [
         'The AV team opens the Participant link on the dedicated laptop, selects the USB interface as the microphone and checks KUDO receives the room audio.',
@@ -389,6 +416,7 @@ export const MODULES = [
     ],
     escalate: ['Venues with more than a few hundred listeners, or a venue that cannot meet the network requirements: involve Technical Support early.'],
     quiz: [
+      { q: 'An attendee at an onsite event finds the captions on their phone too small. What do you tell them?', o: ['Use a tablet instead', 'Change the caption display on the Mobile Link page: bigger text or dark mode', 'Ask the AV team to zoom the projector', 'Switch the meeting to Human Interpretation'], a: 1, why: 'The Mobile Link page lets each attendee adjust how captions look on their own phone.' },
       { q: 'How much wireless capacity should be planned per listener?', o: ['8 kbps', '48 kbps', '1 Mbps', '5 Mbps'], a: 1, why: '48 kbps per listener is the minimum in KUDO\'s guide, so 500 listeners need about 24 Mbps.' },
       { q: 'What usually limits how many listeners a venue Wi-Fi can serve?', o: ['Internet speed at the venue', 'Airtime per access point', 'The number of languages offered', 'The phone brands attendees use'], a: 1, why: 'Each listener receives many small audio packets, so the limit is listeners per access point.' },
       { q: 'What should the room laptop use to connect?', o: ['Venue guest Wi-Fi', 'Wired internet', 'A phone hotspot', 'Bluetooth'], a: 1, why: 'Wired internet, 20 Mbps down and 10 up.' },
@@ -610,6 +638,11 @@ export const MODULES = [
         'Proxies must be transparent or set in the browser. Proxies that need authentication are not supported.',
         'SSO is available for client accounts.',
       ] },
+      { title: 'On the attendee\'s computer', points: [
+        'Join in Chrome, Firefox or Edge and allow the camera and microphone when the browser asks.',
+        'No camera or microphone found: check the site permission in the browser (the icon left of the address), then close other apps that hold them, such as Teams or Zoom.',
+        'Screen sharing on a Mac needs Screen Recording permission for the browser (System Settings, Privacy & Security).',
+      ] },
       { title: 'Signs and habits', points: [
         'Signs: meetings that won\'t join, endless loading, missing audio, channels that don\'t load, the KUDO panel missing in Teams, frequent disconnects.',
         'Page and captions load but no audio: check whether UDP is blocked first.',
@@ -621,6 +654,7 @@ export const MODULES = [
     practice: ['Write the short email you would send a client IT team before their first KUDO event.'],
     escalate: ['Firewall inspection, regional restrictions or SSO setup: Technical Support with the client IT contact.'],
     quiz: [
+      { q: 'A speaker\'s camera is not found in KUDO, yet it worked in Teams a minute ago. Most likely cause?', o: ['KUDO does not support external cameras', 'Teams is still open and holding the camera', 'UDP is blocked', 'The meeting is AI only'], a: 1, why: 'Another app holding the camera or microphone is the usual cause: close it, then check the site permission in the browser.' },
       { q: 'Which port is required for KUDO?', o: ['TCP 21', 'TCP 443', 'UDP 53', 'TCP 8080'], a: 1, why: 'TCP 443 is required. UDP 3478 is recommended for quality.' },
       { q: 'The page and captions load but there is no audio on a corporate network. First thing to check?', o: ['Whether the glossary loaded', 'Whether UDP is blocked', 'Whether the meeting name is valid', 'The browser zoom level'], a: 1, why: 'Blocked or filtered UDP is the first suspect.' },
       { q: 'Which proxies does KUDO not support?', o: ['Transparent proxies', 'Proxies set in the browser', 'Proxies that require authentication', 'None: every proxy is supported'], a: 2, why: 'Proxies that need authentication are not supported.' },
@@ -646,6 +680,7 @@ export const MODULES = [
     practice: ['Explain Marketplace to a colleague in one minute, including the lead time and where materials go.'],
     escalate: ['Everything beyond surface level (rates, specific interpreters, quality complaints, last-minute bookings): Language Services.'],
     quiz: [
+      { q: 'What helps KUDO match the right interpreters when a client books?', o: ['Nothing: matching is by language only', 'The subject matter and tags added to the booking', 'The number of attendees', 'The meeting title'], a: 1, why: 'Subject matter and tags tell Language Services which expertise the meeting needs.' },
       { q: 'What lead time do you give a client for interpreters?', o: ['12 hours is enough for any language pair', '48 hours usually, 24 for common pairs', 'One month minimum for any human interpretation', 'Same day is always possible for common pairs'], a: 1, why: 'Language Services can usually do 48 hours, down to 24 hours for common pairs like French-English.' },
       { q: 'A client cancels 50 hours before the meeting. What applies?', o: ['No charge', '50%', '100%', 'It depends on the interpreter'], a: 1, why: 'Between 72 and 24 hours: 50%. More than 72 hours: free. Under 24 hours: 100%.' },
     ],

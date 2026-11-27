@@ -5,7 +5,6 @@ import { q } from './db.js';
 import { hash, initialPassword } from './auth.js';
 import { upsertRound } from './importers.js';
 import { refreshPlan, approvePlan } from './engine.js';
-import { MODULE_BY_KEY } from './curriculum.js';
 
 // Fictional profile: a Client Manager whose clients mostly bring Teams meetings.
 const SELF = { teams: 4, zoom: 4, onsite: 3.5, hybrid: 2, platform: 4.5, widget: 2.5, external: 3, meetnow: 3, rtmp: 1.5, hls: 1.5, hi: 4, ai: 4 };
@@ -21,12 +20,21 @@ export function demoEmails() {
 const nameFor = (email) => { const local = email.split('@')[0].replace(/^demo[.-]?/, '').replace(/[._-]+/g, ' ').trim(); return !local || local === 'trainee' ? 'Demo Trainee' : `Test Trainee (${local.replace(/\b\w/g, (c) => c.toUpperCase())})`; };
 
 export async function ensureDemo() {
+  // Any test trainee still carrying the old pretend progress (created from the start-up list or from the admin page)
+  // starts again fresh, once.
+  const seeded = (await q("SELECT DISTINCT u.id FROM users u JOIN inputs i ON i.user_id=u.id WHERE u.is_demo AND i.body LIKE '(Demo)%'")).rows;
+  for (const r of seeded) { const id = await resetDemo(r.id); console.log(`Test trainee ${r.id} reset to a fresh start (was ${id ? 'recreated' : 'not found'}).`); }
   for (const email of demoEmails()) await ensureOne(email);
 }
 
 async function ensureOne(email) {
   const ex = await q('SELECT id FROM users WHERE lower(email)=$1 AND is_demo', [email]);
-  if (ex.rowCount) { await refreshPlan(ex.rows[0].id); await approvePlan(ex.rows[0].id, null); return ex.rows[0].id; } // keep it on the latest plan
+  if (ex.rowCount) {
+    // Test trainees used to be created with pretend progress (a finished Foundations module, a logged kick-off, a plan
+    // backdated two weeks). A test trainee must look like a real first connection, so those are reset once.
+    if ((await q("SELECT 1 FROM inputs WHERE user_id=$1 AND body LIKE '(Demo)%'", [ex.rows[0].id])).rowCount) return resetDemo(ex.rows[0].id);
+    await refreshPlan(ex.rows[0].id); await approvePlan(ex.rows[0].id, null); return ex.rows[0].id; // keep it on the latest plan
+  }
   if ((await q('SELECT 1 FROM users WHERE lower(email)=$1', [email])).rowCount) return null; // never turn a real account into a test one
   return createDemo(email, nameFor(email));
 }
@@ -60,17 +68,7 @@ export async function createDemo(email, name) {
   }
   await q("INSERT INTO scores (user_id,round_id,scenario,pct,correct,total) VALUES ($1,$2,'overall',$3,$4,$5) ON CONFLICT DO NOTHING", [id, liveR, (C / T) * 100, C, T]);
 
-  // A plan that has been running for a little over two weeks, with some progress, so every part of the page shows.
-  await refreshPlan(id);
-  await approvePlan(id, null);
-  await q("UPDATE plans SET started_on = CURRENT_DATE - 9 WHERE user_id=$1 AND status='approved'", [id]);
-  await q(`INSERT INTO inputs (user_id,kind,happened_on,title,body,signals,item_key,shared_summary)
-           VALUES ($1,'one_to_one',CURRENT_DATE - 8,'Kick-off with your KUDO Trainer','(Demo) Agreed the goal and the plan. Strong on the platform basics; not sure how the Teams bot is admitted from the lobby.',$2,'kickoff',$3)`,
-    [id, JSON.stringify([{ scenario: 'teams', rating: 'gap', note: 'Lobby and IT policy questions' }]), 'Great start. Teams is your first focus because your clients bring it most: watch the video before the lesson, and bring your IT questions to our next session.']);
-  await q("INSERT INTO plan_progress (user_id,item_key,status,completed_at) VALUES ($1,'foundations.lesson','done',now() - interval '8 days'), ($1,'foundations.practice','done',now() - interval '7 days'), ($1,'teams.lesson','done',now() - interval '1 day') ON CONFLICT DO NOTHING", [id]);
-  const f = MODULE_BY_KEY.foundations.quiz;
-  await q("INSERT INTO quiz_attempts (user_id,module_key,correct,total,answers,created_at) VALUES ($1,'foundations',$2,$3,$4,now() - interval '7 days')",
-    [id, f.length, f.length, JSON.stringify(f.map((x, i) => ({ id: `foundations.${i}`, score: 1, knowledge: 1, scenario: null })))]);
+  // A fresh start, exactly like a real trainee on their first connection: October results only, the plan starts today.
   await refreshPlan(id);
   await approvePlan(id, null);
   console.log(`Demo trainee created: ${email}`);

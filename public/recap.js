@@ -58,7 +58,8 @@ export function showRecap(r, { onClose, markSeen = true } = {}) {
 /** After each trainee page: show the next completed module whose recap has not been seen. Resolves true if one opened. */
 let checking = false;
 export async function revealRecap(onClose) {
-  if (checking || document.querySelector('.kd-modal, .reveal')) return false;
+  // Never over the guided tour: it shows when the tour ends.
+  if (checking || document.querySelector('.kd-modal, .reveal, .tour-layer')) return false;
   checking = true;
   try {
     const { recap } = await api('GET', '/api/me/recaps/pending');

@@ -110,7 +110,7 @@ export function collectionStrip() {
 /** After each page: if a new card was earned, reveal it. */
 let revealing = false;
 export async function revealNew() {
-  if (revealing) return; revealing = true;
+  if (revealing || document.querySelector('.tour-layer, .kd-modal')) return; revealing = true;
   try {
     const d = await api('GET', '/api/me/collectibles');
     const fresh = d.cards.filter((c) => c.isNew);

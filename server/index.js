@@ -1,4 +1,4 @@
-import { coachRouter, groupAdminRouter } from './coach.js';
+import { coachRouter, groupAdminRouter, checkCoachAI } from './coach.js';
 import express from 'express';
 import helmet from 'helmet';
 import session from 'express-session';
@@ -174,5 +174,5 @@ export async function createApp() {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT) || 3000;
-  createApp().then((app) => { const srv = app.listen(port, () => console.log(`KUDO Academy listening on ${port}`)); srv.requestTimeout = 30 * 60 * 1000; /* large session recordings */ }).catch((e) => { console.error(e); process.exit(1); });
+  createApp().then((app) => { const srv = app.listen(port, () => { console.log(`KUDO Academy listening on ${port}`); checkCoachAI(); }); srv.requestTimeout = 30 * 60 * 1000; /* large session recordings */ }).catch((e) => { console.error(e); process.exit(1); });
 }
