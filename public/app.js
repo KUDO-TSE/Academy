@@ -18,7 +18,7 @@ let me = null;
 
 const NAV_TRAINEE = [['programme', 'Home', 'home'], ['training', 'My training', 'plan'], ['results', 'My results', 'chart'], ['progress', 'My progress', 'trend'], ['collection', 'My collection', 'star']];
 const NAV_ME = [['me-programme', 'Home', 'home'], ['me-training', 'My training', 'plan'], ['me-results', 'My results', 'chart'], ['me-progress', 'My progress', 'trend'], ['me-collection', 'My collection', 'star']];
-const NAV_ADMIN = [['board', 'My board', 'flag'], ['overview', 'Overview', 'home'], ['team', 'Team', 'team'], ['priorities', 'Priorities', 'flag'], ['programme', 'Programme', 'plan'], ['reviews', 'Reviews', 'flag'], ['feedback', 'Feedback', 'chart'], ['curriculum', 'Curriculum', 'info'], ['try', 'Try as a trainee', 'user'], ['SEP', 'Admin'], ['imports', 'Imports', 'upload'], ['users', 'Users & access', 'key'], ['audit', 'Activity log', 'log'], ['logic', 'Logic notes', 'info']];
+const NAV_ADMIN = [['board', 'My board', 'board'], ['overview', 'Overview', 'home'], ['team', 'Team', 'team'], ['priorities', 'Priorities', 'target'], ['programme', 'Programme', 'plan'], ['reviews', 'Reviews', 'inbox'], ['feedback', 'Feedback', 'msg'], ['curriculum', 'Curriculum', 'book'], ['try', 'Try as a trainee', 'user'], ['SEP', 'Admin'], ['imports', 'Imports', 'upload'], ['users', 'Users & access', 'key'], ['audit', 'Activity log', 'log'], ['logic', 'Logic notes', 'info']];
 
 async function boot() {
   try { me = (await api('GET', '/api/auth/me')).user; } catch { me = null; }
