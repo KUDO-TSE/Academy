@@ -386,3 +386,5 @@ CREATE TABLE IF NOT EXISTS module_recaps (
 ALTER TABLE releases ADD COLUMN IF NOT EXISTS version TEXT;
 ALTER TABLE releases ADD COLUMN IF NOT EXISTS summary TEXT;
 ALTER TABLE releases ADD COLUMN IF NOT EXISTS summary_by TEXT;
+-- A release can be shown in KUDO News before its lesson changes are applied (the release history loads this way).
+ALTER TABLE releases ADD COLUMN IF NOT EXISTS in_news BOOLEAN NOT NULL DEFAULT false;

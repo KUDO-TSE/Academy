@@ -11,6 +11,8 @@ import { MODULES, MODULE_BY_KEY } from './curriculum.js';
 import { POOLS, itemById } from './assess.js';
 import { embedder, brand } from './autoreview.js';
 import { words, jac, cos, nameBoost, docxText, resetCorpus } from './sessions.js';
+import { releasesFromDocx } from './release-bundle.js';
+import fs from 'node:fs';
 
 const bad = (res, error) => res.status(400).json({ error });
 const MAX_TEXT = 200 * 1024;
@@ -194,7 +196,7 @@ export async function updatesFor(moduleKey, days = 120) {
 
 // ------------------------------------------------------------------ routes (admin)
 export const releasesRouter = Router();
-const pub = (r) => ({ id: r.id, title: r.title, version: r.version || versionOf(r.title), summary: r.summary || null, summary_by: r.summary_by || null, released_on: r.released_on, status: r.status, created_at: r.created_at, applied_at: r.applied_at, items: r.items });
+const pub = (r) => ({ id: r.id, title: r.title, in_news: !!r.in_news || r.status === 'applied', version: r.version || versionOf(r.title), summary: r.summary || null, summary_by: r.summary_by || null, released_on: r.released_on, status: r.status, created_at: r.created_at, applied_at: r.applied_at, items: r.items });
 const modList = () => MODULES.map((m) => ({ key: m.key, title: m.title }));
 
 releasesRouter.get('/releases', async (_req, res, next) => {
@@ -212,13 +214,10 @@ releasesRouter.post('/releases', async (req, res, next) => {
     if (text.length > MAX_TEXT) return bad(res, 'The release note is too long (200 KB max).');
     const title = String(b.title || '').trim().slice(0, 200) || 'Release';
     if (b.released_on && !/^\d{4}-\d{2}-\d{2}$/.test(b.released_on)) return bad(res, 'Date must be YYYY-MM-DD.');
-    const parsed = parseRelease(text);
-    if (!parsed.length) return bad(res, 'No items found. Paste the release note with one bullet per change.');
-    const vec = process.env.AUTO_REVIEW === 'off' ? null : await embedder().catch(() => null);
-    const items = (await analyseRelease(parsed, { vec })).map((it) => ({ ...it, actions: proposeActions(it), status: 'open' }));
-    const r = await q("INSERT INTO releases (title,released_on,raw,items,status,created_by) VALUES ($1,COALESCE($2::date,CURRENT_DATE),$3,$4,'review',$5) RETURNING id", [title, b.released_on || null, text, JSON.stringify(items), req.user.id]);
-    await audit(req, 'release.import', String(r.rows[0].id), `${title} · ${items.length} items`);
-    res.json({ id: r.rows[0].id, items: items.length });
+    const made = await createRelease({ title, released_on: b.released_on || null, text, userId: req.user.id });
+    if (!made) return bad(res, 'No items found. Paste the release note with one bullet per change.');
+    await audit(req, 'release.import', String(made.id), `${title} · ${made.items} items`);
+    res.json(made);
   } catch (e) { next(e); }
 });
 
@@ -275,7 +274,7 @@ releasesRouter.post('/releases/:id/apply', async (req, res, next) => {
       for (const x of a.retire || []) { if (!x.on || !itemById(x.ref.slice(2))) continue; await q("INSERT INTO content_edits (ref,kind,release_id,created_by) VALUES ($1,'retire',$2,$3)", [x.ref, id, req.user.id]); done.retired++; }
       it.status = 'applied';
     }
-    await q("UPDATE releases SET items=$2, status='applied', applied_at=now() WHERE id=$1", [id, JSON.stringify(r.items)]);
+    await q("UPDATE releases SET items=$2, status='applied', applied_at=now(), in_news=true WHERE id=$1", [id, JSON.stringify(r.items)]);
     await loadContentEdits();
     if (!r.summary) draftSummary(id).catch(() => {});
     await audit(req, 'release.apply', String(id), `${done.whatsnew} news · ${done.faq} FAQ · ${done.edits} lines · ${done.retired} retired`);
@@ -406,7 +405,7 @@ releasesRouter.post('/releases/:id/news/draft', async (req, res, next) => {
 const drafting = new Set();
 whatsNewRouter.get('/news', async (_req, res, next) => {
   try {
-    const rows = (await q("SELECT * FROM releases WHERE status='applied' ORDER BY released_on DESC, id DESC LIMIT 60")).rows;
+    const rows = (await q("SELECT * FROM releases WHERE status='applied' OR in_news ORDER BY released_on DESC, id DESC LIMIT 80")).rows;
     res.json({ releases: rows.map((r) => {
       if (!r.summary && !drafting.has(r.id)) { drafting.add(r.id); draftSummary(r.id).catch(() => {}).finally(() => drafting.delete(r.id)); }
       const items = (r.items || []).filter((i) => i.status !== 'skipped');
@@ -415,3 +414,55 @@ whatsNewRouter.get('/news', async (_req, res, next) => {
     }) });
   } catch (e) { next(e); }
 });
+
+// ------------------------------------------------------------------ creating releases (one note, a Word bundle, the history)
+/** Parse a release note, map it to the modules and propose the changes. Saved for review; null when nothing parses. */
+export async function createRelease({ title, version = null, released_on = null, text, userId = null, inNews = false }) {
+  const parsed = parseRelease(text);
+  if (!parsed.length) return null;
+  const vec = process.env.AUTO_REVIEW === 'off' ? null : await embedder().catch(() => null);
+  const items = (await analyseRelease(parsed, { vec })).map((it) => ({ ...it, actions: proposeActions(it), status: 'open' }));
+  const r = await q("INSERT INTO releases (title,version,released_on,raw,items,status,created_by,in_news) VALUES ($1,$2,COALESCE($3::date,CURRENT_DATE),$4,$5,'review',$6,$7) RETURNING id", [title, version || versionOf(title), released_on, text, JSON.stringify(items), userId, inNews]);
+  return { id: r.rows[0].id, items: items.length };
+}
+
+// A Word file with the release e-mails embedded: one release per version, follow-ups merged. Versions already in the
+// Academy are skipped. Each release is saved for review, like a pasted note.
+releasesRouter.post('/releases/bundle', async (req, res, next) => {
+  try {
+    let list;
+    try { list = releasesFromDocx(Buffer.from(String(req.body?.docx || ''), 'base64')); } catch { return bad(res, 'That Word file could not be read.'); }
+    if (!list.length) return bad(res, 'No release e-mail found in that Word file. Drag the e-mails (.msg) into the document, then upload it again.');
+    const have = new Set((await q('SELECT version,title FROM releases')).rows.map((r) => r.version || versionOf(r.title)).filter(Boolean));
+    const made = [], skipped = [];
+    for (const x of list) {
+      if (x.version && have.has(x.version)) { skipped.push(x.title); continue; }
+      const m = await createRelease({ ...x, userId: req.user.id });
+      if (m) { made.push({ ...m, title: x.title }); if (x.version) have.add(x.version); } else skipped.push(x.title);
+    }
+    await audit(req, 'release.bundle', String(made.length), `${made.map((m) => m.title).join(', ')}${skipped.length ? ` · skipped ${skipped.join(', ')}` : ''}`);
+    res.json({ made, skipped });
+  } catch (e) { next(e); }
+});
+
+// Show or hide a release in KUDO News without applying its lesson changes.
+releasesRouter.put('/releases/:id/news/visible', async (req, res, next) => {
+  try {
+    const on = !!req.body?.on, id = Number(req.params.id);
+    const r = await q('UPDATE releases SET in_news=$2 WHERE id=$1 RETURNING id', [id, on]);
+    if (!r.rowCount) return res.status(404).json({ error: 'Not found.' });
+    await audit(req, on ? 'release.news.show' : 'release.news.hide', String(id), '');
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+/** Once: the KUDO release history (Feb to Nov 2026) is added and shown in KUDO News; its lesson changes wait for review. */
+export async function loadReleaseHistory() {
+  if ((await q("SELECT 1 FROM app_settings WHERE key='release_history_2026'")).rowCount) return;
+  const { releases } = JSON.parse(fs.readFileSync(new URL('./release-history.json', import.meta.url), 'utf8'));
+  const have = new Set((await q('SELECT version,title FROM releases')).rows.map((r) => r.version || versionOf(r.title)).filter(Boolean));
+  let n = 0;
+  for (const x of releases) { if (have.has(x.version)) continue; if (await createRelease({ ...x, inNews: true })) n++; }
+  await q("INSERT INTO app_settings (key,value) VALUES ('release_history_2026',$1) ON CONFLICT (key) DO NOTHING", [{ at: new Date().toISOString(), added: n }]);
+  console.log(`KUDO News: ${n} releases from the 2026 history added`);
+}

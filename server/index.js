@@ -17,7 +17,7 @@ import { warmUp, resumePending } from './autoreview.js';
 import { sessionsRouter, loadFieldItems, failInterrupted } from './sessions.js';
 import { collectiblesRouter } from './collectibles.js';
 import { recapRouter } from './recaps.js';
-import { releasesRouter, whatsNewRouter, loadContentEdits } from './releases.js';
+import { releasesRouter, whatsNewRouter, loadContentEdits, loadReleaseHistory } from './releases.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const prod = process.env.NODE_ENV === 'production';
@@ -28,6 +28,7 @@ export async function createApp() {
   await ensureAdmins();
   await ensureDemo();
   await applyDefaultVideos();
+  loadReleaseHistory().catch((e) => console.error('Release history:', e.message));
   await loadFieldItems(); await failInterrupted(); await loadContentEdits();
   if (process.env.AUTO_REVIEW !== 'off') { warmUp(); resumePending().catch((e) => console.error(e)); }
 
@@ -53,7 +54,8 @@ export async function createApp() {
   }));
   // Explain-it recordings arrive as base64 audio; everything else stays small.
   const bigJson = express.json({ limit: '9mb' }), smallJson = express.json({ limit: '2.5mb' });
-  app.use((req, res, next) => (req.path.startsWith('/api/me/explain/') ? bigJson : smallJson)(req, res, next));
+  const bundleJson = express.json({ limit: '12mb' }); // a Word file of release e-mails
+  app.use((req, res, next) => (req.path === '/api/admin/releases/bundle' ? bundleJson : req.path.startsWith('/api/me/explain/') ? bigJson : smallJson)(req, res, next));
 
   const PgStore = connectPgSimple(session);
   app.use(session({

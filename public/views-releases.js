@@ -32,7 +32,7 @@ export async function releasesView() {
       h('td', null, h('b', null, r.title), h('div', { class: 'muted small' }, fmtDate(r.released_on))),
       h('td', null, String(r.count)), h('td', { class: 'small' }, `${r.modules.length}`),
       h('td', null, r.flagged ? String(r.flagged) : 'None'),
-      h('td', null, r.status === 'applied' ? h('span', { class: 'chip green' }, `Applied, ${r.notes + r.edits} changes`) : h('span', { class: 'chip amber' }, 'To review')),
+      h('td', null, r.status === 'applied' ? h('span', { class: 'chip green' }, `Applied, ${r.notes + r.edits} changes`) : h('span', { class: 'chip amber' }, 'To review'), r.in_news && r.status !== 'applied' ? h('span', { class: 'chip blue', style: 'margin-left:6px' }, 'In KUDO News') : ''),
       h('td', null, h('a', { class: 'btn sm', href: `#release-${r.id}` }, r.status === 'applied' ? 'Open' : 'Review'))))))) : h('div', { class: 'card empty' }, h('b', null, 'No release notes yet'), 'Import the next one when it comes out: the Academy keeps up with the product.');
 
   return h('div', { class: 'page' },
@@ -42,7 +42,29 @@ export async function releasesView() {
         h('div', { class: 'grid g2' }, field('Title', title), field('Release date', date)),
         field('Release note', text), field('Or a file', file, '.txt, .md or Word (.docx)'), h('div', { class: 'row' }, go)),
       h('div', { class: 'card' }, h('h2', null, 'What happens next'), h('ol', { class: 'rl-steps' }, steps.map(([t, d]) => h('li', null, h('b', null, t), h('span', null, d)))))),
+    bundleCard(),
     h('h2', { style: 'margin:28px 0 12px' }, 'Imported releases'), list);
+}
+
+// Several releases at once: a Word file with the release e-mails dropped into it (Outlook .msg files).
+function bundleCard() {
+  const out = h('div', { class: 'muted small', 'aria-live': 'polite' });
+  const file = h('input', { type: 'file', accept: '.docx', 'aria-label': 'Word file with release e-mails' });
+  const go = h('button', { class: 'btn primary', type: 'button', on: { click: async () => {
+    const f = file.files[0]; if (!f) return toast('Choose the Word file first', true);
+    if (f.size > 9 * 1024 * 1024) return toast('That file is over 9 MB: split it into two Word files', true);
+    go.disabled = true; go.textContent = 'Reading the e-mails…'; out.textContent = '';
+    try {
+      const r = await api('POST', '/api/admin/releases/bundle', { docx: b64(await f.arrayBuffer()) });
+      out.textContent = `${r.made.length} release${r.made.length === 1 ? '' : 's'} added for review${r.skipped.length ? `; already in the Academy: ${r.skipped.join(', ')}` : ''}.`;
+      toast(`${r.made.length} release${r.made.length === 1 ? '' : 's'} added`); setTimeout(() => location.reload(), 1200);
+    } catch (e) { toast(e.message, true); }
+    go.disabled = false; go.textContent = 'Read the e-mails';
+  } } }, 'Read the e-mails');
+  return h('div', { class: 'card', style: 'margin-top:16px' },
+    h('h2', null, 'Several releases at once'),
+    h('p', { class: 'sub keep' }, 'A Word file with the release e-mails dragged into it (Outlook .msg files). Each e-mail becomes a release: greetings, signatures and links are left out, and a follow-up e-mail is added to the release it completes. Versions already here are skipped. Check each release, then show it in KUDO News or apply it.'),
+    h('div', { class: 'row', style: 'gap:12px;flex-wrap:wrap;margin-top:12px' }, file, go), out);
 }
 
 export async function releaseView(id) {
@@ -144,9 +166,15 @@ function newsEditor(r, applied) {
   const save = async () => { try { await api('PUT', `/api/admin/releases/${r.id}/news`, { version: version.value, summary: summary.value }); by.textContent = 'Written by you'; toast('Saved. KUDO News shows this summary.'); } catch (e) { toast(e.message, true); } };
   const draft = async (e) => { const b = e.currentTarget; b.disabled = true; try { const x = await api('POST', `/api/admin/releases/${r.id}/news/draft`); summary.value = x.summary; by.textContent = x.ai ? 'Drafted by Claude: check it, then save' : 'Drafted from the note: check it, then save'; } catch (err) { toast(err.message, true); } b.disabled = false; };
   return h('section', { class: 'card' },
-    h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'KUDO News'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, applied ? 'What trainees read about this release, under KUDO News.' : 'Shown under KUDO News once you apply this release.')), by),
+    h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'KUDO News'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, applied || r.in_news ? 'What trainees read about this release, under KUDO News.' : 'Shown under KUDO News once you apply this release, or show it now with the button below.')), by),
     h('div', { class: 'form-row', style: 'display:grid;gap:12px;margin-top:12px' },
       h('label', { class: 'f' }, h('span', { class: 'l' }, 'Version'), version),
       h('label', { class: 'f' }, h('span', { class: 'l' }, 'Executive summary (two or three short paragraphs, a blank line between them)'), summary)),
-    h('div', { class: 'row', style: 'gap:8px;margin-top:12px' }, h('button', { class: 'btn primary', type: 'button', on: { click: save } }, 'Save summary'), h('button', { class: 'btn', type: 'button', on: { click: draft } }, 'Draft it again')));
+    h('div', { class: 'row', style: 'gap:8px;margin-top:12px;flex-wrap:wrap' }, h('button', { class: 'btn primary', type: 'button', on: { click: save } }, 'Save summary'), h('button', { class: 'btn', type: 'button', on: { click: draft } }, 'Draft it again'),
+      applied ? h('span', { class: 'muted small' }, 'Shown in KUDO News (applied).') : showBtn(r)));
+}
+function showBtn(r) {
+  let on = !!r.in_news;
+  const b = h('button', { class: 'btn', type: 'button', on: { click: async () => { try { await api('PUT', `/api/admin/releases/${r.id}/news/visible`, { on: !on }); on = !on; b.textContent = on ? 'Hide from KUDO News' : 'Show in KUDO News'; toast(on ? 'Shown in KUDO News. Its lesson changes still wait for you.' : 'Hidden from KUDO News'); } catch (e) { toast(e.message, true); } } } }, on ? 'Hide from KUDO News' : 'Show in KUDO News');
+  return b;
 }

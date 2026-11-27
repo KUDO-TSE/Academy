@@ -34,7 +34,7 @@ export function newsView() {
             const list = r.items.filter((i) => i.kind === kk);
             if (!list.length) return null;
             return h('div', { class: `nr-kind k-${kk}` }, h('h3', null, label),
-              h('ul', null, list.map((i) => h('li', null, h('b', null, i.title), h('p', null, i.body),
+              h('ul', null, list.map((i) => h('li', null, h('b', null, i.title), i.body && i.body.replace(/[.\s]+$/, '') !== i.title.replace(/[.\s]+$/, '') ? h('p', null, i.body) : null,
                 i.modules.length ? h('div', { class: 'nr-mods' }, h('span', null, 'In the Academy:'), i.modules.map((m) => h('a', { class: 'chip grey', href: `#module-${m.key}` }, m.title))) : null))));
           })));
     });
