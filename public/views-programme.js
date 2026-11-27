@@ -160,7 +160,7 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
     phaseBar,
     h('div', { class: 'bento training-grid' },
       h('div', { class: 'span-8 stack' },
-        h('section', { class: 'card this-week' }, h('div', { class: 'row spread' }, h('h2', null, thisWeek.length ? 'This week' : 'Up next'),
+        h('section', { class: 'card this-week' }, h('div', { class: 'row spread' }, h('h2', null, thisWeek.length ? 'This week' : 'My next courses'),
             h('span', { class: 'chip blue' }, thisWeek.length ? `${thisWeek.length} step${thisWeek.length > 1 ? 's' : ''}, about ${fmtMin(minWeek)}` : 'You are ahead of your plan')),
           thisWeek.length ? thisWeek.map((it) => itemRow(it, { readOnly })) : st.next.length ? st.next.map((it) => itemRow(it, { readOnly })) : h('div', { class: 'ok', style: 'margin-top:10px' }, 'Everything on your side is done. Well done.')),
         h('section', { class: 'plan-weeks' },

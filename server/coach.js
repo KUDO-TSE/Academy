@@ -19,7 +19,7 @@ export const coachRouter = Router();
 // ------------------------------------------------------------------ how the Academy works (shared by both modes)
 export const KNOWLEDGE = `
 PAGES
-- Home: your goal and progress, your 12 weeks (a board of the four phases; select a week to see its steps), Up next (your next five steps), your readiness (from your starting point, moving with each test result) and your level per scenario. The "Take the course" button opens the next course.
+- Home: your goal and progress, your 12 weeks (a board of the four phases; select a week to see its steps), My next courses (your next five steps), your readiness (from your starting point, moving with each test result) and your level per scenario. The "Take the course" button opens the next course.
 - Every button that opens a step of a course says "Take the course". A course is a module.
 - My courses: where you work. This week's steps first (with the weekly challenge), why your three focus areas, review practice, then your plan week by week. "Coming up with your KUDO Trainer" lists your next sessions.
 - Each module has up to five numbered steps: Learn (the lesson as a short story on slides, or One page), Practise (the sandbox, a replica of the KUDO screens and of the client's tools, or a written or recorded task), Decide (a decision walkthrough), Explain it (record or write it for the client), and Prove it (the scored module check, last). A tracker at the top of the module page shows each step: green is done, blue is up next; a click jumps to the step. After each step the page points to the next one; when the last step of the plan is done, KUDOG opens the module recap by himself, then the trainee moves on to the next module.

@@ -1,4 +1,4 @@
-// Trainee Home: the four cards that matter. The 12 weeks (the programme, week by week), Up next (the next five
+// Trainee Home: the four cards that matter. The 12 weeks (the programme, week by week), My next courses (the next five
 // steps), Your readiness (from the starting point, test by test) and Your level (scenario by scenario).
 import { h, icon, svg, fmtDate } from './ui.js';
 import { small } from './charts.js';
@@ -116,14 +116,14 @@ export function weeksCard({ items, week, weeks = 12, phases, levels = [], module
   return card;
 }
 
-// ------------------------------------------------------------------ Up next
+// ------------------------------------------------------------------ My next courses
 /** The next five steps on the trainee's side, in the order to take them, whatever their week. */
 export function upNextCard({ items, week, hrefFor = () => null, onStep = () => {}, readOnly = false }) {
   const next = items.filter((i) => mine(i) && !i.done).sort((a, b) => a.week - b.week).slice(0, 5);
   const total = next.reduce((t, i) => t + (i.minutes || 0), 0);
   const when = (i) => (i.week < week ? ['late', `Week ${i.week}, to catch up`] : i.week === week ? ['now', 'This week'] : ['next', i.week === week + 1 ? 'Next week' : `Week ${i.week}`]);
   return h('section', { class: 'card upnext-card' },
-    h('div', { class: 'un-head' }, h('div', null, h('h2', null, 'Up next'), h('p', { class: 'sub' }, next.length ? `Your next ${next.length > 1 ? `${next.length} steps` : 'step'}, in order. About ${mins(total)} in total.` : 'Nothing waiting on your side.')),
+    h('div', { class: 'un-head' }, h('div', null, h('h2', null, 'My next courses'), h('p', { class: 'sub' }, next.length ? `Your next ${next.length > 1 ? `${next.length} steps` : 'step'}, in order. About ${mins(total)} in total.` : 'Nothing waiting on your side.')),
       readOnly ? null : h('a', { class: 'btn sm ghost', href: '#training' }, 'All my courses')),
     next.length ? h('ol', { class: 'un-list' }, next.map((it, k) => {
       const href = readOnly ? null : hrefFor(it), [wc, wl] = when(it);
