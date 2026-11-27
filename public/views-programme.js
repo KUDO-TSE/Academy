@@ -3,8 +3,8 @@ import { trajectoryChart } from './charts.js';
 import { journeyMap } from './journey.js';
 import { SCENARIOS as SANDBOXES } from './sandbox.js';
 import { storyPlayer } from './story.js';
-import { collectionStrip } from './collectibles.js';
-import { recapBanner } from './recap.js';
+import { collectionStrip, revealNew } from './collectibles.js';
+import { recapBanner, revealRecap } from './recap.js';
 import { checkForm, resultView, walkthroughCard, explainCard, feedbackCard, challengeCard, spacedCard } from './assess-ui.js';
 
 // ------------------------------------------------------------------ shared bits
@@ -22,6 +22,8 @@ function itemHref(it) {
   if (it.module) return `#module-${it.module}${it.kind === 'review' ? `~${it.key}` : ''}`;
   return null;
 }
+/** Remember which step of a module to open on: the module page scrolls to it once drawn. */
+export const focusStep = (kind) => { try { if (['lesson', 'practice', 'scenario', 'explain', 'check'].includes(kind)) sessionStorage.setItem('academy.focusStep', kind); } catch { /* not kept */ } };
 const ACTION = { scenario: 'Start', explain: 'Record it', survey: 'Answer', lesson: 'Open lesson', practice: 'Open task', check: 'Take the check', review: 'Take the review', baseline: 'Start', missed: 'Open', teach: 'Open' };
 
 function itemRow(it, { readOnly, compact } = {}) {
@@ -29,12 +31,12 @@ function itemRow(it, { readOnly, compact } = {}) {
   const status = it.done ? h('span', { class: 'tick done', 'aria-label': 'Done' }, check()) : h('span', { class: 'tick', 'aria-label': 'Not done yet' });
   return h('div', { class: `pi ${it.done ? 'done' : ''}` }, status,
     h('div', { class: 'pi-main' },
-      h('div', { class: 'pi-t' }, href && !readOnly ? h('a', { href }, it.title) : it.title),
+      h('div', { class: 'pi-t' }, href && !readOnly ? h('a', { href, on: { click: () => focusStep(it.kind) } }, it.title) : it.title),
       h('div', { class: 'pi-meta' }, h('span', { class: `chip ${KIND_CHIP[it.kind] || 'grey'}` }, KIND_LABEL[it.kind] || it.kind), h('span', { class: 'muted small' }, `${it.minutes} min`),
         it.owner === 'jack' ? h('span', { class: 'muted small' }, 'Your KUDO Trainer books this') : null, it.mandatory ? h('span', { class: 'muted small' }, 'Core') : null, !compact && it.why ? tipI(it.why) : null,
         it.recorded != null ? h('span', { class: `chip ${it.below ? 'amber' : 'green'}` }, `Recorded ${it.recorded}%`) : null, it.signoff && it.done && it.signed_off ? h('span', { class: 'chip green' }, 'Signed off') : null, it.how ? h('span', { class: 'muted small' }, it.how) : null),
       null),
-    href && !readOnly && !it.done && !compact ? h('a', { class: 'btn sm', href }, ACTION[it.kind] || 'Open') : null);
+    href && !readOnly && !it.done && !compact ? h('a', { class: 'btn sm', href, on: { click: () => focusStep(it.kind) } }, ACTION[it.kind] || 'Open') : null);
 }
 
 function levelBars(levels) {
@@ -219,30 +221,131 @@ function lessonBody(m, onePage) {
 }
 
 // ------------------------------------------------------------------ module / lesson page
+// The five steps of a module, in the order the plan gives them. "Prove it" (the scored check) comes last.
+const STEP_ORDER = ['lesson', 'practice', 'scenario', 'explain', 'check'];
+const STEP_NAME = { lesson: 'Learn', practice: 'Practise', scenario: 'Decide', explain: 'Explain it', check: 'Prove it' };
+const STATE_CHIP = { done: ['green', 'Done'], next: ['blue', 'Up next'], todo: ['grey', 'To do'], optional: ['grey', 'Optional'], extra: ['green', 'Done, optional'] };
+
 export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {}) {
   const admin = mode === 'admin';
-  const mine = planItems.filter((i) => i.module === m.key);
+  let items = planItems;
+  const mineOf = () => items.filter((i) => i.module === m.key);
+  const mine = mineOf();
   const why = mine.find((i) => i.why && i.kind === 'lesson')?.why || mine.find((i) => i.why)?.why;
   const reviewKey = m.reviewKey || null;
-  const practiceItem = mine.find((i) => i.kind === 'practice');
-  const lessonItem = mine.find((i) => i.kind === 'lesson');
+  const itemOf = (kind) => mineOf().find((i) => i.kind === kind);
+  const baseline = m.key === 'baseline';
+
+  // Which steps this module has, numbered in order.
+  const ex = m.explain || m.explainFull;
+  const has = { lesson: !baseline, practice: !baseline && !!(m.practiceTask || m.practiceFull), scenario: !baseline && !!(m.walkthrough || m.walkthroughFull), explain: !baseline && !!ex, check: true };
+  const kinds = STEP_ORDER.filter((k) => has[k]);
+  const num = (k) => kinds.indexOf(k) + 1;
+  const steps = {}; // kind -> { card, chip }
+  // Done without a plan item (an optional step the trainee did anyway).
+  const didExtra = { scenario: () => !!m.walkAttempts?.length, explain: () => !!m.submissions?.length, practice: () => !!m.practiceSubmissions?.length, check: () => !!(m.attempts || []).length, lesson: () => false };
+  const stateOf = (k) => {
+    const it = itemOf(k);
+    if (!it) return didExtra[k]() ? 'extra' : 'optional';
+    if (it.done) return 'done';
+    return nextOpen() === k ? 'next' : 'todo';
+  };
+  const planned = () => kinds.filter((k) => itemOf(k));
+  // Up next follows the plan's own order (some plans say: try the practice first).
+  const nextOpen = () => mineOf().find((i) => kinds.includes(i.kind) && !i.done)?.kind;
+  const stepHead = (k, title, sub) => {
+    const chip = h('span', { class: 'chip' });
+    steps[k] = { chip };
+    return h('div', { class: 'step-head' }, h('div', null, h('h2', null, `Step ${num(k)}: ${title}`), sub ? h('div', { class: 'step-sub' }, sub) : null), admin ? null : chip);
+  };
+  const stepCard = (k, cls, ...body) => { const card = h('div', { class: `card step-card ${cls || ''}`, id: `step-${k}` }, ...body); (steps[k] = steps[k] || {}).card = card; return card; };
+  const goTo = (k, { flash = true } = {}) => { const c = steps[k]?.card; if (!c) return; c.scrollIntoView({ behavior: 'smooth', block: 'start' }); if (flash) { c.classList.remove('step-flash'); void c.offsetWidth; c.classList.add('step-flash'); } };
+
+  // The step tracker, sticky at the top of the page.
+  const tracker = h('nav', { class: 'mtrack', 'aria-label': 'Steps in this module' });
+  const nextBars = []; // "next step" hand-offs inside cards, redrawn with the state
+  const nextBar = (after) => { const box = h('div', { class: 'step-next', hidden: true }); nextBars.push({ box, after }); return box; };
+  const paint = () => {
+    if (admin || baseline) return;
+    const pl = planned(), done = pl.filter((k) => itemOf(k).done).length, nx = nextOpen();
+    tracker.replaceChildren(
+      h('div', { class: 'mtrack-sum' }, pl.length ? (done === pl.length ? h('b', null, 'Module complete') : h('span', null, h('b', null, `${done} of ${pl.length}`), ' steps done')) : h('span', { class: 'muted' }, 'Not in your plan: every step is optional')),
+      h('ol', { class: 'mtrack-steps' }, kinds.map((k) => { const st = stateOf(k);
+        return h('li', null, h('button', { type: 'button', class: `mtrack-step ${st}`, 'aria-current': st === 'next' ? 'step' : null, on: { click: () => goTo(k) } },
+          h('span', { class: 'mtrack-dot', 'aria-hidden': 'true' }, st === 'done' || st === 'extra' ? check() : String(num(k))),
+          h('span', { class: 'mtrack-l' }, STEP_NAME[k], h('span', { class: 'sr' }, `, ${STATE_CHIP[st][1]}`)))); })));
+    for (const k of kinds) {
+      const st = stateOf(k), s2 = steps[k]; if (!s2) continue;
+      s2.chip.className = `chip ${STATE_CHIP[st][0]}`; s2.chip.textContent = STATE_CHIP[st][1];
+      s2.card?.classList.toggle('is-done', st === 'done' || st === 'extra'); s2.card?.classList.toggle('is-next', st === 'next');
+    }
+    for (const nb of nextBars) {
+      const after = nb.after, mineDone = itemOf(after)?.done || (stateOf(after) === 'extra');
+      if (!mineDone) { nb.box.hidden = true; continue; }
+      nb.box.hidden = false;
+      nb.box.replaceChildren(nx
+        ? h('div', { class: 'row spread' }, h('span', null, mark(true), ' ', h('b', null, `${STEP_NAME[after]}: done.`), ` Next is step ${num(nx)}, ${STEP_NAME[nx]}.`), h('button', { type: 'button', class: 'btn primary sm', on: { click: () => goTo(nx) } }, `Go to step ${num(nx)}`))
+        : pl.length ? h('div', { class: 'row spread' }, h('span', null, mark(true), ' ', h('b', null, 'Every step is done.'), ' KUDOG has your module recap.'), h('button', { type: 'button', class: 'btn primary sm', on: { click: () => finishModule(true) } }, 'See my recap')) : h('span', null, mark(true), ' Done.'));
+    }
+  };
+  // The module is finished: KUDOG's recap opens by itself; closing it moves the trainee on.
+  let finishing = false;
+  const finishModule = async (asked) => {
+    if (finishing) return; finishing = true;
+    const here = location.hash;
+    const shown = await revealRecap(() => { setTimeout(() => { if (location.hash === here) location.hash = `#${document.body.dataset.me === '1' ? 'me-' : ''}training`; }, 0); });
+    if (!shown) revealNew();
+    finishing = false;
+    if (!shown && asked) { recapBox.replaceChildren(recapBanner(m.key)); recapBox.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  };
+  // Refresh the step states in place (no page reload, no jump to the top).
+  const refresh = async ({ advanceFrom } = {}) => {
+    try { items = (await api('GET', '/api/me/programme')).state?.items || items; } catch { /* keep */ }
+    try { const fresh = await api('GET', `/api/me/modules/${m.key}`); Object.assign(m, { attempts: fresh.attempts, walkAttempts: fresh.walkAttempts, submissions: fresh.submissions, practiceSubmissions: fresh.practiceSubmissions }); } catch { /* keep */ }
+    paint();
+    if (!advanceFrom) return;
+    const pl = planned();
+    if (pl.length && pl.every((k) => itemOf(k).done)) { if (advanceFrom !== 'check') finishModule(false); return; }
+    if (advanceFrom !== 'check') setTimeout(() => revealNew(), 1400); // a card earned by this step (after a check: once the answers are read)
+    const nx = nextOpen();
+    if (nx && advanceFrom !== 'check') { toast(`${STEP_NAME[advanceFrom]}: done. Next, step ${num(nx)}: ${STEP_NAME[nx]}.`); setTimeout(() => goTo(nx), 600); }
+  };
+  const stepDone = (k) => (o) => { refresh({ advanceFrom: k }); if (!o?.silent) onDone?.({ silent: true }); };
 
   const markBtn = (it, label) => {
     if (!it || admin) return null;
-    if (it.done) return h('span', { class: 'row', style: 'gap:8px' }, h('span', { class: 'chip green' }, 'Done'), it.signed_off ? null : h('button', { class: 'k-link small btn-link', type: 'button', on: { click: async () => { try { await api('DELETE', `/api/me/items/${it.key}/done`); toast('Marked as not done'); onDone?.(); } catch (e) { toast(e.message, true); } } } }, 'Undo'));
+    if (it.done) return h('span', { class: 'row', style: 'gap:8px' }, h('span', { class: 'chip green' }, 'Done'), it.signed_off ? null : h('button', { class: 'k-link small btn-link', type: 'button', on: { click: async () => { try { await api('DELETE', `/api/me/items/${it.key}/done`); toast('Marked as not done'); await refresh(); lessonMark.replaceChildren(markBtn(itemOf('lesson'), label)); } catch (e) { toast(e.message, true); } } } }, 'Undo'));
     const note = h('textarea', { rows: 2, placeholder: it.kind === 'practice' ? 'One line on what you did or learned (your KUDO Trainer sees this)' : 'Optional note' });
-    return h('div', { class: 'stack', style: 'margin-top:10px' }, note, h('button', { class: 'btn primary', on: { click: async () => { try { await api('POST', `/api/me/items/${it.key}/done`, { note: note.value }); toast('Nice work. Ticked off.'); onDone?.(); } catch (e) { toast(e.message, true); } } } }, label));
+    return h('div', { class: 'stack', style: 'margin-top:10px' }, note, h('button', { class: 'btn primary', on: { click: async () => { try { await api('POST', `/api/me/items/${it.key}/done`, { note: note.value }); await refresh({ advanceFrom: 'lesson' }); lessonMark.replaceChildren(markBtn(itemOf('lesson'), label)); } catch (e) { toast(e.message, true); } } } }, label));
   };
 
   // Check: a fresh random draw of mixed formats each time.
   const quizBox = h('div');
   const fbBox = h('div');
+  const recapBox = h('div');
   const drawQuiz = async (fresh) => {
-    let items = m.check;
-    if (fresh && !admin) { try { items = (await api('GET', `/api/me/modules/${m.key}`)).check; } catch { /* keep */ } }
-    quizBox.replaceChildren(checkForm(items, { url: `/api/me/modules/${m.key}/attempt`, itemKey: reviewKey, certainty: true, onResult: (r, its) => {
-      quizBox.replaceChildren(resultView(r, its, { pass: m.pass || 0.8, baseline: m.key === 'baseline', onRetry: () => drawQuiz(true) }));
-      if (m.key !== 'baseline' && !m.feedbackGiven && !admin) fbBox.replaceChildren(feedbackCard(m.key));
+    let items0 = m.check;
+    if (fresh && !admin) { try { items0 = (await api('GET', `/api/me/modules/${m.key}`)).check; } catch { /* keep */ } }
+    quizBox.replaceChildren(checkForm(items0, { url: `/api/me/modules/${m.key}/attempt`, itemKey: reviewKey, certainty: true, onResult: async (r, its) => {
+      const foot = h('div', { class: 'row', style: 'margin-top:12px' });
+      quizBox.replaceChildren(resultView(r, its, { pass: m.pass || 0.8, baseline, onRetry: () => { drawQuiz(true); goTo('check', { flash: false }); }, footer: foot }));
+      // Land on the result, not wherever the long form left the page.
+      steps.check?.card ? goTo('check', { flash: false }) : quizBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (!baseline && !m.feedbackGiven && !admin) fbBox.replaceChildren(feedbackCard(m.key));
+      if (baseline || admin) { foot.append(h('a', { class: 'btn primary', href: '#training' }, 'Back to my plan')); return; }
+      await refresh({ advanceFrom: 'check' });
+      const pl = planned(), nx = nextOpen();
+      if (pl.length && pl.every((k) => itemOf(k).done)) {
+        foot.append(h('button', { type: 'button', class: 'btn primary', on: { click: () => finishModule(true) } }, 'Finish the module'));
+        // KUDOG opens the recap by himself once the trainee has scrolled through the answers.
+        const io = new IntersectionObserver((en) => { if (en.some((e) => e.isIntersecting)) { io.disconnect(); setTimeout(() => finishModule(false), 1200); } });
+        setTimeout(() => io.observe(foot), 1500); // after the scroll to the result has settled
+      } else {
+        if (nx) foot.append(h('button', { type: 'button', class: 'btn primary', on: { click: () => goTo(nx) } }, `Next: step ${num(nx)}, ${STEP_NAME[nx]}`));
+        const io = new IntersectionObserver((en) => { if (en.some((e) => e.isIntersecting)) { io.disconnect(); setTimeout(() => revealNew(), 800); } });
+        setTimeout(() => io.observe(foot), 1500); // after the scroll to the result has settled
+      }
+      if (!nx && !(pl.length && pl.every((k) => itemOf(k).done))) foot.append(h('a', { class: 'btn', href: '#training' }, 'Back to my plan'));
     } }));
   };
   if (admin) {
@@ -261,27 +364,19 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
         x.t === 'order' ? h('ol', null, x.steps.map((st) => h('li', null, st))) : null,
         h('div', { class: 'why' }, x.why))));
   } else drawQuiz(false);
-  const walkItem = mine.find((i) => i.kind === 'scenario');
-  const walkCard = m.walkthrough || m.walkthroughFull ? h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, `Decide: ${(m.walkthrough || m.walkthroughFull).title}`),
+  const walkData = m.walkthrough || m.walkthroughFull;
+  const walkCard = has.scenario ? stepCard('scenario', null, stepHead('scenario', 'Decide', walkData.title),
     admin ? h('div', null, h('p', null, m.walkthroughFull.intro), m.walkthroughFull.steps.map((st, si) => h('div', { class: 'qq' }, h('b', null, `${si + 1}. ${st.text}`), h('ul', null, st.choices.map((c) => h('li', null, h('span', { class: `chip ${['coral', 'amber', 'green'][c.q]}` }, ['Wrong', 'OK', 'Best'][c.q]), ' ', c.t, h('div', { class: 'muted small' }, c.fb)))))))
-      : walkthroughCard(m.key, m.walkthrough, { done: !!(walkItem?.done || m.walkAttempts?.length) })) : null;
-  const ex = m.explain || m.explainFull;
-  const explainBox = ex ? h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Explain it to the client'),
-    admin ? h('div', null, h('div', { class: 'explain-prompt' }, ex.prompt), h('b', null, 'Key points'), h('ul', null, ex.points.map((p) => h('li', null, p)))) : explainCard(m.key, ex, m.submissions || [], m.rubric || [], { onDone })) : null;
+      : walkthroughCard(m.key, m.walkthrough, { done: !!(itemOf('scenario')?.done || m.walkAttempts?.length), onEnd: stepDone('scenario') }), nextBar('scenario')) : null;
+  const explainBox = has.explain ? stepCard('explain', null, stepHead('explain', 'Explain it to the client'),
+    admin ? h('div', null, h('div', { class: 'explain-prompt' }, ex.prompt), h('b', null, 'Key points'), h('ul', null, ex.points.map((p) => h('li', null, p)))) : explainCard(m.key, ex, m.submissions || [], m.rubric || [], { onDone: stepDone('explain') }), nextBar('explain')) : null;
 
   const rec = (m.attempts || []).filter((a) => a.counts !== false && !(a.item_key || '').startsWith('review.')).slice(-1)[0];
   const last = rec;
-  return h('div', { class: 'page lesson' },
-    h('a', { href: admin ? '#curriculum' : '#training', class: 'muted back-link' }, admin ? 'Back to Curriculum' : 'Back to My training'),
-    h('div', { class: 'page-head', style: 'margin-top:8px' }, h('div', null,
-      h('h1', null, m.title), h('p', null, m.summary),
-      h('div', { class: 'lesson-meta' }, metaRow([m.depth ? `${DEPTH_LABEL[m.depth]} depth` : null, m.minutes ? `about ${m.minutes} min` : null, m.delivery && m.delivery !== 'both' ? (m.delivery === 'ai' ? 'AI Translation' : 'Human Interpretation') : null]),
-        m.depth ? h('span', null, ' ', tipI('Depth is how far your role takes this scenario: Set up (you do it yourself), Hand over (you prepare it and pass it on), Know (you can explain it).')) : null),
-      why || reviewKey ? h('p', { class: 'why-line' }, h('b', null, reviewKey ? 'Spaced review: ' : 'Why it is in your plan: '), reviewKey ? 'retrieve it from memory first, then check. A pass here completes the review.' : why) : null)),
-    admin || m.key === 'baseline' ? null : recapBanner(m.key),
-    m.key === 'baseline' ? null : h('div', { class: 'grid g-8-4' },
-      h('div', { class: 'stack' },
-        h('div', { class: 'card lesson-card' }, h('h2', null, 'Step 1: Learn'),
+  const lessonItem = itemOf('lesson'), practiceItem = itemOf('practice');
+  const lessonMark = h('div', null, lessonItem ? markBtn(lessonItem, 'I have worked through the lesson') : null);
+  const practiceDone = stepDone('practice');
+  const lessonCard = has.lesson ? stepCard('lesson', 'lesson-card', stepHead('lesson', 'Learn'),
           videoBlock(m, admin),
           updatesBlock(m.updates, Object.keys(m.updatedLines || {}).length),
           lessonBody(m, () => [
@@ -290,23 +385,44 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
           m.caseStudy ? h('div', { class: 'case' }, h('h3', null, 'Worked example'), h('p', null, m.caseStudy.example), h('div', { class: 'muted small' }, 'An illustrative case built from the lesson')) : null,
           m.caseStudy?.mistakes?.length ? h('div', { class: 'mistakes' }, h('h3', null, 'Common mistakes'), h('ul', null, m.caseStudy.mistakes.map((x) => h('li', null, x)))) : null
           ]),
-          lessonItem ? markBtn(lessonItem, 'I have worked through the lesson') : null),
-        (m.practiceTask || m.practiceFull) ? h('div', { class: 'card practice-card' }, h('h2', null, 'Step 2: Practise'),
+          lessonMark, nextBar('lesson')) : null;
+  const practiceCard = has.practice ? stepCard('practice', 'practice-card', stepHead('practice', 'Practise'),
           practiceItem?.done ? h('div', { class: 'ok', style: 'margin-bottom:8px' }, practiceItem.signed_off ? 'Practice passed and signed off' : 'Practice done') : !practiceItem && !admin ? h('p', { class: 'muted small' }, 'Optional for you: not in your plan') : null,
           admin ? h('div', null, h('div', { class: 'explain-prompt' }, m.practiceFull.prompt), h('div', { class: 'muted small' }, `Format: ${{ write: 'written', speak: 'spoken', steps: 'step-by-step account' }[m.practiceFull.type]}. Reviewed automatically.`), h('b', null, 'Key points'), h('ul', null, m.practiceFull.points.map((p) => h('li', null, p))))
-            : SANDBOX_FOR[m.key] && !sbxReplaces(m.key) ? h('div', null, sandboxBlock(m.key), h('h3', { class: 'sbx-then' }, 'Then the written task'), explainCard(m.key, m.practiceTask, m.practiceSubmissions || [], m.rubric || [], { onDone, kind: 'practice', type: m.practiceTask.type }))
-            : SANDBOX_FOR[m.key] ? h('div', null, sandboxBlock(m.key), h('details', { class: 'sbx-old' }, h('summary', null, 'Or describe what you did in a test account'), explainCard(m.key, m.practiceTask, m.practiceSubmissions || [], m.rubric || [], { onDone, kind: 'practice', type: m.practiceTask.type })))
-            : explainCard(m.key, m.practiceTask, m.practiceSubmissions || [], m.rubric || [], { onDone, kind: 'practice', type: m.practiceTask.type }),
-          m.practice?.length ? h('details', { style: 'margin-top:12px' }, h('summary', null, 'More ways to practise (optional)'), h('ol', { class: 'obj' }, m.practice.map((p) => h('li', null, p)))) : null) : null),
+            : SANDBOX_FOR[m.key] && !sbxReplaces(m.key) ? h('div', null, sandboxBlock(m.key), h('h3', { class: 'sbx-then' }, 'Then the written task'), explainCard(m.key, m.practiceTask, m.practiceSubmissions || [], m.rubric || [], { onDone: practiceDone, kind: 'practice', type: m.practiceTask.type }))
+            : SANDBOX_FOR[m.key] ? h('div', null, sandboxBlock(m.key), h('details', { class: 'sbx-old' }, h('summary', null, 'Or describe what you did in a test account'), explainCard(m.key, m.practiceTask, m.practiceSubmissions || [], m.rubric || [], { onDone: practiceDone, kind: 'practice', type: m.practiceTask.type })))
+            : explainCard(m.key, m.practiceTask, m.practiceSubmissions || [], m.rubric || [], { onDone: practiceDone, kind: 'practice', type: m.practiceTask.type }),
+          m.practice?.length ? h('details', { style: 'margin-top:12px' }, h('summary', null, 'More ways to practise (optional)'), h('ol', { class: 'obj' }, m.practice.map((p) => h('li', null, p)))) : null, nextBar('practice')) : null;
+  const checkCard = stepCard('check', 'check-card', baseline ? h('div', { class: 'step-head' }, h('h2', null, 'Baseline: one question per scenario')) : stepHead('check', 'Prove it', null),
+      last && !baseline ? h('span', { class: 'chip blue' }, `Recorded score ${Math.round((last.correct / last.total) * 100)}%, ${fmtDate(last.created_at)}`) : null,
+      h('p', { class: 'sub' }, baseline ? 'No pass mark: answer honestly, it aims your plan at the right gaps.' : last ? 'Your recorded score is from your first attempt. Retakes are for practice: a new mix of questions each time, and they do not change your score.' : `Your first attempt is the score we keep, so take your time (aim for ${Math.round((m.pass || 0.8) * 100)}%). After that, retake it as often as you like to practise.`), !last && !admin ? warmUp() : null, quizBox, nextBar('check'));
+
+  const page = h('div', { class: 'page lesson' },
+    h('a', { href: admin ? '#curriculum' : '#training', class: 'muted back-link' }, admin ? 'Back to Curriculum' : 'Back to My training'),
+    h('div', { class: 'page-head', style: 'margin-top:8px' }, h('div', null,
+      h('h1', null, m.title), h('p', null, m.summary),
+      h('div', { class: 'lesson-meta' }, metaRow([m.depth ? `${DEPTH_LABEL[m.depth]} depth` : null, m.minutes ? `about ${m.minutes} min` : null, m.delivery && m.delivery !== 'both' ? (m.delivery === 'ai' ? 'AI Translation' : 'Human Interpretation') : null]),
+        m.depth ? h('span', null, ' ', tipI('Depth is how far your role takes this scenario: Set up (you do it yourself), Hand over (you prepare it and pass it on), Know (you can explain it).')) : null),
+      why || reviewKey ? h('p', { class: 'why-line' }, h('b', null, reviewKey ? 'Spaced review: ' : 'Why it is in your plan: '), reviewKey ? 'retrieve it from memory first, then check. A pass here completes the review.' : why) : null)),
+    admin || baseline ? null : tracker,
+    admin || baseline ? null : h('div', null, recapBox, recapBanner(m.key)),
+    baseline ? null : h('div', { class: 'grid g-8-4' },
+      h('div', { class: 'stack' }, lessonCard, practiceCard),
       h('div', { class: 'stack' },
         h('div', { class: 'card' }, h('h2', null, 'By the end you can'), h('ol', { class: 'obj' }, m.objectives.map((o) => h('li', null, o)))),
         h('div', { class: 'card' }, h('h2', null, 'Go deeper'), h('p', { class: 'sub' }, 'Videos, the CM Onboarding Guide and the Help Center'),
           m.learn.map((r) => h('a', { class: 'res', href: r.url, target: '_blank', rel: 'noopener noreferrer' }, h('span', { class: `chip ${r.type === 'video' ? 'coral' : r.type === 'guide' ? 'amber' : 'blue'}` }, { video: 'Video', guide: 'Guide', article: 'Help Center' }[r.type]), h('span', null, r.title, r.note ? h('span', { class: 'muted small' }, `, ${r.note}`) : null)))),
         h('div', { class: 'card' }, h('h2', null, 'When to hand over'), h('ul', { class: 'esc' }, m.escalate.map((e) => h('li', null, e)))))),
-    h('div', { class: 'card check-card', style: 'margin-top:16px' }, h('div', { class: 'row spread' }, h('h2', null, m.key === 'baseline' ? 'Baseline: one question per scenario' : 'Step 3: Prove it'), last ? h('span', { class: 'chip blue' }, `Recorded score ${Math.round((last.correct / last.total) * 100)}%, ${fmtDate(last.created_at)}`) : null),
-      h('p', { class: 'sub' }, m.key === 'baseline' ? 'No pass mark: answer honestly, it aims your plan at the right gaps.' : last ? 'Your recorded score is from your first attempt. Retakes are for practice: a new mix of questions each time, and they do not change your score.' : `Your first attempt is the score we keep, so take your time (aim for ${Math.round((m.pass || 0.8) * 100)}%). After that, retake it as often as you like to practise.`), !last && !admin ? warmUp() : null, quizBox),
-    walkCard, explainBox, fbBox,
+    walkCard, explainBox, checkCard, fbBox,
   );
+  paint();
+  // Opened on a given step (from the plan, or back from a sandbox): go straight there.
+  if (!admin && !baseline) {
+    let want = null; try { want = sessionStorage.getItem('academy.focusStep'); sessionStorage.removeItem('academy.focusStep'); } catch { /* none */ }
+    if (want === 'practice' || want === 'sandbox') { refresh({ advanceFrom: undefined }); }
+    if (want && steps[want === 'sandbox' ? 'practice' : want]) setTimeout(() => goTo(want === 'sandbox' ? 'practice' : want, { flash: true }), 250);
+  }
+  return page;
 }
 
 export async function moduleRoute(key, { planItems = [], rerender }) {

@@ -21,7 +21,7 @@ export const KNOWLEDGE = `
 PAGES
 - Home: the programme at a glance: your goal, progress, readiness, focus areas, your 12 weeks, your level per scenario, notes from your KUDO Trainer, your cards. The "Continue my training" button opens My training.
 - My training: where you work. This week's steps first (with the weekly challenge), why your three focus areas, review practice, then your plan week by week. "Coming up with your KUDO Trainer" lists your next sessions.
-- Each module has three steps. Step 1 Learn: the lesson as a short story on slides (or One page). Step 2 Practise: the sandbox (a replica of the KUDO screens and of the client's tools) or a written or recorded task. Step 3 Prove it: the module check.
+- Each module has up to five numbered steps: Learn (the lesson as a short story on slides, or One page), Practise (the sandbox, a replica of the KUDO screens and of the client's tools, or a written or recorded task), Decide (a decision walkthrough), Explain it (record or write it for the client), and Prove it (the scored module check, last). A tracker at the top of the module page shows each step: green is done, blue is up next; a click jumps to the step. After each step the page points to the next one; when the last step of the plan is done, KUDOG opens the module recap by himself, then the trainee moves on to the next module.
 - My results: every test, the sandbox exercises, untaken modules folded away.
 - My progress: how each test moved your level, scenario by scenario, against where you started.
 - My collection: your cards.
@@ -34,7 +34,7 @@ THE PROGRAMME
 - Group sessions, when your KUDO Trainer schedules them, appear with their date, time and topic.
 
 HOW YOU ARE SCORED
-- Module check (Step 3): mixed formats; the pass mark is 80%. Your first attempt is your result of record; retakes are practice and never change it. You also say how sure you are of each answer.
+- Module check (Prove it, the last step): mixed formats; the pass mark is 80%. Your first attempt is your result of record; retakes are practice and never change it. You also say how sure you are of each answer.
 - Your level per scenario is an estimate that starts from the October Self Assessment and live knowledge test, and moves only with tests: the first attempt of each module check, decision walkthrough and explain-it recording (a review by your KUDO Trainer replaces the automatic score). Lessons, practice and retakes never move it. Small moves within the estimate's range do not change your plan.
 - Targets depend on what your role needs on that scenario: Set up 80%, Hand over 70%, Know 60%. Bands: Ready (at target), Nearly there (within 10 points), Developing (50 or more), Gap (below 50).
 - Explain-it recordings and written practice are reviewed automatically within a minute (key points covered, clarity, whether you said when to hand over); your KUDO Trainer spot-checks some, and you can ask for a human review.

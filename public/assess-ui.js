@@ -43,7 +43,7 @@ export function checkForm(items, { url, itemKey, onResult, submitLabel = 'Check 
   return box;
 }
 
-export function resultView(r, items, { pass = 0.8, baseline = false, onRetry } = {}) {
+export function resultView(r, items, { pass = 0.8, baseline = false, onRetry, footer } = {}) {
   const acc = pctOf(r.correct, r.total); const passed = baseline || r.passed;
   const certMsg = r.cbm == null ? null : r.cbm >= 2 ? 'You knew what you knew: your certainty matched your answers well.' : r.cbm >= 0.5 ? 'Reasonable judgement of what you know. Look at the answers you were unsure of.' : 'Your certainty did not match your answers. Review the ones you were sure of but got wrong.';
   const ansText = (x, res) => {
@@ -62,11 +62,11 @@ export function resultView(r, items, { pass = 0.8, baseline = false, onRetry } =
     r.results.map((res, i) => h('div', { class: `qres ${res.score >= 0.999 ? 'qres-ok' : res.score > 0 ? 'qres-part' : 'qres-no'} ${res.confidentWrong ? 'cw' : ''}` },
       h('b', null, `${i + 1}. ${res.q}`), res.score > 0 && res.score < 0.999 ? h('span', { class: 'chip amber', style: 'margin-left:6px' }, `${Math.round(res.score * 100)}%`) : null,
       ansText(items[i], res), res.why ? h('div', { class: 'muted small' }, res.why) : null)),
-    onRetry ? h('div', { class: 'row', style: 'margin-top:12px' }, h('button', { class: 'btn', on: { click: onRetry } }, 'Practise with a new set of questions'), h('a', { class: 'btn', href: '#programme' }, 'Back to my programme')) : null);
+    footer || onRetry ? h('div', { class: 'row result-foot', style: 'margin-top:12px' }, onRetry ? h('button', { class: 'btn', on: { click: onRetry } }, 'Practise with a new set of questions') : null, footer || h('a', { class: 'btn', href: '#training' }, 'Back to my plan')) : null);
 }
 
 // ------------------------------------------------------------------ decision walkthrough
-export function walkthroughCard(moduleKey, w, { done } = {}) {
+export function walkthroughCard(moduleKey, w, { done, onEnd } = {}) {
   const box = h('div');
   const path = [], keys = [];
   const start = async () => {
@@ -82,7 +82,7 @@ export function walkthroughCard(moduleKey, w, { done } = {}) {
       ...r.done.map((d) => h('div', { class: `walk-step q${d.quality}` }, h('div', { class: 'muted small' }, d.step), h('div', null, h('b', null, 'You: '), d.chose), h('div', { class: 'walk-fb' }, d.fb), d.best ? h('div', { class: 'small' }, h('b', null, 'Best move: '), d.best) : null)),
       r.next ? h('div', { class: 'walk-now' }, h('b', null, r.next.text), r.next.choices.map((c, ci) => h('button', { class: 'walk-choice', type: 'button', on: { click: async () => {
         path.push(ci); keys.push(r.next.k);
-        try { draw(await api('POST', `/api/me/modules/${moduleKey}/walk`, { path, keys })); } catch (e) { path.pop(); keys.pop(); toast(e.message, true); }
+        try { const res = await api('POST', `/api/me/modules/${moduleKey}/walk`, { path, keys }); draw(res); if (res.end) onEnd?.(); } catch (e) { path.pop(); keys.pop(); toast(e.message, true); }
       } } }, c))) : null,
       r.end ? h('div', { class: `result ${r.score / r.max >= 0.75 ? 'pass' : 'fail'}` }, h('div', { class: 'big' }, `${r.score}/${r.max}`), h('div', null, h('b', null, r.score === r.max ? 'Every call was the best one.' : 'Done. Read the feedback on the calls that were not the best.'), r.counts === false && r.record ? h('div', { class: 'practice-note' }, `Practice round: your recorded result stays ${r.record.correct}/${r.record.total}.`) : r.counts ? h('div', { class: 'practice-note rec' }, 'This is your recorded result. Play again any time to practise.') : null, h('div', null, h('button', { class: 'btn sm', style: 'margin-top:8px', on: { click: start } }, 'Play it again')))) : null].filter(Boolean));
   };

@@ -131,7 +131,7 @@ export const STORIES = {
         mock: { crumb: 'Before the day', items: [{ t: 'row', label: 'Real speakers', value: '✓' }, { t: 'row', label: 'Real devices', value: '✓', hi: true }] },
         say: 'Rehearse with the real speakers and their real devices. It is the habit that catches most problems before anyone is watching.' },
       { kind: 'traps', title: 'Where people slip', points: ['Choosing AI Captions Only for a keynote: listeners get text but no translated voice.', 'Planning a lunch break as a "pause": KUDO has no pause, and a stopped AI meeting cannot be restarted.', 'Leaving recording at the default: it is not automatic unless Automatic Recording is on.', 'Downloading recordings "later": they are deleted after 30 days.'] },
-      { kind: 'recap', title: 'Remember these four', points: ['AI or interpreters first; one speaker to many: Speech & Captions', 'Speaker languages are set at creation and never change live', 'Automatic Recording on, download on event day', 'No pause: one session per block'], next: 'Now practise it in Step 2, then prove it in Step 3.' },
+      { kind: 'recap', title: 'Remember these four', points: ['AI or interpreters first; one speaker to many: Speech & Captions', 'Speaker languages are set at creation and never change live', 'Automatic Recording on, download on event day', 'No pause: one session per block'], next: 'Now practise it in Step 2. The step tracker at the top of the page shows what is left.' },
     ],
   },
 
@@ -175,7 +175,7 @@ export const STORIES = {
         mock: { crumb: 'During the live session', items: [{ t: 'row', label: 'Translation languages', value: 'can be added' }, { t: 'row', label: 'Speaker languages', value: 'locked', hi: true }, { t: 'row', label: 'AI customisation', value: 'locked' }, { t: 'row', label: 'Voice variant', value: 'e.g. European or Latin American Spanish' }] },
         say: 'Choose the voice variant where it matters, such as European or Latin American Spanish, before the start.' },
       { kind: 'traps', title: 'Where people slip', points: ['Configuring every possible speaker language "just in case": detection gets slower.', 'Promising to switch on Automatic Language Detection after the start: it needs a new session.', 'Treating a few seconds of delay after a language switch as a fault: it is normal.'] },
-      { kind: 'recap', title: 'Remember these four', points: ['Detection is set at scheduling, with only the languages spoken', 'Speakers take turns and pause before switching', 'Clean audio matters more than any setting', 'Live: add translation languages, then restart; speaker languages stay locked'], next: 'Now practise it in Step 2, then prove it in Step 3.' },
+      { kind: 'recap', title: 'Remember these four', points: ['Detection is set at scheduling, with only the languages spoken', 'Speakers take turns and pause before switching', 'Clean audio matters more than any setting', 'Live: add translation languages, then restart; speaker languages stay locked'], next: 'Now practise it in Step 2. The step tracker at the top of the page shows what is left.' },
     ],
   },
 
@@ -257,7 +257,7 @@ export const STORIES = {
         mock: { crumb: 'KUDO for Teams', items: [{ t: 'row', label: 'In-app attendees', value: 'up to 1,000; the Mobile Link takes the overflow' }, { t: 'path', label: 'Recordings: KUDO Content tab, not Teams', hi: true }, { t: 'row', label: 'Files', value: 'deleted after 30 days' }] },
         say: 'For big events, share both the Teams meeting and the Mobile Link.' },
       { kind: 'traps', title: 'Where people slip', points: ['Involving IT the day before the event.', 'Treating the bot in the lobby as a fault and recreating the meeting.', 'Moving the Teams meeting without clicking Sync meeting in the KUDO tab.', 'Telling attendees they can chat with the KUDO panel open: the chat closes it and stops the translation.', 'Promising KUDO for a Teams town hall or webinar in the app: these need a manual setup with the Mobile Link.', 'Editing the glossary during the live Teams meeting: it does not apply.'] },
-      { kind: 'recap', title: 'Remember these four', points: ['IT guide on the first call', 'Type, languages, recording and glossary set before the day', 'The bot waits in the lobby: admit it from People', 'Town halls and webinars: Mobile Link, with Technical Support'], next: 'Now practise it in Step 2, then prove it in Step 3.' },
+      { kind: 'recap', title: 'Remember these four', points: ['IT guide on the first call', 'Type, languages, recording and glossary set before the day', 'The bot waits in the lobby: admit it from People', 'Town halls and webinars: Mobile Link, with Technical Support'], next: 'Now practise it in Step 2. The step tracker at the top of the page shows what is left.' },
     ],
   },
 
@@ -295,7 +295,7 @@ export const STORIES = {
         mock: { crumb: 'KUDO meeting · Bot', items: [{ t: 'row', label: 'Bot missing', value: 'Add bot' }, { t: 'row', label: 'Bot disconnected', value: 'Restart bot service', hi: true }, { t: 'note', label: 'KUDO bot timeout: no participant for 10 minutes and the bot leaves' }, { t: 'row', label: 'Still refused', value: 'check link, schedules, permissions, approval' }] },
         say: 'The bot tries to join 1 minute before the start and waits in the waiting room. The host approves "KUDO AI Translator bot is requesting to record to computer". Afterwards, the multilingual recordings are in KUDO, not in Zoom.' },
       { kind: 'traps', title: 'Where people slip', points: ['Using the Personal Meeting Room or a recurring meeting.', 'Leaving end-to-end encryption on: the bot cannot capture audio.', 'Forgetting the recording approval: the bot is in the meeting but hears nothing.', 'Looking for the translated recordings in Zoom: they are in KUDO.'] },
-      { kind: 'recap', title: 'Remember these four', points: ['A new, standard, non-recurring Zoom Meeting', 'Enhanced encryption, not end-to-end', 'KUDO mirrors Zoom: same title and time, full link', 'The host admits the bot and approves recording'], next: 'Now practise it in Step 2, then prove it in Step 3.' },
+      { kind: 'recap', title: 'Remember these four', points: ['A new, standard, non-recurring Zoom Meeting', 'Enhanced encryption, not end-to-end', 'KUDO mirrors Zoom: same title and time, full link', 'The host admits the bot and approves recording'], next: 'Now practise it in Step 2. The step tracker at the top of the page shows what is left.' },
     ],
   },
 
@@ -329,7 +329,7 @@ export const STORIES = {
         mock: { crumb: 'Webex · what can block the bot', items: [{ t: 'row', label: 'Blocked email domains', value: 'Control Hub › Services › Meeting › Settings' }, { t: 'row', label: 'Guest rule', value: '"Guests can\'t join"' }, { t: 'row', label: 'Lobby', value: 'check it first', hi: true }, { t: 'row', label: 'Auto-lock', value: '' }] },
         say: 'These four settings belong to the client\'s Webex admin. If the bot is missing, check the lobby list first. On any platform, attendees use the Mobile Link, ideally on a second device; on the same computer, mute the meeting tab.' },
       { kind: 'traps', title: 'Where people slip', points: ['Publishing before the Preview test, with the language list cut off.', 'Leaving the ON24 player unmuted: attendees hear two voices.', 'Asking for the client\'s ON24 admin password.', 'Pasting a link other than the attendee link.'] },
-      { kind: 'recap', title: 'Remember these four', points: ['Same bot model as Zoom: AI only, standard meeting, new ID', 'ON24: attendee link in KUDO, Mobile Link as a URL tool', 'Preview before publishing; the player stays muted', 'Webex: the client\'s admin owns the guest settings; check the lobby first'], next: 'Now practise it in Step 2, then prove it in Step 3.' },
+      { kind: 'recap', title: 'Remember these four', points: ['Same bot model as Zoom: AI only, standard meeting, new ID', 'ON24: attendee link in KUDO, Mobile Link as a URL tool', 'Preview before publishing; the player stays muted', 'Webex: the client\'s admin owns the guest settings; check the lobby first'], next: 'Now practise it in Step 2. The step tracker at the top of the page shows what is left.' },
     ],
   },
 
@@ -368,7 +368,7 @@ export const STORIES = {
           { t: 'Call Technical Support straight away', then: 'Start with the attendee\'s earphones and volume: most "no sound" reports end there.' },
         ] },
       { kind: 'traps', title: 'Where people slip', points: ['Accepting "we have a 100 Mbps line" as proof the Wi-Fi will cope: the limit is listeners per access point.', 'Putting the ingest laptop on Wi-Fi.', 'Skipping the 60-second phone test before the event.', 'One QR for the whole day instead of one per session.'] },
-      { kind: 'recap', title: 'Remember these four', points: ['Mixing desk, USB interface, dedicated wired laptop', 'Wi-Fi is about listeners per access point, not line speed', 'One session and one QR per block', 'The 60-second phone test before every event'], next: 'Now practise it in Step 2, then prove it in Step 3.' },
+      { kind: 'recap', title: 'Remember these four', points: ['Mixing desk, USB interface, dedicated wired laptop', 'Wi-Fi is about listeners per access point, not line speed', 'One session and one QR per block', 'The 60-second phone test before every event'], next: 'Now practise it in Step 2. The step tracker at the top of the page shows what is left.' },
     ],
   },
 
@@ -404,7 +404,7 @@ export const STORIES = {
           { t: 'There is no documented export; I will take the request to the product team', ok: true, then: 'Requests go to the product team, through Technical Support.' },
         ] },
       { kind: 'traps', title: 'Where people slip', points: ['Offering the Mobile Link for a two-person conversation: Meet Now is the tool for small, spontaneous talks.', 'Starting before setting both languages: they cannot change once started.', 'Promising a transcript export: there is no documented one.'] },
-      { kind: 'recap', title: 'Remember these three', points: ['Meet Now: the app, for small spontaneous talks', 'Set both languages before Start', 'No app on the other side: One-Way; noisy: Only Captions'], next: 'Now practise it in Step 2, then prove it in Step 3.' },
+      { kind: 'recap', title: 'Remember these three', points: ['Meet Now: the app, for small spontaneous talks', 'Set both languages before Start', 'No app on the other side: One-Way; noisy: Only Captions'], next: 'Now practise it in Step 2. The step tracker at the top of the page shows what is left.' },
     ],
   },
   widget: {
@@ -478,7 +478,7 @@ export const STORIES = {
         mock: { crumb: 'Before go-live', items: [{ t: 'row', label: 'Joint test in the real venue', value: 'channel by channel, IN and OUT', hi: true }, { t: 'row', label: 'When', value: 'at least 30 minutes before go-live' }, { t: 'row', label: 'During', value: 'Audio Manager on routing, Host on the meeting, a direct line' }] },
         say: 'Two roles during the event, with a direct line between them.' },
       { kind: 'traps', title: 'Where people slip', points: ['Trying to configure the Dante routing yourself on the first call.', 'Offering Venue Audio IN for an AI meeting.', 'Treating the first routing as a day-of setup.', 'Adding the Audio Manager after the meeting has started.'] },
-      { kind: 'recap', title: 'Remember these four', points: ['Venue conference system + remote attendees = Hybrid', 'Venue Audio IN: Human Interpretation only', 'Collect the details; Technical Support from the start', 'Joint venue test at least 30 minutes before'], next: 'Now practise it in Step 2, then prove it in Step 3.' },
+      { kind: 'recap', title: 'Remember these four', points: ['Venue conference system + remote attendees = Hybrid', 'Venue Audio IN: Human Interpretation only', 'Collect the details; Technical Support from the start', 'Joint venue test at least 30 minutes before'], next: 'Now practise it in Step 2. The step tracker at the top of the page shows what is left.' },
     ],
   },
 
@@ -589,7 +589,7 @@ export const STORIES = {
           { t: 'For Teams, finish the glossary before the day', ok: true, then: 'Add the name now, before the event starts.' },
         ] },
       { kind: 'traps', title: 'Where people slip', points: ['Using Do-not-translate or Translate as in a Captions Only meeting: they need AI Speech & Captions.', 'Editing the glossary during a live Teams meeting: the change does not apply.', 'Forgetting the minimum: company, product and presenter names.', 'Mixing actions in one import: one action per import.'] },
-      { kind: 'recap', title: 'Remember these four', points: ['Company, product and presenter names, every time', 'The right action per term; two need Speech & Captions', 'Use for this meeting, or the default applies', 'Teams: finished before the day'], next: 'Now practise it in Step 2, then prove it in Step 3.' },
+      { kind: 'recap', title: 'Remember these four', points: ['Company, product and presenter names, every time', 'The right action per term; two need Speech & Captions', 'Use for this meeting, or the default applies', 'Teams: finished before the day'], next: 'Now practise it in Step 2. The step tracker at the top of the page shows what is left.' },
     ],
   },
 
@@ -621,7 +621,7 @@ export const STORIES = {
         mock: { crumb: 'Attendee network', items: [{ t: 'row', label: 'Captive portal', value: 'none' }, { t: 'row', label: 'Per-device limits', value: 'none' }, { t: 'row', label: 'UDP filtering', value: 'none', hi: true }] },
         say: 'Firewall inspection, regional restrictions or SSO setup go to Technical Support, with the client\'s IT contact.' },
       { kind: 'traps', title: 'Where people slip', points: ['Sending the wrong regional domain.', 'Treating TCP-only as fine: it works, but at lower quality.', 'Missing an authenticating proxy, which KUDO does not support.'] },
-      { kind: 'recap', title: 'Remember these four', points: ['No audio but captions: ask about UDP first', 'The regional domain, plus tokbox and opentok', 'TCP 443 required, UDP 3478 recommended', 'No authenticating proxies; watch VPN time zones'], next: 'Now practise it in Step 2, then prove it in Step 3.' },
+      { kind: 'recap', title: 'Remember these four', points: ['No audio but captions: ask about UDP first', 'The regional domain, plus tokbox and opentok', 'TCP 443 required, UDP 3478 recommended', 'No authenticating proxies; watch VPN time zones'], next: 'Now practise it in Step 2. The step tracker at the top of the page shows what is left.' },
     ],
   },
 
@@ -656,7 +656,7 @@ export const STORIES = {
           { t: 'Tell Language Services straight away', ok: true, then: 'They own changes, rates, specific interpreters and last-minute bookings.' },
         ] },
       { kind: 'traps', title: 'Where people slip', points: ['Telling the client to book the whole day when they need only the afternoon.', 'Promising same-day interpreters.', 'Making date changes yourself instead of telling Language Services.'] },
-      { kind: 'recap', title: 'Remember these four', points: ['Book Interpreters from the meeting, all or part of it', 'Materials under Users, Interpreters', '48 hours usually, 24 for common pairs', 'Free over 72 hours, 50% to 24, then 100%'], next: 'Now practise it in Step 2, then prove it in Step 3.' },
+      { kind: 'recap', title: 'Remember these four', points: ['Book Interpreters from the meeting, all or part of it', 'Materials under Users, Interpreters', '48 hours usually, 24 for common pairs', 'Free over 72 hours, 50% to 24, then 100%'], next: 'Now practise it in Step 2. The step tracker at the top of the page shows what is left.' },
     ],
   },
 

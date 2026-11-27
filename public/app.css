@@ -1332,3 +1332,29 @@ a,button,label,summary,select,input,[role="button"]{touch-action:manipulation}
 .tm-caps{min-height:80px;font-size:15px;padding:8px;border:1px solid var(--mock-e5e5e5);border-radius:6px}
 .tm-store,.tm-signin{max-width:440px;display:flex;flex-direction:column;gap:8px}
 @media (max-width:600px){.tm-ov{grid-template-columns:1fr}.tm-side{width:auto}}
+/* Module step tracker and step cards (trainee journey) */
+.mtrack{position:sticky;top:0;z-index:var(--z-sticky);display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:14px 0 4px;padding:10px 14px;background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-1)}
+.mtrack-sum{font-size:13px;color:var(--ink-700);white-space:nowrap}
+.mtrack-steps{display:flex;gap:6px;list-style:none;margin:0;padding:0;flex-wrap:wrap;flex:1}
+.mtrack-step{display:flex;align-items:center;gap:8px;min-height:44px;padding:4px 12px 4px 6px;border-radius:999px;border:1px solid var(--border);background:var(--bg-panel);color:var(--ink-700);font:inherit;font-size:13px;cursor:pointer;transition:background .2s var(--ease),border-color .2s var(--ease)}
+.mtrack-step:hover{border-color:var(--primary)}
+.mtrack-dot{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--border-soft);color:var(--ink-500);font-weight:700;font-size:12px;flex:none}
+.mtrack-step.done,.mtrack-step.extra{background:var(--green-100);border-color:var(--green-100);color:var(--green)}
+.mtrack-step.done .mtrack-dot,.mtrack-step.extra .mtrack-dot{background:var(--green);color:var(--white)}
+.mtrack-step.next{border-color:var(--primary);background:var(--primary-100);color:var(--primary-600);font-weight:600}
+.mtrack-step.next .mtrack-dot{background:var(--primary);color:var(--white)}
+.mtrack-step.optional{color:var(--ink-400)}
+.step-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:6px}.step-head h2{margin:0}.step-head .sub{margin:2px 0 0}
+.step-card{scroll-margin-top:96px;border-left:4px solid var(--border);transition:border-color .3s var(--ease),box-shadow .3s var(--ease)}
+.step-card.is-next{border-left-color:var(--primary)}
+.step-card.is-done{border-left-color:var(--green)}
+.step-card.step-flash{animation:stepflash 1.6s var(--ease)}
+@keyframes stepflash{0%{box-shadow:0 0 0 0 var(--primary-100)}30%{box-shadow:0 0 0 8px var(--primary-100)}100%{box-shadow:var(--shadow-1)}}
+.step-next{margin-top:14px;padding:10px 12px;border-radius:var(--radius-md);background:var(--green-100);color:var(--ink-900);font-size:14px}
+.step-next .row{gap:10px;flex-wrap:wrap}
+.lesson > .step-card,.lesson > .card{margin-top:16px}
+@media (max-width:860px){.mtrack{top:58px;z-index:calc(var(--z-sticky) - 1)}.shell.testing .mtrack{top:102px}.step-card{scroll-margin-top:140px}}
+@media (max-width:700px){.mtrack{flex-direction:column;align-items:stretch;gap:6px;padding:8px 10px}.mtrack-steps{flex-wrap:nowrap;overflow-x:auto;gap:4px}
+  .mtrack-step{padding:4px 9px}.mtrack-step:not(.next) .mtrack-l{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.mtrack-step.next{padding-right:12px}}
+@media (prefers-reduced-motion:reduce){.step-card.step-flash{animation:none}}
+.step-sub{color:var(--ink-500);font-size:14px;margin-top:2px}

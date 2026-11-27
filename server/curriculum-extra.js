@@ -32,7 +32,7 @@ export const EXTRA_ITEMS = {
   ],
   zoom: [
     { t: 'multi', q: 'Which Zoom settings can stop the KUDO bot?', o: ['"Only authenticated users can join"', 'A waiting room where nobody admits it', 'End-to-end encryption', 'Gallery view', 'A recording request the host did not approve', 'Speaker view', 'Meeting chat turned off'], a: [0, 1, 2, 4], why: 'Authentication, the waiting room, end-to-end encryption and recording approval all block or silence the bot.' },
-    { t: 'order', q: 'Linking a Zoom meeting to KUDO: put the steps in order.', steps: ['Create a standard, new, non-recurring Zoom meeting', 'Set encryption to Enhanced', 'Create the KUDO AI meeting with the same title, date and time', 'Turn on Zoom Meeting and paste the full invite link'], why: 'Zoom first, by the rules, then KUDO with the full link.' },
+    { t: 'order', q: 'Linking a Zoom meeting to KUDO: put the steps in order.', steps: ['Create a standard, new, non-recurring Zoom meeting', 'Set encryption to Enhanced', 'Create the KUDO AI meeting with the same title, date and time', 'Turn on External meeting, choose Zoom and paste the full join link'], why: 'Zoom first, by the rules, then KUDO with the full link.' },
     { q: 'The bot was in the meeting and disconnected. What do you use?', o: ['Add bot', 'Restart bot service', 'A new Zoom meeting', 'Nothing'], a: 1, why: 'Add bot brings a missing bot; Restart bot service reconnects one that dropped.' },
   ],
   external: [

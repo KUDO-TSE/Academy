@@ -186,7 +186,7 @@ async function route() {
       if (r === 'programme' || r === 'training') view = programmeView(prog, { part: r === 'training' ? 'training' : 'home' });
       else if (r === 'missed') view = await missedView({ rerender, planItems: items });
       else if (r === 'survey') view = await surveyView();
-      else if (r.startsWith('sandbox-')) { const key = r.slice(8); view = sandboxView(key, { onExit: (again) => { if (again) route(); else location.hash = `${meMode ? 'me-' : ''}module-${SANDBOXES[key]?.module || 'platform'}`; } }); }
+      else if (r.startsWith('sandbox-')) { const key = r.slice(8); view = sandboxView(key, { onExit: (again) => { if (again) route(); else { try { sessionStorage.setItem('academy.focusStep', 'sandbox'); } catch { /* not kept */ } location.hash = `${meMode ? 'me-' : ''}module-${SANDBOXES[key]?.module || 'platform'}`; } } }); }
       else view = await moduleRoute(r.slice(7), { planItems: items, rerender });
     } else {
       const data = await api('GET', '/api/me');

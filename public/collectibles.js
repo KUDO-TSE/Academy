@@ -139,7 +139,7 @@ export async function revealNew() {
         h('div', { class: 'row', style: 'justify-content:center;gap:8px;margin-top:8px' },
           i < fresh.length - 1 ? h('button', { class: 'btn primary', on: { click: () => { i++; show(); } } }, 'Next card') : h('button', { class: 'btn primary', on: { click: close } }, 'Keep going'),
           h('a', { class: 'btn', href: '#collection', on: { click: close } }, 'My collection')),
-        d.brag?.on && !c.bragged ? bragPanel(c, d.brag) : null);
+        d.brag?.on && !c.bragged ? bragPanel(c, d.brag) : '');
       requestAnimationFrame(() => setTimeout(() => flip.classList.add('on'), 120));
     };
     document.body.append(ov); dog.start(); show(); window.dispatchEvent(new CustomEvent('kudog', { detail: 'excited' }));
