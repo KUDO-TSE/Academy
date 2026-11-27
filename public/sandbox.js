@@ -2,7 +2,7 @@
 // The trainee does the task here instead of in a test account. Everything they do is recorded (clicks, fields,
 // screens, time, detours, hints) and the run is scored: outcome first, then path, then time.
 // Seven exercises (see SCENARIOS); scenarios with a brief start with a client call. Test data only.
-import { h, api, toast, svg } from './ui.js';
+import { h, api, toast, svg, metaRow, mark } from './ui.js';
 // Line icons (stroke) in the style of the KUDO screens.
 const I = {
   cal: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>', clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
@@ -201,14 +201,14 @@ export function sandboxView(key, { onExit } = {}) {
     callBox.hidden = true; root.querySelector('.sbx-browser').hidden = false; taskBox.hidden = false; draw();
   }
   const bar = h('div', { class: 'sbx-bar' },
-    h('div', { class: 'sbx-bar-l' }, h('span', { class: 'sbx-pill' }, 'Sandbox'), h('b', null, `Scenario ${sc.num} · ${sc.title}`), timer),
+    h('div', { class: 'sbx-bar-l' }, h('span', { class: 'sbx-pill' }, 'Sandbox'), h('b', null, `Scenario ${sc.num}: ${sc.title}`), timer),
     h('div', { class: 'sbx-bar-r' },
       h('button', { class: 'btn sm', type: 'button', on: { click: () => { taskBox.hidden = !taskBox.hidden; } } }, 'Task'),
       h('button', { class: 'btn sm', type: 'button', on: { click: hint } }, 'Hint'),
       sc.reply ? h('button', { class: 'btn sm', type: 'button', on: { click: () => { replyPanel.hidden = !replyPanel.hidden; drawReply(); } } }, 'Reply to the client') : null,
       h('button', { class: 'btn sm primary', type: 'button', on: { click: () => finish() } }, 'I am done'),
       h('button', { class: 'btn sm', type: 'button', on: { click: () => { if (confirm('Leave the sandbox? This run is not saved.')) { clearInterval(tick); onExit?.(); } } } }, 'Leave')));
-  root.append(bar, callBox, taskBox, replyPanel, h('div', { class: 'sbx-browser' }, h('div', { class: 'sbx-tabs-wrap' }), h('div', { class: 'sbx-url' }, ic('lock', 13), h('span', { class: 'sbx-url-t' }), h('span', { class: 'sbx-note' }, 'Replica for training · test data only')), app));
+  root.append(bar, callBox, taskBox, replyPanel, h('div', { class: 'sbx-browser' }, h('div', { class: 'sbx-tabs-wrap' }), h('div', { class: 'sbx-url' }, ic('lock', 13), h('span', { class: 'sbx-url-t' }), h('span', { class: 'sbx-note' }, 'Replica for training, test data only')), app));
 
   // Navigation. Entering a screen the scenario does not need is a detour (silent).
   const go = (screen, what, extra = {}) => {
@@ -465,7 +465,7 @@ export function sandboxView(key, { onExit } = {}) {
   const LABEL = { participant: 'Participant/Speaker link', operator: 'Operator link', viewer: 'Viewer-Only link', interpreter: 'Interpreter link', mobile: 'Mobile Link', iframe: 'iframe widget code', 'wcode-real time': 'Widget code (Real time stream)', 'wcode-broadcasting': 'Widget code (Broadcasting)', qr: 'QR code image' };
   S.clip = [];
   const copy = (kind, m = S.meeting) => {
-    const item = { kind, meeting: m, text: LINK[kind](m), label: `${LABEL[kind]} · ${m.name}` };
+    const item = { kind, meeting: m, text: LINK[kind](m), label: `${LABEL[kind]}, ${m.name}` };
     S.clip = [item, ...S.clip.filter((c) => !(c.kind === kind && c.meeting === m))].slice(0, 12);
     try { if (kind !== 'qr') navigator.clipboard?.writeText(item.text).catch(() => {}); } catch { /* the sandbox list below still has it */ }
     log('copy', `Copied ${LABEL[kind]} of ${m.name}`);
@@ -491,7 +491,7 @@ export function sandboxView(key, { onExit } = {}) {
   // the Viewer-Only room and the Mobile Link page.
   function previewScreen() {
     const p = S.pv, m = p.m, langs = ['Original audio', ...(m.kind === 'hi' ? m.speakers : m.translations)];
-    const back = h('button', { class: 'pv-back', type: 'button', on: { click: () => { log('click', 'Back to the portal'); S.meeting = m; go('meeting', 'Back to the portal'); } } }, '← Back to the portal');
+    const back = h('button', { class: 'pv-back', type: 'button', on: { click: () => { log('click', 'Back to the portal'); S.meeting = m; go('meeting', 'Back to the portal'); } } }, 'Back to the portal');
     const set = (o) => { Object.assign(p, o); draw(); };
     const top = h('div', { class: 'pv-top' }, h('img', { src: '/kudo-logo.png', alt: 'KUDO', class: 'pv-logo' }), h('b', null, m.name), h('span', { class: 'pv-gap' }), h('span', null, 'Demo NDK'), h('span', null, 'Log out'));
     if (p.role === 'mobile') {
@@ -508,12 +508,12 @@ export function sandboxView(key, { onExit } = {}) {
     if (p.step === 'audio') return h('div', { class: 'pv' }, back, top, h('div', { class: 'pv-dialog' }, h('p', null, "To connect to the meeting audio, please click 'Ok'"), h('button', { class: 'k-btn', type: 'button', on: { click: () => set({ step: 'room' }) } }, 'OK')));
     const role = p.role;
     const sideItems = role === 'viewer' ? [] : role === 'operator' ? ['Share screen', 'Messages', 'Polls', 'Document', 'Request list', 'User list'] : ['Share screen', 'Messages', 'Polls', 'Document', 'User list'];
-    const PANEL = { Messages: () => h('div', null, h('div', { class: 'pv-tabs' }, 'Participants · Technical Support · Private'), h('div', { class: 'pv-empty' }, 'Type a message')),
-      Polls: () => role === 'operator' ? h('div', null, h('div', { class: 'pv-tabs' }, 'Settings · Results'), ...(m.polls.length ? m.polls : [{ q: 'Is Blue the best Color?', answers: ['Yes', 'No', 'Abstain'] }]).map((x) => h('div', { class: 'pv-poll' }, h('b', null, x.q), h('ol', null, x.answers.map((a) => h('li', null, a))), h('button', { class: 'k-btn', type: 'button', on: { click: () => log('click', 'Operator: Start poll') } }, 'Start poll'), h('button', { class: 'k-btn soft', type: 'button' }, 'Poll Status'))))
-        : h('div', null, h('div', { class: 'pv-tabs' }, 'Polls · Results')),
+    const PANEL = { Messages: () => h('div', null, h('div', { class: 'pv-tabs' }, metaRow(['Participants', 'Technical Support', 'Private'])), h('div', { class: 'pv-empty' }, 'Type a message')),
+      Polls: () => role === 'operator' ? h('div', null, h('div', { class: 'pv-tabs' }, metaRow(['Settings', 'Results'])), ...(m.polls.length ? m.polls : [{ q: 'Is Blue the best Color?', answers: ['Yes', 'No', 'Abstain'] }]).map((x) => h('div', { class: 'pv-poll' }, h('b', null, x.q), h('ol', null, x.answers.map((a) => h('li', null, a))), h('button', { class: 'k-btn', type: 'button', on: { click: () => log('click', 'Operator: Start poll') } }, 'Start poll'), h('button', { class: 'k-btn soft', type: 'button' }, 'Poll Status'))))
+        : h('div', null, h('div', { class: 'pv-tabs' }, metaRow(['Polls', 'Results']))),
       Document: () => h('div', null, ...m.files.map((f) => h('div', { class: 'pv-file' }, f.name)), role === 'operator' ? h('button', { class: 'k-btn', type: 'button' }, 'Upload') : null),
       'Request list': () => h('div', null, h('small', { class: 'k-mini' }, 'REQUESTING TO SPEAK (0)')),
-      'User list': () => h('div', null, h('div', { class: 'pv-tabs' }, role === 'operator' ? 'Users · Operators' : 'Participants (1) · Viewers (0)'), h('div', { class: 'pv-file' }, 'Demo NDK')),
+      'User list': () => h('div', null, h('div', { class: 'pv-tabs' }, metaRow(role === 'operator' ? ['Users', 'Operators'] : ['Participants (1)', 'Viewers (0)'])), h('div', { class: 'pv-file' }, 'Demo NDK')),
       'Share screen': () => h('div', { class: 'pv-empty' }, 'Choose a screen or window to share') };
     const bottom = role === 'operator' ? ['Recording OFF', 'Audio ON', 'Broadcast'] : role === 'viewer' ? ['Audio ON', 'Camera OFF'] : ['Audio ON', 'Mic OFF', 'Camera ON', 'Raise hand'];
     return h('div', { class: 'pv' }, back, top, h('div', { class: 'pv-body' }, h('div', { class: 'pv-stage' }, role === 'viewer' ? h('span', { class: 'k-mini' }, 'Viewer-Only: you watch and listen') : ic('user', 72)),
@@ -535,7 +535,7 @@ export function sandboxView(key, { onExit } = {}) {
       ...sc.reply.map((r) => h('div', { class: 'sbx-rrow' }, h('label', null, r.label),
         r.type === 'text' ? h('input', { class: 'input', placeholder: r.placeholder || 'Type your answer', value: S.reply[r.id]?.text || '', on: { change: (e) => { S.reply[r.id] = { text: e.target.value.trim() }; log('reply', `${r.label}: ${e.target.value.trim()}`); } } })
           : h('select', { class: 'input', on: { change: (e) => { const c = S.clip[Number(e.target.value)]; S.reply[r.id] = c || null; log('reply', `${r.label}: ${c ? c.label : 'nothing'}`); drawReply(); } } },
-            h('option', { value: '' }, S.reply[r.id] ? S.reply[r.id].label : '— Choose what you copied —'), ...S.clip.map((c, i) => h('option', { value: i }, c.label))),
+            h('option', { value: '' }, S.reply[r.id] ? S.reply[r.id].label : 'Choose what you copied'), ...S.clip.map((c, i) => h('option', { value: i }, c.label))),
         r.type !== 'text' && S.reply[r.id] ? h('code', { class: 'sbx-rtext' }, S.reply[r.id].text) : null)),
       S.clip.length ? h('details', { class: 'sbx-clip' }, h('summary', null, `What you copied (${S.clip.length})`), ...S.clip.map((c) => h('div', null, h('b', null, c.label), h('code', { class: 'sbx-rtext' }, c.text)))) : null);
   }
@@ -763,9 +763,9 @@ export function sandboxView(key, { onExit } = {}) {
     const langs = m.kind === 'hi' ? m.speakers : m.translations;
     const users = m.participants.length + m.operators.length + m.viewers.length + 1;
     const tile = (k, icn, v, sub) => h('div', { class: 'k-tile' }, h('small', null, k), h('div', null, h('span', { class: 'k-tile-ic' }, ic(icn, 15)), h('b', null, String(v)), sub ? h('small', { class: 'k-mini' }, ` ${sub}`) : null));
-    const bars = (labels) => h('div', { class: 'k-chart' }, svg(`<svg viewBox="0 0 220 120" width="100%" height="120"><g stroke="#E5E5E5">${[20, 45, 70, 95].map((y) => `<line x1="24" x2="215" y1="${y}" y2="${y}"/>`).join('')}</g>${labels.map((l, i, a) => { const w = 150 / a.length; const x = 40 + i * (180 / a.length); return `<rect x="${x}" y="${20 + (i * 17) % 40}" width="${w}" height="${75 - (i * 17) % 40}" fill="#14A88A"/><text x="${x + w / 2}" y="112" font-size="8" text-anchor="middle" fill="#555">${l}</text>`; }).join('')}</svg>`));
-    const pie = () => h('div', { class: 'k-chart' }, svg('<svg viewBox="0 0 120 120" width="120" height="120"><circle cx="60" cy="55" r="45" fill="#14A88A"/><line x1="60" y1="10" x2="60" y2="55" stroke="#fff"/><text x="60" y="115" font-size="9" text-anchor="middle" fill="#555">participant</text></svg>'));
-    const map = () => h('div', { class: 'k-chart k-map' }, svg('<svg viewBox="0 0 220 110" width="100%" height="110"><g fill="#E3E6EA"><ellipse cx="55" cy="40" rx="38" ry="22"/><ellipse cx="70" cy="82" rx="16" ry="22"/><ellipse cx="118" cy="38" rx="20" ry="16"/><ellipse cx="122" cy="76" rx="18" ry="24"/><ellipse cx="170" cy="42" rx="40" ry="24"/><ellipse cx="190" cy="90" rx="16" ry="10"/></g><circle cx="114" cy="36" r="3.5" fill="#2C6E9B"/></svg>'));
+    const bars = (labels) => h('div', { class: 'k-chart' }, svg(`<svg viewBox="0 0 220 120" width="100%" height="120"><g stroke="var(--mock-e5e5e5)">${[20, 45, 70, 95].map((y) => `<line x1="24" x2="215" y1="${y}" y2="${y}"/>`).join('')}</g>${labels.map((l, i, a) => { const w = 150 / a.length; const x = 40 + i * (180 / a.length); return `<rect x="${x}" y="${20 + (i * 17) % 40}" width="${w}" height="${75 - (i * 17) % 40}" fill="var(--mock-14a88a)"/><text x="${x + w / 2}" y="112" font-size="8" text-anchor="middle" fill="var(--c-555555)">${l}</text>`; }).join('')}</svg>`));
+    const pie = () => h('div', { class: 'k-chart' }, svg('<svg viewBox="0 0 120 120" width="120" height="120"><circle cx="60" cy="55" r="45" fill="var(--mock-14a88a)"/><line x1="60" y1="10" x2="60" y2="55" stroke="var(--white)"/><text x="60" y="115" font-size="9" text-anchor="middle" fill="var(--c-555555)">participant</text></svg>'));
+    const map = () => h('div', { class: 'k-chart k-map' }, svg('<svg viewBox="0 0 220 110" width="100%" height="110"><g fill="var(--mock-e3e6ea)"><ellipse cx="55" cy="40" rx="38" ry="22"/><ellipse cx="70" cy="82" rx="16" ry="22"/><ellipse cx="118" cy="38" rx="20" ry="16"/><ellipse cx="122" cy="76" rx="18" ry="24"/><ellipse cx="170" cy="42" rx="40" ry="24"/><ellipse cx="190" cy="90" rx="16" ry="10"/></g><circle cx="114" cy="36" r="3.5" fill="var(--mock-2c6e9b)"/></svg>'));
     const panel = (t, d, body) => h('div', { class: 'k-panel k-stat' }, h('b', null, t), h('small', { class: 'k-mini' }, d), body);
     const none = () => h('div', { class: 'k-none' }, ic('help', 18), h('b', null, 'No viewer data'));
     const lang = S.rtab === 'languages';
@@ -1097,10 +1097,10 @@ export function sandboxView(key, { onExit } = {}) {
   function studioScreen() {
     const st = S.studio, k = st.keys[st.sel], live = keyLive(k.key);
     if (live && S.mine?.bc?.streams?.length) { S.flags.studioSaw = new Set([...(S.flags.studioSaw || []), k.key]); viewLog(`Studio: ${k.name} is live (${live.lang})`); }
-    const field = (label, val, kind, hide) => h('div', { class: 'yt-field' }, h('small', null, label), h('div', { class: 'k-rowsp' }, h('code', null, hide && !st.show ? '••••••••••••••••••••' : val), hide ? h('button', { class: 'yt-btn ghost', type: 'button', on: { click: () => { st.show = !st.show; draw(); } } }, st.show ? 'Hide' : 'Show') : null, h('button', { class: 'yt-btn', type: 'button', on: { click: () => clipItem(kind, val, `${label}${hide ? ` · ${k.name}` : ''}`) } }, 'Copy')));
+    const field = (label, val, kind, hide) => h('div', { class: 'yt-field' }, h('small', null, label), h('div', { class: 'k-rowsp' }, h('code', null, hide && !st.show ? '••••••••••••••••••••' : val), hide ? h('button', { class: 'yt-btn ghost', type: 'button', on: { click: () => { st.show = !st.show; draw(); } } }, st.show ? 'Hide' : 'Show') : null, h('button', { class: 'yt-btn', type: 'button', on: { click: () => clipItem(kind, val, `${label}${hide ? `, ${k.name}` : ''}`) } }, 'Copy')));
     return h('div', { class: 'yt' }, h('div', { class: 'yt-top' }, h('b', null, '▶ Studio'), h('span', { class: 'k-mini' }, 'Client channel'), h('span', { class: 'pv-gap' }), live ? h('span', { class: 'yt-live' }, 'LIVE') : null),
       h('div', { class: 'yt-preview' }, h('span', { class: `yt-status ${live ? 'ok' : ''}` }, live ? '● Excellent' : '● No data'), live ? h('div', null, h('b', null, 'You are live'), h('p', null, `Receiving the ${live.lang.replace(/ \(.*\)$/, '')} stream from KUDO`)) : h('div', null, h('b', null, 'Connect your encoder to go live'), h('p', null, 'Copy a stream key into your streaming software (here: KUDO) to start sending your video'))),
-      h('div', { class: 'yt-card' }, h('div', { class: 'k-rowsp' }, h('b', null, 'Stream settings'), h('div', { class: 'k-row' }, h('small', null, 'Stream key'), select(st.keys.map((x, i) => [i, `${x.name}${keyLive(x.key) ? ' · live' : ''}`]), st.sel, (v) => { st.sel = Number(v); st.show = false; log('change', `Studio: stream key ${st.keys[st.sel].name}`); draw(); }),
+      h('div', { class: 'yt-card' }, h('div', { class: 'k-rowsp' }, h('b', null, 'Stream settings'), h('div', { class: 'k-row' }, h('small', null, 'Stream key'), select(st.keys.map((x, i) => [i, `${x.name}${keyLive(x.key) ? ', live' : ''}`]), st.sel, (v) => { st.sel = Number(v); st.show = false; log('change', `Studio: stream key ${st.keys[st.sel].name}`); draw(); }),
           st.naming == null ? h('button', { class: 'yt-btn ghost', type: 'button', on: { click: () => { st.naming = ''; draw(); } } }, '+ Create stream key')
             : h('span', { class: 'k-row' }, h('input', { class: 'k-in sm', placeholder: 'Name, e.g. French', on: { input: (e) => { st.naming = e.target.value; } } }), h('button', { class: 'yt-btn', type: 'button', on: { click: () => { const n = (st.naming || '').trim() || `Stream key ${st.keys.length + 1}`; st.keys.push({ name: n, key: keyGen(st.keys.length) }); st.sel = st.keys.length - 1; st.naming = null; st.show = false; log('save', `Studio: created stream key "${n}"`); draw(); } } }, 'Create')))),
         field('Stream URL', st.url, 'yt-url'), field('Backup server URL', `${st.url.replace('//a.', '//b.')}?backup=1`, 'yt-url2'), field('Stream key (paste in encoder)', k.key, 'yt-key', true),
@@ -1133,9 +1133,9 @@ function callReport(b, c) {
   const missed = b.questions.filter((q) => q.key && !asked.has(q.id)), noise = b.questions.filter((q) => !q.key && asked.has(q.id));
   return h('div', { class: 'card', style: 'margin-top:16px' }, h('div', { class: 'row spread' }, h('h2', null, 'The client call'), h('span', { class: 'chip grey' }, `Client confidence ${c.confidence}%`)),
     h('div', { class: 'grid g2' },
-      h('div', null, h('ul', { class: 'sbx-checks' }, b.questions.filter((q) => q.key).map((q) => h('li', { class: asked.has(q.id) ? 'yes' : 'no' }, h('span', null, asked.has(q.id) ? '✓' : '✗'), h('div', null, q.q, asked.has(q.id) ? null : h('div', { class: 'muted small' }, q.why))))),
+      h('div', null, h('ul', { class: 'sbx-checks' }, b.questions.filter((q) => q.key).map((q) => h('li', { class: asked.has(q.id) ? 'yes' : 'no' }, mark(asked.has(q.id)), h('div', null, q.q, asked.has(q.id) ? null : h('div', { class: 'muted small' }, q.why))))),
         noise.length ? h('div', { class: 'sbx-traps' }, h('b', null, 'Did not change the set-up'), h('ul', null, noise.map((q) => h('li', null, `${q.q} ${q.why}`)))) : null),
-      h('div', null, h('b', null, opt?.ok ? `✓ ${opt.label}` : `✗ ${opt?.label || 'No solution chosen'}`), h('p', { class: 'muted small' }, opt?.why || ''),
+      h('div', null, h('b', null, mark(opt?.ok), ' ', opt?.label || 'No solution chosen'), h('p', { class: 'muted small' }, opt?.why || ''),
         opt?.ok ? null : h('p', { class: 'small' }, h('b', null, 'Best fit: '), `${best.label}. ${best.why}`),
         missed.length ? null : h('p', { class: 'ok small' }, 'You asked every question that decides the set-up.'))));
 }
@@ -1146,18 +1146,18 @@ export function report(sc, r, events, saved, onExit) {
     h('div', { class: 'page-head' }, h('div', null, h('h1', null, `Your result: ${r.total}%`), h('p', null, `${sc.title}. ${r.total >= 80 ? 'Passed.' : 'Below the pass mark of 80%.'} ${saved?.record ? 'This first run is your result of record.' : saved ? 'This run is practice: your first run stays your result of record.' : ''}`)),
       h('div', { class: 'row' }, h('button', { class: 'btn', type: 'button', on: { click: () => onExit?.(true) } }, 'Try again'), h('a', { class: 'btn primary', href: `#module-${sc.module}` }, 'Back to the lesson'))),
     r.discovery != null ? h('div', { class: 'grid sbx-bars5' },
-      bar('Outcome · 45%', r.outcome, 'Did it end up in the right state'),
-      bar('Client call · 20%', r.discovery, 'The questions that decide the set-up'),
-      bar('Solution · 15%', r.solution, r.solution ? 'The right fit' : 'Not the best fit'),
-      bar('Path · 10%', r.path, `${r.detours} detour${r.detours === 1 ? '' : 's'}, ${r.traps.length} mistake${r.traps.length === 1 ? '' : 's'}, ${r.hints} hint${r.hints === 1 ? '' : 's'}`),
-      bar('Time · 10%', r.time, `${fmtS(r.secs)}, full marks up to 7 min`))
+      bar('Outcome (45%)', r.outcome, 'Did it end up in the right state'),
+      bar('Client call (20%)', r.discovery, 'The questions that decide the set-up'),
+      bar('Solution (15%)', r.solution, r.solution ? 'The right fit' : 'Not the best fit'),
+      bar('Path (10%)', r.path, `${r.detours} detour${r.detours === 1 ? '' : 's'}, ${r.traps.length} mistake${r.traps.length === 1 ? '' : 's'}, ${r.hints} hint${r.hints === 1 ? '' : 's'}`),
+      bar('Time (10%)', r.time, `${fmtS(r.secs)}, full marks up to 7 min`))
     : h('div', { class: 'grid g3' },
-      bar('Outcome · 70%', r.outcome, 'Did the meeting end up in the right state'),
-      bar('Path · 20%', r.path, `${r.detours} detour${r.detours === 1 ? '' : 's'}, ${r.traps.length} mistake${r.traps.length === 1 ? '' : 's'}, ${r.hints} hint${r.hints === 1 ? '' : 's'}`),
-      bar('Time · 10%', r.time, `${fmtS(r.secs)}, full marks up to 5 min`)),
+      bar('Outcome (70%)', r.outcome, 'Did the meeting end up in the right state'),
+      bar('Path (20%)', r.path, `${r.detours} detour${r.detours === 1 ? '' : 's'}, ${r.traps.length} mistake${r.traps.length === 1 ? '' : 's'}, ${r.hints} hint${r.hints === 1 ? '' : 's'}`),
+      bar('Time (10%)', r.time, `${fmtS(r.secs)}, full marks up to 5 min`)),
     r.call && sc.brief ? callReport(sc.brief, r.call) : null,
     h('div', { class: 'grid g2', style: 'margin-top:16px' },
-      h('div', { class: 'card' }, h('h2', null, 'What you achieved'), h('ul', { class: 'sbx-checks' }, r.checks.map((c) => h('li', { class: c.ok ? 'yes' : 'no' }, h('span', null, c.ok ? '✓' : '✗'), c.label))),
+      h('div', { class: 'card' }, h('h2', null, 'What you achieved'), h('ul', { class: 'sbx-checks' }, r.checks.map((c) => h('li', { class: c.ok ? 'yes' : 'no' }, mark(c.ok), c.label))),
         r.traps.length ? h('div', { class: 'sbx-traps' }, h('b', null, 'Mistakes'), h('ul', null, r.traps.map((t) => h('li', null, t)))) : null),
       h('div', { class: 'card' }, h('h2', null, 'The expert\'s path'), h('p', { class: 'sub' }, `About ${Math.round(sc.expertSeconds / 60)} minutes, ${sc.expert.length} steps. You took ${r.actions} actions`), h('ol', { class: 'sbx-expert' }, sc.expert.map((s) => h('li', null, s))))),
     h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Your path, step by step'), h('p', { class: 'sub' }, 'Detours and mistakes are marked'),

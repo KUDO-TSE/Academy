@@ -1,7 +1,7 @@
 // Step 1 · Learn as a story on slides. One idea per slide, Back / Next, arrow keys, a progress bar, and the slide
 // you were on is remembered per module (light convenience; the one-page view is always one click away).
 // Decisions are practice: the choice shows its consequence and is not scored or sent anywhere.
-import { h } from './ui.js';
+import { h, icon } from './ui.js';
 
 const KEY = (k) => `academy.story.${k}`;
 const recall = (k) => { try { return Number(localStorage.getItem(KEY(k))) || 0; } catch { return 0; } };
@@ -14,7 +14,7 @@ function mockView(mk) {
       const cls = `st-m ${it.t}${it.hi ? ' hi' : ''}`;
       if (it.t === 'button') return h('div', { class: cls }, h('span', { class: 'st-btn' }, it.label));
       if (it.t === 'field') return h('div', { class: cls }, h('small', null, it.label), h('div', { class: 'st-in' }, it.value));
-      if (it.t === 'check') return h('div', { class: cls }, h('span', { class: 'st-box' }, '✓'), it.label);
+      if (it.t === 'check') return h('div', { class: cls }, h('span', { class: 'st-box' }, icon('check')), it.label);
       if (it.t === 'path') return h('div', { class: cls }, it.label);
       if (it.t === 'note') return h('div', { class: cls }, it.label);
       return h('div', { class: cls }, h('b', null, it.label), it.value ? h('span', null, it.value) : null);
@@ -45,7 +45,7 @@ function slideView(s, { onNext, toPractice }) {
   }
   if (s.kind === 'traps') return h('div', { class: 'st-slide' }, h('h3', { class: 'st-title' }, s.title), h('ul', { class: 'st-traps' }, s.points.map((p) => h('li', null, p))));
   if (s.kind === 'recap') return h('div', { class: 'st-slide' }, h('h3', { class: 'st-title' }, s.title), h('ol', { class: 'st-recap' }, s.points.map((p) => h('li', null, p))),
-    h('div', { class: 'st-next' }, h('span', null, s.next), toPractice ? h('button', { class: 'btn primary', type: 'button', on: { click: toPractice } }, 'Go to Step 2 →') : null));
+    h('div', { class: 'st-next' }, h('span', null, s.next), toPractice ? h('button', { class: 'btn primary', type: 'button', on: { click: toPractice } }, 'Go to Step 2') : null));
   return h('div', { class: 'st-slide' });
 }
 
@@ -56,8 +56,8 @@ export function storyPlayer(moduleKey, story, { toPractice } = {}) {
   const stage = h('div', { class: 'st-stage' });
   const bar = h('div', { class: 'st-progress', role: 'progressbar', 'aria-valuemin': 1, 'aria-valuemax': N });
   const count = h('span', { class: 'st-count' });
-  const back = h('button', { class: 'btn', type: 'button', on: { click: () => go(i - 1) } }, '← Back');
-  const next = h('button', { class: 'btn primary', type: 'button', on: { click: () => go(i + 1) } }, 'Next →');
+  const back = h('button', { class: 'btn', type: 'button', on: { click: () => go(i - 1) } }, 'Back');
+  const next = h('button', { class: 'btn primary', type: 'button', on: { click: () => go(i + 1) } }, 'Next');
   const root = h('div', { class: 'story', tabindex: 0, 'aria-roledescription': 'slides', on: { keydown: (e) => {
     if (e.target.closest('button, textarea, input')) return;
     if (e.key === 'ArrowRight') { e.preventDefault(); go(i + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); go(i - 1); }

@@ -1,6 +1,6 @@
 // Sessions: upload 1:1 and group session recordings or transcripts; the Academy finds the questions asked and
 // the KUDO Trainer turns them into lesson FAQ entries or new check questions.
-import { h, api, toast, modal, fmtDate, svg, importsHead } from './ui.js';
+import { h, api, toast, modal, fmtDate, svg, importsHead, metaRow } from './ui.js';
 
 const KIND = { one_to_one: '1:1', group: 'Group session' };
 const COV = { covered: ['green', 'Covered'], partly: ['amber', 'Partly covered'], gap: ['coral', 'Not covered'] };
@@ -26,12 +26,12 @@ function coverageChart(rows) {
   let g = '';
   rows.forEach((r, i) => {
     const y = i * rowH + 4; let x = lab;
-    g += `<text x="${lab - 10}" y="${y + 16}" font-size="12.5" font-weight="600" fill="#231F20" text-anchor="end">${esc(r.title.length > (sm ? 16 : 32) ? `${r.title.slice(0, sm ? 15 : 31)}…` : r.title)}</text>`;
-    for (const [k, col] of [['gap', '#DB6539'], ['partly', '#F8C63F'], ['covered', '#2F7A45']]) {
+    g += `<text x="${lab - 10}" y="${y + 16}" font-size="12.5" font-weight="600" fill="var(--ink-900)" text-anchor="end">${esc(r.title.length > (sm ? 16 : 32) ? `${r.title.slice(0, sm ? 15 : 31)}…` : r.title)}</text>`;
+    for (const [k, col] of [['gap', 'var(--coral)'], ['partly', 'var(--amber)'], ['covered', 'var(--c-2f7a45)']]) {
       const w = (r[k] / max) * bw; if (!w) continue;
       g += `<rect x="${x}" y="${y + 3}" width="${w}" height="18" fill="${col}" rx="3"><title>${esc(r.title)}: ${r[k]} ${k === 'gap' ? 'not covered' : k === 'partly' ? 'partly covered' : 'covered'}</title></rect>`; x += w;
     }
-    g += `<text x="${x + 6}" y="${y + 16}" font-size="11.5" font-weight="700" fill="#231F20">${r.questions}</text>`;
+    g += `<text x="${x + 6}" y="${y + 16}" font-size="11.5" font-weight="700" fill="var(--ink-900)">${r.questions}</text>`;
   });
   return svg(`<svg class="chart" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Questions from sessions by module">${g}</svg>`);
 }
@@ -84,7 +84,7 @@ export async function sessionsView() {
           h('td', null, r.gap ? h('span', { class: 'chip coral' }, 'Not covered') : null, ' ', h('a', { href: `#session-${r.example.session}` }, 'Open'))))))) : null,
     h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'All sessions'),
       list.sessions.length ? h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Session', 'Date', 'Who', 'Status', 'Questions', 'To review'].map((x, i) => h('th', { class: i > 3 ? 'num' : '' }, x)))),
-        h('tbody', null, list.sessions.map((s) => h('tr', null, h('td', null, h('a', { href: `#session-${s.id}` }, s.title), h('div', { class: 'muted small' }, KIND[s.kind])), h('td', null, fmtDate(s.happened_on)), h('td', null, s.people.join(', ') || '–'),
+        h('tbody', null, list.sessions.map((s) => h('tr', null, h('td', null, h('a', { href: `#session-${s.id}` }, s.title), h('div', { class: 'muted small' }, KIND[s.kind])), h('td', null, fmtDate(s.happened_on)), h('td', null, s.people.join(', ') || 'None'),
           h('td', null, h('span', { class: `chip ${{ ready: 'green', failed: 'coral', processing: 'amber', uploaded: 'grey' }[s.status]}` }, { ready: 'Ready', failed: 'Failed', processing: `Analysing ${s.progress || 0}%`, uploaded: 'Waiting for the file' }[s.status])),
           h('td', { class: 'num' }, s.questions), h('td', { class: 'num' }, s.toReview || ''))))) : h('div', { class: 'muted' }, 'No session yet. Upload the first one above.')));
 }
@@ -156,8 +156,8 @@ export async function sessionView(id) {
     } } }, `Add to ${s.people[0].name.split(' ')[0]}'s inputs`)) : null;
 
   box.append(...[
-    h('div', { class: 'page-head' }, h('div', null, h('a', { href: '#sessions', class: 'muted small' }, '← Imports · Sessions'), h('h1', null, s.title),
-      h('p', null, `${KIND[s.kind]} · ${fmtDate(s.happened_on)}${s.people.length ? ` · ${s.people.map((p) => p.name).join(', ')}` : ''}${s.duration_s ? ` · ${Math.round(s.duration_s / 60)} min` : ''}`)),
+    h('div', { class: 'page-head' }, h('div', null, h('a', { href: '#sessions', class: 'muted small' }, 'Back to sessions'), h('h1', null, s.title),
+      h('p', null, metaRow([KIND[s.kind], fmtDate(s.happened_on), s.people.length ? s.people.map((p) => p.name).join(', ') : null, s.duration_s ? `${Math.round(s.duration_s / 60)} min` : null]))),
     h('button', { class: 'btn', on: { click: async () => { if (!confirmDelete.hidden) { try { await api('DELETE', `/api/admin/sessions/${s.id}`); toast('Deleted'); location.hash = 'sessions'; } catch (e) { toast(e.message, true); } } else confirmDelete.hidden = false; } } }, 'Delete session')),
     confirmDelete,
     s.status === 'processing' || s.status === 'uploaded' ? h('div', { class: 'card' }, h('div', { class: 'processing' }, h('span', { class: 'spin' }), `Analysing… ${s.progress || 0}%. This page refreshes by itself.`), h('div', { class: 'ph-bar' }, h('i', { style: `width:${s.progress || 0}%` }))) : null,
@@ -182,7 +182,7 @@ function publishedCard() {
     box.hidden = false;
     box.replaceChildren(h('h2', null, 'Added to the Academy'), h('p', { class: 'sub keep' }, `${notes.length} FAQ entr${notes.length === 1 ? 'y' : 'ies'} and check questions from sessions`),
       ...notes.map((n) => h('div', { class: 'row spread', style: 'padding:8px 0;border-top:1px solid var(--border-soft);gap:12px' },
-        h('div', null, h('span', { class: 'chip grey', style: 'margin-right:6px' }, n.kind === 'faq' ? 'FAQ' : 'Check question'), h('b', null, n.question), h('div', { class: 'muted small' }, `${n.module_key} · ${fmtDate(n.published_at)}`)),
+        h('div', null, h('span', { class: 'chip grey', style: 'margin-right:6px' }, n.kind === 'faq' ? 'FAQ' : 'Check question'), h('b', null, n.question), h('div', { class: 'muted small' }, `${n.module_key}, ${fmtDate(n.published_at)}`)),
         h('button', { class: 'btn sm', on: { click: async () => { if (!window.confirm('Withdraw it from the Academy? Trainees stop seeing it; the session finding goes back to open.')) return; try { await api('DELETE', `/api/admin/field-notes/${n.id}`); toast('Withdrawn'); load(); } catch (e) { toast(e.message, true); } } } }, 'Withdraw'))));
   };
   load().catch(() => { box.hidden = true; });

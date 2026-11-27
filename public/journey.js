@@ -1,6 +1,6 @@
 // The 12 weeks at a glance: a route of weekly stops grouped by phase. Each stop says what the week is about,
 // how much of it is done and which session with the KUDO Trainer falls in it. One stop is open below the route.
-import { h, icon, svg } from './ui.js';
+import { h, icon, svg, metaRow } from './ui.js';
 import { small } from './charts.js';
 
 const tick = () => svg('<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>');
@@ -67,14 +67,14 @@ export function journeyMap({ items, week, weeks = 12, phases, levels = [], modul
     const status = { done: 'Done', now: 'This week', late: 'Behind', next: w === week + 1 ? 'Next week' : `In ${w - week} weeks` }[st];
     detail.replaceChildren(
       h('div', { class: 'jm-dh' },
-        h('div', null, h('h3', null, `Week ${w}: ${theme(w)}`), h('div', { class: 'muted small' }, `${p?.name || ''} · ${yours(w).length ? `${done} of ${yours(w).length} done` : 'No steps of yours'}${left.length ? ` · about ${mins(left.reduce((t, i) => t + (i.minutes || 0), 0))} left` : ''}`)),
+        h('div', null, h('h3', null, `Week ${w}: ${theme(w)}`), h('div', { class: 'muted small' }, metaRow([p?.name, yours(w).length ? `${done} of ${yours(w).length} done` : 'No steps of yours', left.length ? `about ${mins(left.reduce((t, i) => t + (i.minutes || 0), 0))} left` : null]))),
         h('span', { class: `chip ${{ done: 'green', now: 'blue', late: 'coral', next: 'grey' }[st]}` }, status)),
       its.length ? h('ul', { class: 'jm-list' }, its.map((it) => {
         const href = hrefFor(it), jack = it.owner === 'jack';
         return h('li', { class: it.done ? 'done' : '' },
           h('span', { class: `jm-tk ${it.done ? 'on' : ''} ${jack ? 'jack' : ''}`, 'aria-label': it.done ? 'Done' : 'Not done yet' }, it.done ? tick() : jack ? icon(event(it, shortOf).ic) : null),
           h('span', { class: 'jm-it' }, href ? h('a', { href }, it.title) : it.title),
-          h('span', { class: 'jm-meta' }, `${jack ? 'With your KUDO Trainer' : KIND[it.kind] || ''}${it.minutes ? ` · ${mins(it.minutes)}` : ''}`));
+          h('span', { class: 'jm-meta' }, `${jack ? 'With your KUDO Trainer' : KIND[it.kind] || ''}${it.minutes ? `, ${mins(it.minutes)}` : ''}`));
       })) : h('p', { class: 'muted small', style: 'margin:8px 0 0' }, 'Nothing planned this week: a buffer to catch up or get ahead'));
   };
 

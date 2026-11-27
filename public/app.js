@@ -55,12 +55,12 @@ function brandHero(title, text, { preview = true } = {}) {
   const card = { key: 'first-step', set: 'Journey', tier: 'bronze', title: 'First step', glyph: 'step', earned: true };
   const win = preview ? h('div', { class: 'lp-preview', 'aria-hidden': 'true' },
     h('div', { class: 'lp-win' },
-      h('div', { class: 'lp-win-h' }, h('b', null, 'Your 12 weeks'), h('span', null, 'Week 4 of 12 · Build')),
+      h('div', { class: 'lp-win-h' }, h('b', null, 'Your 12 weeks'), h('span', null, 'Week 4 of 12: Build')),
       route,
       h('div', { class: 'lp-phases' }, h('span', { style: 'grid-column:span 2' }, 'Warm-up'), h('span', { style: 'grid-column:span 5' }, 'Build'), h('span', { style: 'grid-column:span 3' }, 'Broaden'), h('span', { style: 'grid-column:span 2' }, 'Prove it')),
       h('div', { class: 'lp-stats' },
         h('div', null, h('span', null, 'Readiness'), h('b', null, '58%', h('em', null, ' → 80% target')), h('i', { class: 'lp-bar' }, h('i', { style: 'width:58%' }), h('u', { style: 'left:80%' }))),
-        h('div', null, h('span', null, 'This week'), h('b', null, '3 steps', h('em', null, ' · about 55 min')), h('span', { class: 'lp-next' }, 'Next: Practise a Teams setup')))),
+        h('div', null, h('span', null, 'This week'), h('b', null, '3 steps', h('em', null, ', about 55 min')), h('span', { class: 'lp-next' }, 'Next: Practise a Teams setup')))),
     h('div', { class: 'lp-card' }, cardArt(card, { size: 132 }))) : null;
   return h('div', { class: 'login-hero' },
     h('div', { class: 'login-name', role: 'img', 'aria-label': 'KUDO Academy' }, h('img', { src: '/kudo-logo.png', alt: '' }), h('span', null, 'Academy')),
@@ -80,7 +80,7 @@ function loginScreen() {
   return h('div', { class: 'login' }, brandHero('Become the person clients trust with KUDO', 'Your own 12-week plan: learn each scenario, practise it on real client situations and prove it with your KUDO Trainer.'),
     h('div', { class: 'login-panel' }, h('div', { class: 'login-card' }, h('h2', null, 'Sign in'), h('p', { class: 'lead' }, 'Use your KUDO email to open your programme'), form,
       h('p', { class: 'login-help' }, h('b', null, 'First time here? '), 'Use the password you were given. You will choose your own right after.')),
-      h('div', { class: 'login-foot' }, 'KUDO Academy · internal training for KUDO teams')));
+      h('div', { class: 'login-foot' }, 'KUDO Academy, internal training for KUDO teams')));
 }
 
 function passwordFields() {

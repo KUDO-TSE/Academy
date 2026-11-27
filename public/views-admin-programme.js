@@ -1,10 +1,10 @@
-import { h, api, toast, fmtDate, dateOnly, modal } from './ui.js';
+import { h, api, toast, fmtDate, dateOnly, modal, metaRow, mark } from './ui.js';
 import { programmeView, moduleView, KIND_LABEL, DEPTH_LABEL } from './views-programme.js';
 import { trajectoryChart } from './charts.js';
 import { journeyMap } from './journey.js';
 
 const STATUS = { draft: ['amber', 'Draft: needs approval'], changes: ['amber', 'Changes waiting'], approved: ['green', 'Approved'] };
-const RATING = [['', '–'], ['gap', 'Gap'], ['developing', 'Developing'], ['solid', 'Solid']];
+const RATING = [['', 'Not set'], ['gap', 'Gap'], ['developing', 'Developing'], ['solid', 'Solid']];
 const INPUT_KIND = { one_to_one: '1:1 session', recording: 'Call or video review', observation: 'Observation', other: 'Other' };
 let META = null;
 async function meta() { if (!META) META = await api('GET', '/api/admin/meta'); return META; }
@@ -34,14 +34,14 @@ export async function programmeOverview() {
       h('div', { class: 'tbl-wrap', style: 'margin-top:10px' }, h('table', { class: 'tbl' },
         h('thead', null, h('tr', null, ['Name', 'Plan', 'Focus', 'Week', 'Done', 'Readiness', 'Next step', 'Sign-off'].map((x, i) => h('th', { class: [3, 4, 7].includes(i) ? 'num' : '' }, x)))),
         h('tbody', null, d.rows.map((r) => h('tr', { class: 'click', on: { click: () => { sessionStorage.setItem('personTab', 'programme'); location.hash = `person-${r.id}`; } } },
-          h('td', null, h('b', null, r.name), r.demo ? h('span', { class: 'chip grey', style: 'margin-left:6px' }, 'Demo') : null, h('div', { class: 'muted small' }, [r.team, r.region].filter(Boolean).join(' · '))),
+          h('td', null, h('b', null, r.name), r.demo ? h('span', { class: 'chip grey', style: 'margin-left:6px' }, 'Demo') : null, h('div', { class: 'muted small' }, metaRow([r.team, r.region]))),
           h('td', null, h('span', { class: `chip ${STATUS[r.status][0]}` }, STATUS[r.status][1])),
           h('td', null, r.focus.map((f) => h('span', { class: 'chip', style: 'margin:1px' }, sc(f)))),
-          h('td', { class: 'num' }, r.week ?? '–'), h('td', { class: 'num' }, r.progress ? `${r.progress.pct}%` : '–'),
-          h('td', null, r.readiness ? `${r.readiness.now}% → ${r.readiness.end}%` : '–'),
-          h('td', { class: 'small' }, r.next || '–'), h('td', { class: 'num' }, r.awaiting || ''))))))),
+          h('td', { class: 'num' }, r.week ?? 'None'), h('td', { class: 'num' }, r.progress ? `${r.progress.pct}%` : 'None'),
+          h('td', null, r.readiness ? `${r.readiness.now}% → ${r.readiness.end}%` : 'None'),
+          h('td', { class: 'small' }, r.next || 'None'), h('td', { class: 'num' }, r.awaiting || ''))))))),
     jackItems.length ? h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Sessions to book'), h('p', { class: 'sub' }, 'The next open KUDO Trainer sessions in approved plans. Log each one as an input on the person\'s page: that ticks it off.'),
-      jackItems.map((x) => h('div', { class: 'row spread', style: 'padding:7px 0;border-top:1px solid var(--border-soft)' }, h('span', null, h('b', null, x.who), ` · ${x.t}`), h('a', { href: `#person-${x.id}`, on: { click: () => sessionStorage.setItem('personTab', 'inputs') } }, 'Log it')))) : null);
+      jackItems.map((x) => h('div', { class: 'row spread', style: 'padding:7px 0;border-top:1px solid var(--border-soft)' }, h('span', null, h('b', null, x.who), `, ${x.t}`), h('a', { href: `#person-${x.id}`, on: { click: () => sessionStorage.setItem('personTab', 'inputs') } }, 'Log it')))) : null);
 }
 function confirmBox(text) { return window.confirm(text); }
 
@@ -53,7 +53,7 @@ function groupSessionsCard() {
     const { sessions } = await api('GET', '/api/admin/group-sessions');
     const now = Date.now(); const up = sessions.filter((x) => new Date(x.starts_at) >= now - 3600e3).reverse();
     list.replaceChildren(up.length ? h('div', null, up.map((x) => h('div', { class: 'row spread', style: 'padding:8px 0;border-top:1px solid var(--border-soft)' },
-      h('span', null, h('b', null, x.title), ` · ${new Date(x.starts_at).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · ${x.minutes} min`, x.topic ? h('div', { class: 'muted small' }, x.topic) : null),
+      h('span', null, h('b', null, x.title), `, ${new Date(x.starts_at).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}, ${x.minutes} min`, x.topic ? h('div', { class: 'muted small' }, x.topic) : null),
       h('button', { class: 'btn sm', on: { click: async () => { if (!confirmBox(`Remove "${x.title}"?`)) return; await api('DELETE', `/api/admin/group-sessions/${x.id}`); load(); } } }, 'Remove')))) : h('div', { class: 'muted small', style: 'padding:6px 0' }, 'None scheduled.'));
   };
   load().catch(() => {});
@@ -73,7 +73,7 @@ export function tabProgramme(personId, reload) {
     const d = await api('GET', `/api/admin/trainees/${personId}/programme`);
     const cur = d.draft || d.approved;
     const ov = d.overrides || {};
-    const focusSel = [0, 1, 2].map((i) => h('select', { 'aria-label': `Focus ${i + 1}` }, h('option', { value: '' }, i ? '–' : 'Automatic'), META.scenarios.map((s) => h('option', { value: s.key, selected: (ov.focus || [])[i] === s.key }, s.label))));
+    const focusSel = [0, 1, 2].map((i) => h('select', { 'aria-label': `Focus ${i + 1}` }, h('option', { value: '' }, i ? 'None' : 'Automatic'), META.scenarios.map((s) => h('option', { value: s.key, selected: (ov.focus || [])[i] === s.key }, s.label))));
     const msg = h('textarea', { rows: 2, maxlength: 1000, placeholder: 'A personal line shown at the top of their programme (optional)' }, ov.message || '');
     const skip = new Set(ov.skip || []);
     const saveOv = async () => {
@@ -87,13 +87,13 @@ export function tabProgramme(personId, reload) {
         h('div', { class: 'row' }, h('a', { class: 'btn', href: `#pview-${personId}-draft` }, 'Preview as trainee'), h('button', { class: 'btn primary', on: { click: async () => { await api('POST', `/api/admin/trainees/${personId}/programme/approve`); toast('Approved'); reload(); } } }, 'Approve'))),
         diff && !diff.first ? h('div', { class: 'diff' },
           diff.focusBefore.join() !== diff.focusAfter.join() ? h('div', null, h('b', null, 'Focus: '), `${diff.focusBefore.map(sc).join(', ') || 'none'} → ${diff.focusAfter.map(sc).join(', ') || 'none'}`) : null,
-          diff.added.length ? h('div', null, h('b', null, 'Added: '), diff.added.join(' · ')) : null, diff.removed.length ? h('div', null, h('b', null, 'Removed: '), diff.removed.join(' · ')) : null, diff.moved.length ? h('div', null, h('b', null, 'Moved: '), diff.moved.join(' · ')) : null) : null,
+          diff.added.length ? h('div', null, h('b', null, 'Added: '), diff.added.join(', ')) : null, diff.removed.length ? h('div', null, h('b', null, 'Removed: '), diff.removed.join(', ')) : null, diff.moved.length ? h('div', null, h('b', null, 'Moved: '), diff.moved.join(', ')) : null) : null,
         h('ul', { class: 'muted small', style: 'margin:10px 0 0' }, d.draft.plan.rationale.map((r) => h('li', null, r)))) : null,
       d.approved ? h('div', { class: 'grid g4' },
         h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Approved'), h('div', { class: 'value' }, `v${d.approved.version}`), h('div', { class: 'note' }, `Started ${fmtDate(d.approved.started_on)}`)),
         h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Week'), h('div', { class: 'value' }, `${d.approved.state.week}/12`), h('div', { class: 'note' }, { on: 'On pace', close: 'Slightly behind', behind: 'Behind pace' }[d.approved.state.progress.pace])),
         h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Done'), h('div', { class: 'value' }, `${d.approved.state.progress.pct}%`), h('div', { class: 'note' }, `${d.approved.state.progress.done} of ${d.approved.state.progress.total}`)),
-        h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Readiness'), h('div', { class: 'value' }, `${d.approved.state.readiness.now}%`), h('div', { class: 'note' }, `Started ${d.approved.state.readiness.start}% · target ${d.approved.state.readiness.end}%`))) : null,
+        h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Readiness'), h('div', { class: 'value' }, `${d.approved.state.readiness.now}%`), h('div', { class: 'note' }, `Started ${d.approved.state.readiness.start}%, target ${d.approved.state.readiness.end}%`))) : null,
       d.approved ? (() => { const st = d.approved.state; return h('div', { class: 'stack' },
         h('div', { class: 'card roadmap-card', style: 'margin-top:0' }, h('h2', null, '12 weeks at a glance'), h('p', { class: 'sub' }, 'One stop per week: what it covers, how much is done and the sessions with you'),
           journeyMap({ items: st.items, week: st.week, weeks: st.weeks, phases: META.phases || d.phases || [], levels: st.levels, modules: META.modules || [] })),
@@ -101,21 +101,21 @@ export function tabProgramme(personId, reload) {
       h('div', { class: 'row' }, d.approved ? h('a', { class: 'btn', href: `#pview-${personId}` }, 'View as trainee') : null),
       h('div', { class: 'card' }, h('h2', null, 'Levels now'), h('p', { class: 'sub' }, 'Estimate per scenario and what last moved it'),
         h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Scenario', 'Start', 'Now', 'Self', 'Test', 'Source'].map((x, i) => h('th', { class: i && i < 5 ? 'num' : '' }, x)))),
-          h('tbody', null, d.levels.map((l) => h('tr', null, h('td', null, h('b', null, l.short), cur?.plan.focus.includes(l.scenario) ? h('span', { class: 'chip coral', style: 'margin-left:6px' }, 'Focus') : null), h('td', { class: 'num' }, l.baseline), h('td', { class: 'num' }, h('b', null, l.est)), h('td', { class: 'num' }, l.self != null ? Math.round(l.self) : '–'), h('td', { class: 'num' }, l.live ?? '–'), h('td', { class: 'small muted' }, l.note))))))),
+          h('tbody', null, d.levels.map((l) => h('tr', null, h('td', null, h('b', null, l.short), cur?.plan.focus.includes(l.scenario) ? h('span', { class: 'chip coral', style: 'margin-left:6px' }, 'Focus') : null), h('td', { class: 'num' }, l.baseline), h('td', { class: 'num' }, h('b', null, l.est)), h('td', { class: 'num' }, l.self != null ? Math.round(l.self) : 'None'), h('td', { class: 'num' }, l.live ?? 'None'), h('td', { class: 'small muted' }, l.note))))))),
       h('div', { class: 'card' }, h('h2', null, 'Adjust the plan'), h('p', { class: 'sub' }, 'Pin the focus scenarios, skip items, add a personal message. Saving rebuilds the plan as a draft for you to approve.'),
         h('div', { class: 'grid g3' }, focusSel.map((s, i) => h('label', { class: 'f' }, h('span', { class: 'l' }, `Focus ${i + 1}`), s))),
         h('label', { class: 'f' }, h('span', { class: 'l' }, 'Message to the trainee'), msg),
         h('button', { class: 'btn primary', on: { click: saveOv } }, 'Save adjustments')),
-      cur ? h('div', { class: 'card' }, h('h2', null, `Items · ${d.draft ? 'draft' : 'approved'} version`), h('p', { class: 'sub' }, 'Untick to skip an item, then Save adjustments. Sign off focus practice once the trainee shows you.'),
+      cur ? h('div', { class: 'card' }, h('h2', null, `Items in the ${d.draft ? 'draft' : 'approved'} version`), h('p', { class: 'sub' }, 'Untick to skip an item, then Save adjustments. Sign off focus practice once the trainee shows you.'),
         h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Keep', 'Week', 'Item', 'Type', 'Status', ''].map((x) => h('th', null, x)))),
           h('tbody', null, items.map((it) => h('tr', null,
             h('td', null, h('input', { type: 'checkbox', checked: !it.skipped, 'aria-label': `Keep ${it.title}`, disabled: it.mandatory, on: { change: (e) => { if (e.target.checked) skip.delete(it.key); else skip.add(it.key); } } })),
-            h('td', null, it.week ?? '–'), h('td', null, h('b', null, it.title), it.note ? h('div', { class: 'muted small' }, `Trainee note: ${it.note}`) : null),
+            h('td', null, it.week ?? 'None'), h('td', null, h('b', null, it.title), it.note ? h('div', { class: 'muted small' }, `Trainee note: ${it.note}`) : null),
             h('td', null, it.kind ? h('span', { class: 'chip grey' }, KIND_LABEL[it.kind]) : 'Skipped'),
-            h('td', null, it.done ? h('span', { class: 'chip green' }, it.signoff ? (it.signed_off ? 'Signed off' : 'Done') : 'Done') : it.skipped ? '–' : h('span', { class: 'muted small' }, 'Open')),
+            h('td', null, it.done ? h('span', { class: 'chip green' }, it.signoff ? (it.signed_off ? 'Signed off' : 'Done') : 'Done') : it.skipped ? 'None' : h('span', { class: 'muted small' }, 'Open')),
             h('td', null, it.signoff && it.done && !it.signed_off ? h('button', { class: 'btn sm primary', on: { click: async () => { await api('POST', `/api/admin/trainees/${personId}/items/${it.key}/signoff`); toast('Signed off'); reload(); } } }, 'Sign off') : null,
               it.kind === 'milestone' && !it.done ? h('button', { class: 'btn sm', on: { click: async () => { await api('POST', `/api/admin/trainees/${personId}/items/${it.key}/done`, {}); toast('Marked done'); reload(); } } }, 'Mark done') : null))))))) : null,
-      d.attempts.length ? h('div', { class: 'card' }, h('h2', null, 'Checks taken'), d.attempts.slice(0, 20).map((a) => h('div', { class: 'row spread', style: 'padding:6px 0;border-top:1px solid var(--border-soft)' }, h('span', null, a.module_key === 'baseline' ? 'Baseline check' : d.modules.find((m) => m.key === a.module_key)?.title || a.module_key, a.item_key?.startsWith('review') ? ' (review)' : '', a.kind === 'scenario' ? ' (walkthrough)' : '', a.counts === false ? h('span', { class: 'chip grey', style: 'margin-left:6px' }, 'Practice') : h('span', { class: 'chip blue', style: 'margin-left:6px' }, 'Recorded')), h('span', null, h('b', null, `${a.correct}/${a.total}`), h('span', { class: 'muted small' }, ` · ${fmtDate(a.created_at)}`))))) : null,
+      d.attempts.length ? h('div', { class: 'card' }, h('h2', null, 'Checks taken'), d.attempts.slice(0, 20).map((a) => h('div', { class: 'row spread', style: 'padding:6px 0;border-top:1px solid var(--border-soft)' }, h('span', null, a.module_key === 'baseline' ? 'Baseline check' : d.modules.find((m) => m.key === a.module_key)?.title || a.module_key, a.item_key?.startsWith('review') ? ' (review)' : '', a.kind === 'scenario' ? ' (walkthrough)' : '', a.counts === false ? h('span', { class: 'chip grey', style: 'margin-left:6px' }, 'Practice') : h('span', { class: 'chip blue', style: 'margin-left:6px' }, 'Recorded')), h('span', null, h('b', null, `${a.correct}/${a.total}`), h('span', { class: 'muted small sep-l' }, `${fmtDate(a.created_at)}`))))) : null,
     ].filter(Boolean));
   })().catch((e) => box.replaceChildren(h('div', { class: 'card empty' }, h('b', null, 'Could not load the programme'), e.message)));
   return box;
@@ -143,7 +143,7 @@ export function tabInputs(personId, reload) {
       const r = await api('POST', '/api/admin/inputs/suggest', { text: body.value });
       if (!r.signals.length) { hints.replaceChildren('No scenario was mentioned often enough to suggest a rating. Set them yourself.'); return; }
       for (const s of r.signals) sel[s.scenario].value = s.rating;
-      hints.replaceChildren(h('b', null, 'Suggested from the text. Check each one before saving: '), ...r.signals.map((s) => h('div', null, `${sc(s.scenario)}: ${s.rating} (${s.mentions} mentions) — “${s.example}”`)));
+      hints.replaceChildren(h('b', null, 'Suggested from the text. Check each one before saving: '), ...r.signals.map((s) => h('div', null, `${sc(s.scenario)}: ${s.rating} (${s.mentions} mentions): “${s.example}”`)));
     };
     const shared = h('textarea', { rows: 3, maxlength: 2000, placeholder: 'What the trainee sees on their Home page (optional). Keep the transcript private.' });
     const save = async () => {
@@ -163,7 +163,7 @@ export function tabInputs(personId, reload) {
         h('label', { class: 'f' }, h('span', { class: 'l' }, 'Summary for the trainee'), shared), h('button', { class: 'btn primary', on: { click: save } }, 'Save input')),
       h('div', { class: 'card' }, h('h2', null, 'Inputs so far'), d.inputs.length ? d.inputs.map((i) => h('div', { class: 'note-box' },
         h('div', { class: 'row spread' }, h('b', null, `${i.title}`), h('span', { class: 'row' }, h('span', { class: 'chip grey' }, INPUT_KIND[i.kind]), h('button', { class: 'btn sm danger', on: { click: async () => { if (!confirmBox('Delete this input? Levels and the plan are recalculated.')) return; await api('DELETE', `/api/admin/inputs/${i.id}`); toast('Deleted'); reload(); } } }, 'Delete'))),
-        h('div', { class: 'muted small' }, [fmtDate(i.happened_on), i.author, i.item_key ? `ticks off ${i.item_key}` : null].filter(Boolean).join(' · ')),
+        h('div', { class: 'muted small' }, metaRow([fmtDate(i.happened_on), i.author, i.item_key ? `ticks off ${i.item_key}` : null])),
         i.signals.length ? h('div', { class: 'row', style: 'margin-top:6px;flex-wrap:wrap' }, i.signals.map((s) => h('span', { class: `chip ${{ gap: 'coral', developing: 'amber', solid: 'green' }[s.rating]}` }, `${sc(s.scenario)}: ${s.rating}`))) : null,
         i.shared_summary ? h('div', { style: 'margin-top:6px' }, h('b', null, 'Shared: '), i.shared_summary) : null,
         i.link ? h('div', null, h('a', { href: i.link, target: '_blank', rel: 'noopener noreferrer' }, 'Recording')) : null,
@@ -203,16 +203,16 @@ export async function reviewsView() {
   const d = await api('GET', '/api/admin/reviews');
   const pending = d.items.filter((x) => x.status !== 'reviewed' && x.needs_human), done = d.items.filter((x) => !(x.status !== 'reviewed' && x.needs_human));
   const card = (x) => {
-    const sel = Object.fromEntries(d.rubric.map((c) => [c.key, h('select', { 'aria-label': c.label }, h('option', { value: '' }, '–'), [1, 2, 3].map((n) => h('option', { value: n, selected: (x.rubric || x.auto?.rubric)?.[c.key] === n }, `${n} · ${['Not yet', 'Partly', 'Fully'][n - 1]}`)))]));
+    const sel = Object.fromEntries(d.rubric.map((c) => [c.key, h('select', { 'aria-label': c.label }, h('option', { value: '' }, 'Not set'), [1, 2, 3].map((n) => h('option', { value: n, selected: (x.rubric || x.auto?.rubric)?.[c.key] === n }, `${n}, ${['Not yet', 'Partly', 'Fully'][n - 1]}`)))]));
     const comment = h('textarea', { rows: 2, placeholder: 'Feedback the trainee will see' }, x.review_comment || '');
     return h('div', { class: 'card', style: 'margin-bottom:14px' },
-      h('div', { class: 'row spread' }, h('div', null, h('h2', null, x.name), h('div', { class: 'muted small' }, `${x.kind === 'practice' ? 'Practice' : 'Explain it'}${x.counts === false ? ' (practice retry, does not count)' : ' (recorded result)'} · ${x.module} · sent ${fmtDate(x.created_at)}`)), h('span', { class: `chip ${x.status === 'reviewed' ? 'green' : x.needs_human ? 'amber' : 'blue'}` }, x.status === 'reviewed' ? 'Reviewed by you' : x.status === 'auto' ? (x.needs_human ? 'Spot-check' : 'Auto-reviewed') : 'To review')),
+      h('div', { class: 'row spread' }, h('div', null, h('h2', null, x.name), h('div', { class: 'muted small' }, `${x.kind === 'practice' ? 'Practice' : 'Explain it'}${x.counts === false ? ' (practice retry, does not count)' : ' (recorded result)'}, ${x.module}, sent ${fmtDate(x.created_at)}`)), h('span', { class: `chip ${x.status === 'reviewed' ? 'green' : x.needs_human ? 'amber' : 'blue'}` }, x.status === 'reviewed' ? 'Reviewed by you' : x.status === 'auto' ? (x.needs_human ? 'Spot-check' : 'Auto-reviewed') : 'To review')),
       h('div', { class: 'explain-prompt' }, x.prompt),
       x.has_audio ? h('audio', { controls: true, preload: 'none', src: `/api/admin/submissions/${x.id}/audio`, style: 'width:100%;margin:8px 0' }) : null,
       x.transcript ? h('details', { open: true }, h('summary', null, 'Transcript'), h('div', { class: 'pre' }, x.transcript)) : x.text_answer ? h('div', { class: 'pre' }, x.text_answer) : null,
-      x.auto?.rubric ? h('div', { class: 'auto-box' }, h('b', null, `Automatic review: ${x.auto.rating} (${x.auto.avg}/3)`), h('div', { class: 'small' }, x.auto.note), x.auto.flags?.length ? h('div', { class: 'small', style: 'color:var(--danger)' }, `Flags: ${x.auto.flags.join('; ')}`) : null, h('div', { class: 'muted small' }, `Pace ${x.auto.metrics?.wpm ?? '–'} words/min · ${x.auto.metrics?.fillers ?? 0} filler words`)) : null,
+      x.auto?.rubric ? h('div', { class: 'auto-box' }, h('b', null, `Automatic review: ${x.auto.rating} (${x.auto.avg}/3)`), h('div', { class: 'small' }, x.auto.note), x.auto.flags?.length ? h('div', { class: 'small', style: 'color:var(--danger)' }, `Flags: ${x.auto.flags.join('; ')}`) : null, h('div', { class: 'muted small' }, `Pace ${x.auto.metrics?.wpm ?? 'unknown'} words/min, ${x.auto.metrics?.fillers ?? 0} filler words`)) : null,
       x.human_requested ? h('div', { class: 'chip coral' }, 'The trainee asked for your view') : null,
-      h('div', { class: 'small', style: 'margin-top:8px' }, h('b', null, x.auto?.points ? 'Key points (automatic check: ✓ covered, ? unsure, ○ not heard): ' : 'Key points: '), h('ul', { style: 'list-style:none;padding-left:4px;margin:4px 0' }, x.points.map((p, i) => { const a = x.auto?.points?.[i]; return h('li', null, a ? (a.covered ? '✓ ' : a.unsure ? '? ' : '○ ') : '• ', p); }))),
+      h('div', { class: 'small', style: 'margin-top:8px' }, h('b', null, x.auto?.points ? ['Key points (automatic check: ', mark(true), ' covered, ? unsure, ○ not heard): '] : 'Key points: '), h('ul', { style: 'list-style:none;padding-left:4px;margin:4px 0' }, x.points.map((p, i) => { const a = x.auto?.points?.[i]; return h('li', null, a ? (a.covered ? mark(true) : a.unsure ? '? ' : '○ ') : '• ', p); }))),
       h('div', { class: 'grid g4' }, d.rubric.map((c) => h('label', { class: 'f' }, h('span', { class: 'l' }, c.label), sel[c.key], h('div', { class: 'hint' }, c.hint)))),
       comment,
       h('button', { class: 'btn primary', style: 'margin-top:8px', on: { click: async () => {
@@ -229,12 +229,12 @@ export async function reviewsView() {
 // ------------------------------------------------------------------ feedback and item analysis
 export async function feedbackView() {
   const d = await api('GET', '/api/admin/feedback');
-  const f1 = (v) => (v == null ? '–' : v.toFixed(1));
+  const f1 = (v) => (v == null ? 'None' : v.toFixed(1));
   const low = (v) => v != null && v < 3.5;
   return h('div', { class: 'page' },
     h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Feedback'), h('p', null, 'What trainees say about each module, what they answer at the end, and which questions they miss most. Comments are shown without names.'))),
     h('div', { class: 'grid g3' },
-      h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Recommendation score (NPS)'), h('div', { class: 'value' }, d.survey.nps ?? '–'), h('div', { class: 'note' }, `${d.survey.n} end-of-programme answers`)),
+      h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Recommendation score (NPS)'), h('div', { class: 'value' }, d.survey.nps ?? 'None'), h('div', { class: 'note' }, `${d.survey.n} end-of-programme answers`)),
       h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Module ratings'), h('div', { class: 'value' }, d.modules.reduce((a, m) => a + m.n, 0)), h('div', { class: 'note' }, 'After each module')),
       h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Questions analysed'), h('div', { class: 'value' }, d.hardest.length), h('div', { class: 'note' }, 'Answered at least twice'))),
     h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'By module'), h('p', { class: 'sub' }, 'Average from 1 to 5. Below 3.5 is highlighted.'),
@@ -256,8 +256,8 @@ const VERDICT_CHIP = { keep: 'green', 'too few answers yet': 'grey' };
 function qualityCard(stats) {
   const flagged = stats.filter((x) => !['keep', 'too few answers yet'].includes(x.verdict));
   const row = (x) => h('tr', null,
-    h('td', null, x.q, x.options ? h('details', null, h('summary', { class: 'small' }, 'Options picked'), h('ul', { class: 'ans-list' }, x.options.map((o) => h('li', null, o.key ? h('b', null, o.o) : o.o, ` · ${o.n}${!o.key && o.n === 0 && x.n >= 20 ? ' · never picked' : ''}`)))) : null),
-    h('td', null, x.module), h('td', { class: 'num' }, x.n), h('td', { class: 'num' }, `${x.p}%`), h('td', { class: 'num' }, x.d == null ? '–' : x.d.toFixed(2)),
+    h('td', null, x.q, x.options ? h('details', null, h('summary', { class: 'small' }, 'Options picked'), h('ul', { class: 'ans-list' }, x.options.map((o) => h('li', null, o.key ? h('b', null, o.o) : o.o, `, ${o.n}${!o.key && o.n === 0 && x.n >= 20 ? ', never picked' : ''}`)))) : null),
+    h('td', null, x.module), h('td', { class: 'num' }, x.n), h('td', { class: 'num' }, `${x.p}%`), h('td', { class: 'num' }, x.d == null ? 'None' : x.d.toFixed(2)),
     h('td', null, h('span', { class: `chip ${VERDICT_CHIP[x.verdict] || 'coral'}` }, x.verdict)));
   return h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Question quality'),
     h('p', { class: 'sub' }, 'From first attempts only. Success is the share answered right. Separation is how much better strong trainees do on this question than weak ones (0.2 or more is good; below 0 means the key may be wrong). The numbers mean little under 20 answers.'),
@@ -271,8 +271,8 @@ function agreementCard(a) {
   return h('div', { class: 'card', style: 'margin-top:16px' }, h('h2', null, 'Automatic review compared with the KUDO Trainer'),
     h('p', { class: 'sub' }, `Every recording or practice that the KUDO Trainer also reviewed (${a.n} so far). ${a.enough ? 'Enough to judge: tune the automatic review where agreement is low.' : 'About 30 are needed before tuning anything.'} Clarity is a tip only and does not count towards levels until it agrees well.`),
     a.n ? h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Rubric line', 'Compared', 'Same score', 'Within 1 point'].map((x, i) => h('th', { class: i ? 'num' : '' }, x)))),
-      h('tbody', null, a.lines.map((l) => h('tr', null, h('td', null, l.label), h('td', { class: 'num' }, l.n), h('td', { class: 'num' }, l.exactPct == null ? '–' : `${l.exactPct}%`), h('td', { class: 'num' }, l.within1Pct == null ? '–' : `${l.within1Pct}%`))),
-        h('tr', null, h('td', null, h('b', null, 'Overall rating (Gap / Developing / Solid)')), h('td', { class: 'num' }, a.rating.n), h('td', { class: 'num' }, a.rating.samePct == null ? '–' : `${a.rating.samePct}%`), h('td', null, ''))))) : h('div', { class: 'muted' }, 'Appears once the KUDO Trainer has spot-checked a submission.'));
+      h('tbody', null, a.lines.map((l) => h('tr', null, h('td', null, l.label), h('td', { class: 'num' }, l.n), h('td', { class: 'num' }, l.exactPct == null ? 'None' : `${l.exactPct}%`), h('td', { class: 'num' }, l.within1Pct == null ? 'None' : `${l.within1Pct}%`))),
+        h('tr', null, h('td', null, h('b', null, 'Overall rating (Gap / Developing / Solid)')), h('td', { class: 'num' }, a.rating.n), h('td', { class: 'num' }, a.rating.samePct == null ? 'None' : `${a.rating.samePct}%`), h('td', null, ''))))) : h('div', { class: 'muted' }, 'Appears once the KUDO Trainer has spot-checked a submission.'));
 }
 
 // ------------------------------------------------------------------ test trainees (Users & access)
@@ -285,7 +285,7 @@ export function testTraineesCard() {
       h('h2', null, 'Test trainees'), h('p', { class: 'sub' }, 'Fictional trainees for trying the trainee side: same plan, lessons, checks and recordings as a real person, but never counted in team results, priorities, feedback or the board\'s schedule. One per tester, because the first sign-in changes the password. Sign in with the generic password.'),
       list.length ? h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Test trainee', 'Sign-in email', 'Status', ''].map((x) => h('th', null, x)))),
         h('tbody', null, list.map((u) => h('tr', null, h('td', null, h('b', null, u.name)), h('td', null, h('code', { class: 'k' }, u.email)),
-          h('td', null, u.must_change_password ? h('span', { class: 'chip grey' }, 'Not used yet') : h('span', { class: 'chip green' }, `In use${u.last_login_at ? ` · ${fmtDate(u.last_login_at)}` : ''}`)),
+          h('td', null, u.must_change_password ? h('span', { class: 'chip grey' }, 'Not used yet') : h('span', { class: 'chip green' }, `In use${u.last_login_at ? `, ${fmtDate(u.last_login_at)}` : ''}`)),
           h('td', null, h('div', { class: 'row' }, h('button', { class: 'btn sm primary', on: { click: () => actAs(u.id) } }, 'Take the courses'), h('a', { class: 'btn sm', href: `#person-${u.id}` }, 'Admin view'), h('button', { class: 'btn sm', on: { click: async () => {
             if (!confirmBox(`Reset ${u.name}? Its progress, recordings and password go back to the start.`)) return;
             try { await api('POST', `/api/admin/demo/${u.id}/reset`); toast('Reset. Sign in again with the generic password.'); draw(); } catch (e) { toast(e.message, true); }

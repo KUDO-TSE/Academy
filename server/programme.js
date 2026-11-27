@@ -329,7 +329,7 @@ meProgramme.get('/plan/options', async (req, res, next) => {
     if (plan.focusPinned || plan.focus.length < 3) return res.json({ canChoose: false, reason: plan.focusPinned ? 'Your KUDO Trainer chose your focus areas with you.' : null });
     const levels = computeLevels(u, ctx, { forPlanning: true });
     const pri = personalPriority(u, levels, ctx).filter((p) => p.gapPts >= 5 && !plan.focus.slice(0, 2).includes(p.scenario));
-    const options = pri.slice(0, 3).map((p) => ({ scenario: p.scenario, label: SCENARIOS.find((x) => x.key === p.scenario)?.label || p.scenario, gap: Math.round(p.gapPts), current: p.scenario === plan.focus[2] }));
+    const options = pri.slice(0, 3).map((p) => ({ scenario: p.scenario, label: SCENARIOS.find((x) => x.key === p.scenario)?.label || p.scenario, short: SCENARIOS.find((x) => x.key === p.scenario)?.short, gap: Math.round(p.gapPts), current: p.scenario === plan.focus[2] }));
     res.json({ canChoose: options.length > 1, pending, keep: plan.focus.slice(0, 2), options });
   } catch (e) { next(e); }
 });

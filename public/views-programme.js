@@ -1,4 +1,4 @@
-import { h, api, toast, fmtDate, svg, tipI } from './ui.js';
+import { h, api, toast, fmtDate, svg, tipI, metaRow, mark } from './ui.js';
 import { trajectoryChart } from './charts.js';
 import { journeyMap } from './journey.js';
 import { SCENARIOS as SANDBOXES } from './sandbox.js';
@@ -82,7 +82,7 @@ function warmUp() {
     });
     const check = h('button', { class: 'btn', type: 'button', on: { click: () => {
       const ok = items.map((x, i) => x.t === 'mcq' ? state[i].v === x.a : x.t === 'multi' ? state[i].v.length === x.a.length && x.a.every((k) => state[i].v.includes(k)) : state[i].v.join('|') === x.steps.join('|'));
-      box.replaceChildren(h('div', { class: 'note-box' }, h('b', null, `Warm-up: ${ok.filter(Boolean).length} of ${items.length}. Not stored.`), items.map((x, i) => h('div', { class: 'small' }, `${ok[i] ? '✓' : '✗'} ${x.q} ${x.why}`)), h('button', { class: 'btn sm', style: 'margin-top:6px', on: { click: draw } }, 'Again')));
+      box.replaceChildren(h('div', { class: 'note-box' }, h('b', null, `Warm-up: ${ok.filter(Boolean).length} of ${items.length}. Not stored.`), items.map((x, i) => h('div', { class: 'small' }, mark(ok[i]), ` ${x.q} ${x.why}`)), h('button', { class: 'btn sm', style: 'margin-top:6px', on: { click: draw } }, 'Again')));
     } } }, 'Check the warm-up');
     box.replaceChildren(h('div', { class: 'stack' }, ...list, check));
   };
@@ -102,7 +102,7 @@ function focusChoice() {
       h('p', { class: 'muted small' }, 'The first two come from your results and stay. For the third, pick what matters most for your clients. Your KUDO Trainer approves the change, then your plan updates.'),
       h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap' }, o.options.map((x) => h('button', { class: `btn sm ${x.current ? 'primary' : ''}`, disabled: x.current, on: { click: async () => {
         try { await api('POST', '/api/me/plan/focus', { third: x.scenario }); toast('Sent to your KUDO Trainer for approval'); box.replaceChildren(h('div', { class: 'muted small', style: 'margin-top:10px' }, 'Your change is waiting for your KUDO Trainer\'s approval.')); } catch (e) { toast(e.message, true); }
-      } } }, `${x.label} · ${x.gap} points to go${x.current ? ' (current)' : ''}`)))));
+      } }, title: x.label }, `${x.short || x.label}: ${x.gap} points to go${x.current ? ' (current)' : ''}`)))));
   })().catch(() => {});
   return box;
 }
@@ -136,14 +136,14 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
         settings.goal ? h('p', { class: 'hero-goal' }, settings.goal) : null,
         h('div', { class: 'hero-meta' }, h('span', null, `Week ${st.week} of ${st.weeks} `, tipI('Self-paced: work through each week any time in the week.')), st.started_on ? h('span', null, `Started ${fmtDate(st.started_on)}`) : null),
         data.message ? h('div', { class: 'hero-msg' }, h('b', null, 'From your KUDO Trainer: '), data.message) : null,
-        readOnly ? null : h('div', { class: 'hero-cta' }, h('a', { class: 'btn primary lg', href: '#training' }, nextUp ? 'Continue my training' : 'Open my training', ' →'),
+        readOnly ? null : h('div', { class: 'hero-cta' }, h('a', { class: 'btn primary lg', href: '#training' }, nextUp ? 'Continue my training' : 'Open my training'),
           nextUp ? h('span', { class: 'hero-next' }, h('span', { class: 'muted' }, 'Next: '), nextUp.title) : null)),
       h('div', { class: 'hero-ring' }, h('div', { class: 'ring big', style: `--p:${myPct}`, role: 'img', 'aria-label': `${myPct}% of your steps done` }, h('b', null, `${myPct}%`)),
         h('div', null, `${myDone} of ${mySteps.length} steps`), h('span', { class: `chip ${paceChip[0]}` }, paceChip[1]))),
     h('div', { class: 'grid g3 home-stats' },
-      stat('Readiness', `${st.readiness.now}%`, st.readiness.now !== st.readiness.start ? `${st.readiness.now - st.readiness.start >= 0 ? '+' : ''}${st.readiness.now - st.readiness.start} pts since you started at ${st.readiness.start}%` : `Started at ${st.readiness.start}% · ${st.readiness.end}% by week ${st.weeks}`),
+      stat('Readiness', `${st.readiness.now}%`, st.readiness.now !== st.readiness.start ? `${st.readiness.now - st.readiness.start >= 0 ? '+' : ''}${st.readiness.now - st.readiness.start} pts since you started at ${st.readiness.start}%` : `Started at ${st.readiness.start}%, ${st.readiness.end}% by week ${st.weeks}`),
       stat('Scenarios at target', `${st.readiness.ready} of ${st.readiness.of}`, reached.length ? `Reached in the Academy: ${reached.map((l) => l.short).join(', ')}` : `Target per scenario: Set up 80%, Hand over 70%`),
-      stat('Focus areas', `${plan.focus.length}`, focusRows.map((l) => `${l.short} ${l.now}%`).join(' · ') || 'At target everywhere', true)),
+      stat('Focus areas', `${plan.focus.length}`, focusRows.map((l) => `${l.short} ${l.now}%`).join(', ') || 'At target everywhere', true)),
     h('section', { class: 'card roadmap-card' },
       h('div', null, h('h2', null, 'Your 12 weeks at a glance'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, 'Four phases, one stop per week. Each stop shows what the week covers, how much of it is done and when you meet your KUDO Trainer')),
       journeyMap({ items: st.items, week: st.week, weeks: st.weeks, phases: data.phases, levels: st.levels, modules: data.modules, hrefFor: readOnly ? () => null : itemHref })),
@@ -163,9 +163,9 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
   const training = [
     h('div', { class: 'grid g-8-4', style: 'margin-bottom:16px' },
       h('div', { class: 'card this-week' }, h('div', { class: 'row spread' }, h('h2', null, thisWeek.length ? 'This week' : 'Up next'),
-          h('span', { class: 'muted small' }, thisWeek.length ? `${thisWeek.length} step${thisWeek.length > 1 ? 's' : ''} · about ${fmtMin(minWeek)}` : 'You are ahead of your plan')),
+          h('span', { class: 'muted small' }, thisWeek.length ? `${thisWeek.length} step${thisWeek.length > 1 ? 's' : ''}, about ${fmtMin(minWeek)}` : 'You are ahead of your plan')),
         thisWeek.length ? thisWeek.map((it) => itemRow(it, { readOnly })) : st.next.length ? st.next.map((it) => itemRow(it, { readOnly })) : h('div', { class: 'ok', style: 'margin-top:10px' }, 'Everything on your side is done. Well done.'),
-        st.jackNext.length ? h('div', { class: 'jack-next' }, h('b', null, 'Coming up with your KUDO Trainer: '), st.jackNext.map((i) => i.title.replace(/\s*with your KUDO Trainer:?\s*/i, ': ').replace(/^: /, '').replace(/:\s*$/, '')).join(' · ')) : null,
+        st.jackNext.length ? h('div', { class: 'jack-next' }, h('b', null, 'Coming up with your KUDO Trainer: '), st.jackNext.map((i) => i.title.replace(/\s*with your KUDO Trainer:?\s*/i, ': ').replace(/^: /, '').replace(/:\s*$/, '')).join(', ')) : null,
         readOnly ? null : groupNext(),
         readOnly ? null : challengeCard()),
       h('div', { class: 'card focus-card' }, h('h2', null, 'Why these three focus areas'), h('p', { class: 'sub' }, plan.focusPinned ? 'Chosen with your KUDO Trainer' : 'Picked from your results, your clients and the team priorities'),
@@ -179,11 +179,11 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
       const weeks = [...new Set(p.items.map((i) => i.week))].sort((a, b) => a - b);
       const isNow = st.week >= p.weeks[0] && st.week <= p.weeks[1];
       return h('details', { class: `card phase ${isNow ? 'now' : ''}`, open: isNow },
-        h('summary', { class: 'row spread' }, h('div', null, h('h2', null, p.name), h('p', { class: 'sub', style: 'margin:2px 0 0' }, p.aim), h('div', { class: 'phase-meta' }, `Phase ${p.n} · weeks ${p.weeks[0]}–${p.weeks[1]}${isNow ? ' · you are here' : ''}`)), h('span', { class: 'chip grey' }, `${done}/${p.items.length}`)),
-        weeks.map((w) => h('div', { class: 'wk' }, h('div', { class: `wk-h ${w === st.week ? 'now' : ''}` }, `Week ${w}${w === st.week ? ' · this week' : ''}`), p.items.filter((i) => i.week === w).map((it) => itemRow(it, { readOnly, compact: false })))));
+        h('summary', { class: 'row spread' }, h('div', null, h('h2', null, p.name), h('p', { class: 'sub', style: 'margin:2px 0 0' }, p.aim), h('div', { class: 'phase-meta' }, metaRow([`Phase ${p.n}`, `weeks ${p.weeks[0]} to ${p.weeks[1]}`, isNow ? 'you are here' : null]))), h('span', { class: 'chip grey' }, `${done}/${p.items.length}`)),
+        weeks.map((w) => h('div', { class: 'wk' }, h('div', { class: `wk-h ${w === st.week ? 'now' : ''}` }, `Week ${w}${w === st.week ? ' (this week)' : ''}`), p.items.filter((i) => i.week === w).map((it) => itemRow(it, { readOnly, compact: false })))));
     })),
   ];
-  const trainingHead = h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My training'), h('p', null, `Week ${st.week} of ${st.weeks} · ${myDone} of ${mySteps.length} steps done`)));
+  const trainingHead = h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My training'), h('p', null, `Week ${st.week} of ${st.weeks}, ${myDone} of ${mySteps.length} steps done`)));
 
   if (part === 'training') return h('div', { class: 'page prog training' }, banner, trainingHead, ...training);
   if (part === 'all') return h('div', { class: 'page prog' }, banner, ...home, h('h2', { class: 'sec-h' }, 'Training'), ...training);
@@ -194,7 +194,7 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
 function groupNext() {
   const box = h('div');
   api('GET', '/api/me/group-sessions').then(({ sessions }) => { const g = sessions[0]; if (!g) return;
-    box.replaceChildren(h('div', { class: 'jack-next group' }, h('b', null, 'Group session: '), `${new Date(g.starts_at).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · ${g.title}${g.topic ? ` · ${g.topic}` : ''} `, g.link ? h('a', { href: g.link, target: '_blank', rel: 'noopener' }, 'Join link') : null)); }).catch(() => {});
+    box.replaceChildren(h('div', { class: 'jack-next group' }, h('b', null, 'Group session: '), `${new Date(g.starts_at).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}, ${g.title}${g.topic ? `, ${g.topic}` : ''} `, g.link ? h('a', { href: g.link, target: '_blank', rel: 'noopener' }, 'Join link') : null)); }).catch(() => {});
   return box;
 }
 
@@ -249,9 +249,9 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
     const tagged = m.pool.filter((x) => x.obj != null);
     const cover = (m.objectives || []).map((o, oi) => ({ o, n: tagged.filter((x) => x.obj === oi).length }));
     quizBox.append(h('p', { class: 'muted small' }, `Pool of ${m.pool.length} items (${m.pool.filter((x) => x.reserve).length} kept back for the next cycle); each attempt draws ${Math.min(6, m.pool.filter((x) => !x.reserve).length)}, with at least one of each format.`),
-      tagged.length ? h('div', { class: 'note-box' }, h('b', null, 'Objective coverage (tagged questions)'), h('ul', { class: 'ans-list' }, cover.map((c, ci) => h('li', null, `O${ci + 1} · ${c.o} `, h('span', { class: `chip ${c.n ? 'green' : 'coral'}` }, c.n ? `${c.n}` : 'no question'))))) : null,
+      tagged.length ? h('div', { class: 'note-box' }, h('b', null, 'Objective coverage (tagged questions)'), h('ul', { class: 'ans-list' }, cover.map((c, ci) => h('li', null, `O${ci + 1}: ${c.o} `, h('span', { class: `chip ${c.n ? 'green' : 'coral'}` }, c.n ? `${c.n}` : 'no question'))))) : null,
       ...m.pool.map((x, i) => h('div', { class: 'qq' }, h('b', null, `${i + 1}. ${x.q}`), h('span', { class: 'chip grey', style: 'margin-left:6px' }, { mcq: 'Single answer + certainty', multi: 'Pick all that fit', match: 'Match', order: 'Order' }[x.t]),
-        x.obj != null ? h('span', { class: 'chip grey', style: 'margin-left:4px' }, `O${x.obj + 1} · ${LVL[x.lvl] || ''}`) : null,
+        x.obj != null ? h('span', { class: 'chip grey', style: 'margin-left:4px' }, `O${x.obj + 1}, ${LVL[x.lvl] || ''}`) : null,
         x.reserve ? h('span', { class: 'chip amber', style: 'margin-left:4px' }, 'Next cycle') : null,
         x.field ? h('span', { class: 'chip blue', style: 'margin-left:4px' }, 'From a session') : null,
         x.obj != null ? h('span', { class: 'chip coral', style: 'margin-left:4px', title: 'Drafted from the lesson content; your KUDO Trainer checks before the January cycle.' }, 'New: to check') : null,
@@ -271,15 +271,15 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
   const rec = (m.attempts || []).filter((a) => a.counts !== false && !(a.item_key || '').startsWith('review.')).slice(-1)[0];
   const last = rec;
   return h('div', { class: 'page lesson' },
-    h('a', { href: admin ? '#curriculum' : '#training', class: 'muted back-link' }, admin ? '← Curriculum' : '← My training'),
+    h('a', { href: admin ? '#curriculum' : '#training', class: 'muted back-link' }, admin ? 'Back to Curriculum' : 'Back to My training'),
     h('div', { class: 'page-head', style: 'margin-top:8px' }, h('div', null,
       h('h1', null, m.title), h('p', null, m.summary),
-      h('div', { class: 'lesson-meta' }, [m.depth ? `${DEPTH_LABEL[m.depth]} depth` : null, m.minutes ? `about ${m.minutes} min` : null, m.delivery && m.delivery !== 'both' ? (m.delivery === 'ai' ? 'AI Translation' : 'Human Interpretation') : null].filter(Boolean).join(' · '),
+      h('div', { class: 'lesson-meta' }, metaRow([m.depth ? `${DEPTH_LABEL[m.depth]} depth` : null, m.minutes ? `about ${m.minutes} min` : null, m.delivery && m.delivery !== 'both' ? (m.delivery === 'ai' ? 'AI Translation' : 'Human Interpretation') : null]),
         m.depth ? h('span', null, ' ', tipI('Depth is how far your role takes this scenario: Set up (you do it yourself), Hand over (you prepare it and pass it on), Know (you can explain it).')) : null),
       why || reviewKey ? h('p', { class: 'why-line' }, h('b', null, reviewKey ? 'Spaced review: ' : 'Why it is in your plan: '), reviewKey ? 'retrieve it from memory first, then check. A pass here completes the review.' : why) : null)),
     m.key === 'baseline' ? null : h('div', { class: 'grid g-8-4' },
       h('div', { class: 'stack' },
-        h('div', { class: 'card lesson-card' }, h('h2', null, 'Step 1 · Learn'),
+        h('div', { class: 'card lesson-card' }, h('h2', null, 'Step 1: Learn'),
           videoBlock(m, admin),
           updatesBlock(m.updates, Object.keys(m.updatedLines || {}).length),
           lessonBody(m, () => [
@@ -289,7 +289,7 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
           m.caseStudy?.mistakes?.length ? h('div', { class: 'mistakes' }, h('h3', null, 'Common mistakes'), h('ul', null, m.caseStudy.mistakes.map((x) => h('li', null, x)))) : null
           ]),
           lessonItem ? markBtn(lessonItem, 'I have worked through the lesson') : null),
-        (m.practiceTask || m.practiceFull) ? h('div', { class: 'card practice-card' }, h('h2', null, 'Step 2 · Practise'),
+        (m.practiceTask || m.practiceFull) ? h('div', { class: 'card practice-card' }, h('h2', null, 'Step 2: Practise'),
           practiceItem?.done ? h('div', { class: 'ok', style: 'margin-bottom:8px' }, practiceItem.signed_off ? 'Practice passed and signed off' : 'Practice done') : !practiceItem && !admin ? h('p', { class: 'muted small' }, 'Optional for you: not in your plan') : null,
           admin ? h('div', null, h('div', { class: 'explain-prompt' }, m.practiceFull.prompt), h('div', { class: 'muted small' }, `Format: ${{ write: 'written', speak: 'spoken', steps: 'step-by-step account' }[m.practiceFull.type]}. Reviewed automatically.`), h('b', null, 'Key points'), h('ul', null, m.practiceFull.points.map((p) => h('li', null, p))))
             : SANDBOX_FOR[m.key] && !sbxReplaces(m.key) ? h('div', null, sandboxBlock(m.key), h('h3', { class: 'sbx-then' }, 'Then the written task'), explainCard(m.key, m.practiceTask, m.practiceSubmissions || [], m.rubric || [], { onDone, kind: 'practice', type: m.practiceTask.type }))
@@ -299,9 +299,9 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
       h('div', { class: 'stack' },
         h('div', { class: 'card' }, h('h2', null, 'By the end you can'), h('ol', { class: 'obj' }, m.objectives.map((o) => h('li', null, o)))),
         h('div', { class: 'card' }, h('h2', null, 'Go deeper'), h('p', { class: 'sub' }, 'Videos, the CM Onboarding Guide and the Help Center'),
-          m.learn.map((r) => h('a', { class: 'res', href: r.url, target: '_blank', rel: 'noopener noreferrer' }, h('span', { class: `chip ${r.type === 'video' ? 'coral' : r.type === 'guide' ? 'amber' : 'blue'}` }, { video: 'Video', guide: 'Guide', article: 'Help Center' }[r.type]), h('span', null, r.title, r.note ? h('span', { class: 'muted small' }, ` · ${r.note}`) : null)))),
+          m.learn.map((r) => h('a', { class: 'res', href: r.url, target: '_blank', rel: 'noopener noreferrer' }, h('span', { class: `chip ${r.type === 'video' ? 'coral' : r.type === 'guide' ? 'amber' : 'blue'}` }, { video: 'Video', guide: 'Guide', article: 'Help Center' }[r.type]), h('span', null, r.title, r.note ? h('span', { class: 'muted small' }, `, ${r.note}`) : null)))),
         h('div', { class: 'card' }, h('h2', null, 'When to hand over'), h('ul', { class: 'esc' }, m.escalate.map((e) => h('li', null, e)))))),
-    h('div', { class: 'card check-card', style: 'margin-top:16px' }, h('div', { class: 'row spread' }, h('h2', null, m.key === 'baseline' ? 'Baseline: one question per scenario' : 'Step 3 · Prove it'), last ? h('span', { class: 'chip blue' }, `Recorded score ${Math.round((last.correct / last.total) * 100)}% · ${fmtDate(last.created_at)}`) : null),
+    h('div', { class: 'card check-card', style: 'margin-top:16px' }, h('div', { class: 'row spread' }, h('h2', null, m.key === 'baseline' ? 'Baseline: one question per scenario' : 'Step 3: Prove it'), last ? h('span', { class: 'chip blue' }, `Recorded score ${Math.round((last.correct / last.total) * 100)}%, ${fmtDate(last.created_at)}`) : null),
       h('p', { class: 'sub' }, m.key === 'baseline' ? 'No pass mark: answer honestly, it aims your plan at the right gaps.' : last ? 'Your recorded score is from your first attempt. Retakes are for practice: a new mix of questions each time, and they do not change your score.' : `Your first attempt is the score we keep, so take your time (aim for ${Math.round((m.pass || 0.8) * 100)}%). After that, retake it as often as you like to practise.`), !last && !admin ? warmUp() : null, quizBox),
     walkCard, explainBox, fbBox,
   );
@@ -317,9 +317,9 @@ export async function moduleRoute(key, { planItems = [], rerender }) {
 export async function missedView({ readOnly = false, rerender, planItems = [] }) {
   const list = await api('GET', '/api/me/missed');
   const it = planItems.find((i) => i.key === 'missed');
-  return h('div', { class: 'page lesson' }, h('a', { href: '#training', class: 'muted' }, '← My training'),
+  return h('div', { class: 'page lesson' }, h('a', { href: '#training', class: 'muted' }, 'Back to My training'),
     h('div', { class: 'page-head', style: 'margin-top:8px' }, h('div', null, h('h1', null, 'The questions you missed in October'), h('p', null, 'Say your answer out loud first, then reveal. Retrieval is what makes it stick.'))),
-    h('div', { class: 'card' }, list.length ? list.map((x) => { const a = h('div', { class: 'a', hidden: true }, 'Answer: ', x.answer || '–'); return h('div', { class: 'q-item' }, h('b', null, `Q${x.qnum}. ${x.question}`), h('div', null, h('button', { class: 'btn sm', style: 'margin-top:6px', on: { click: (e) => { a.hidden = false; e.target.remove(); } } }, 'Reveal answer')), a); }) : h('div', { class: 'ok' }, 'No missed questions on record.'),
+    h('div', { class: 'card' }, list.length ? list.map((x) => { const a = h('div', { class: 'a', hidden: true }, 'Answer: ', x.answer || 'None'); return h('div', { class: 'q-item' }, h('b', null, `Q${x.qnum}. ${x.question}`), h('div', null, h('button', { class: 'btn sm', style: 'margin-top:6px', on: { click: (e) => { a.hidden = false; e.target.remove(); } } }, 'Reveal answer')), a); }) : h('div', { class: 'ok' }, 'No missed questions on record.'),
       it && !readOnly ? h('div', { style: 'margin-top:14px' }, it.done ? h('span', { class: 'chip green' }, 'Done') : h('button', { class: 'btn primary', on: { click: async () => { await api('POST', '/api/me/items/missed/done', {}); toast('Ticked off'); rerender(); } } }, 'I have gone through them all')) : null));
 }
 
@@ -350,7 +350,7 @@ function whatsNewCard(st) {
     const list = h('ul', { class: 'wn-list' }, rel.slice(0, 4).map(row));
     const more = rel.length > 4 ? h('button', { class: 'btn sm', type: 'button', on: { click: () => { list.replaceChildren(...rel.map(row)); more.remove(); } } }, `Show all ${rel.length} changes`) : null;
     const n = rel.filter(mine).length;
-    box.replaceChildren(h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'New in KUDO'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, `Released ${fmtDate(rel[0].released_on)} · ${rel.length} change${rel.length > 1 ? 's' : ''}${n ? `, ${n} in your focus areas` : ''}. Open one to see it in its lesson`))), list, more);
+    box.replaceChildren(h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'New in KUDO'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, `Released ${fmtDate(rel[0].released_on)}, ${rel.length} change${rel.length > 1 ? 's' : ''}${n ? `, ${n} in your focus areas` : ''}. Open one to see it in its lesson`))), list, more);
     box.hidden = false;
   }).catch(() => {});
   return box;
@@ -368,11 +368,11 @@ function sandboxOne(key, replaced) {
   api('GET', `/api/me/sandbox/${key}`).then(({ runs }) => {
     if (!runs.length) { last.textContent = 'Not tried yet'; return; }
     const rec = runs.find((r) => r.record) || runs[0];
-    last.replaceChildren(h('b', null, `Result of record: ${rec.score}%`), rec.score >= 80 ? h('span', { class: 'chip green', style: 'margin-left:8px' }, 'Passed') : h('span', { class: 'chip amber', style: 'margin-left:8px' }, 'Below 80%'), runs.length > 1 ? ` · ${runs.length - 1} practice run${runs.length > 2 ? 's' : ''}, best ${Math.max(...runs.map((r) => r.score))}%` : '');
+    last.replaceChildren(h('b', null, `Result of record: ${rec.score}%`), rec.score >= 80 ? h('span', { class: 'chip green', style: 'margin-left:8px' }, 'Passed') : h('span', { class: 'chip amber', style: 'margin-left:8px' }, 'Below 80%'), runs.length > 1 ? `, ${runs.length - 1} practice run${runs.length > 2 ? 's' : ''}, best ${Math.max(...runs.map((r) => r.score))}%` : '');
   }).catch(() => {});
   return h('div', { class: 'sbx-entry' },
     h('div', null, h('h3', null, `Sandbox: ${sc.title}`), h('p', { class: 'sbx-req', title: sc.brief ? sc.brief.opening : sc.request }, sc.brief ? `The client: “${sc.brief.opening}”` : sc.request),
-      h('div', { class: 'sbx-meta' }, `Scenario ${sc.num}${sc.brief ? ' · starts with a client call' : ''} · scored, your first run counts `,
+      h('div', { class: 'sbx-meta' }, metaRow([`Scenario ${sc.num}`, sc.brief ? 'starts with a client call' : null, 'scored, your first run counts']),
         tipI((sc.brief ? 'You first talk to the client: ask what decides the set-up, then choose the solution and build it. ' : '') + 'Everything you click is recorded: you get a score (outcome, path, time' + (sc.brief ? ', plus the client call and your choice' : '') + '), your path next to the expert\'s, and what you missed. Your first run is your result of record' + (sc.replaces ? '; passing it (80%) signs this practice off.' : replaced ? '.' : '. The written task below is still part of this step.'))), last),
     h('a', { class: 'btn primary', href: `#sandbox-${key}` }, 'Open the sandbox'));
 }

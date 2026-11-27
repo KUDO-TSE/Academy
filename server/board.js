@@ -70,7 +70,7 @@ export async function buildBoard() {
     // Give every trainee a week before nudging; after that, nudge when behind pace or quiet for 10 days.
     if (planAge >= 7 && (live.progress.pace === 'behind' || idle == null || idle >= 10)) {
       const why = idle == null ? `Has not started, ${planAge} days in` : idle >= 10 ? `No activity for ${idle} days` : 'Behind the suggested pace';
-      add({ key: `nudge:${u.id}:${iso(thisMon)}`, type: 'nudge', person: u.name, userId: u.id, demo: u.is_demo, title: 'Check in with a short message', detail: `${why}. Week ${live.week}, ${live.progress.pct}% done. Next step: ${live.next[0]?.title || '—'}`, minutes: MIN.nudge, due: iso(today), urgency: idle == null || idle >= 14 ? 'now' : 'this_week', link: `#person-${u.id}`, tab: 'programme', canHandle: true, message: `Hi ${u.name.split(' ')[0]}, quick check-in on your KUDO Academy programme: your next step is "${live.next[0]?.title || 'in your plan'}". It takes about ${live.next[0]?.minutes || 15} minutes. Anything blocking you?` });
+      add({ key: `nudge:${u.id}:${iso(thisMon)}`, type: 'nudge', person: u.name, userId: u.id, demo: u.is_demo, title: 'Check in with a short message', detail: `${why}. Week ${live.week}, ${live.progress.pct}% done. Next step: ${live.next[0]?.title || 'none'}`, minutes: MIN.nudge, due: iso(today), urgency: idle == null || idle >= 14 ? 'now' : 'this_week', link: `#person-${u.id}`, tab: 'programme', canHandle: true, message: `Hi ${u.name.split(' ')[0]}, quick check-in on your KUDO Academy programme: your next step is "${live.next[0]?.title || 'in your plan'}". It takes about ${live.next[0]?.minutes || 15} minutes. Anything blocking you?` });
     }
   }
 

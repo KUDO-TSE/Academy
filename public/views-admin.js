@@ -1,5 +1,5 @@
 import * as P from './views-admin-programme.js';
-import { h, api, toast, modal, pct, fmtDate, dateOnly, KIND, DELIVERY, reading, initials, importsHead, tipI } from './ui.js';
+import { h, api, toast, modal, pct, fmtDate, dateOnly, KIND, DELIVERY, reading, initials, importsHead, tipI, metaRow } from './ui.js';
 import { pairedBars, COLORS } from './charts.js';
 import { homeView, resultsView, progressView, planView, latest, scoresFor } from './views-trainee.js';
 
@@ -10,7 +10,7 @@ const scLabel = (k) => META.scenarios.find((s) => s.key === k)?.label || k;
 const scShort = (k) => META.scenarios.find((s) => s.key === k)?.short || k;
 const kpi = (l, v, n) => h('div', { class: 'card kpi' }, h('div', { class: 'label' }, l), h('div', { class: 'value' }, v), h('div', { class: 'note' }, n));
 const legend = () => h('div', { class: 'legend' }, h('span', null, h('i', { style: `background:${COLORS.self}` }), 'Self rating'), h('span', null, h('i', { style: `background:${COLORS.live}` }), 'Knowledge test'));
-const gapChip = (s, l) => { const r = reading(s, l); return r ? h('span', { class: `chip ${r.cls}` }, `${r.gap > 0 ? '+' : ''}${Math.round(r.gap)} pts`) : h('span', { class: 'muted' }, '–'); };
+const gapChip = (s, l) => { const r = reading(s, l); return r ? h('span', { class: `chip ${r.cls}` }, `${r.gap > 0 ? '+' : ''}${Math.round(r.gap)} pts`) : h('span', { class: 'muted' }, 'None'); };
 const field = (l, el, hint) => h('label', { class: 'f' }, h('span', { class: 'l' }, l), el, hint ? h('div', { class: 'hint' }, hint) : null);
 const select = (opts, val, attrs = {}) => h('select', attrs, opts.map(([v, l]) => h('option', { value: v, selected: String(v) === String(val ?? '') }, l)));
 const scOpts = (blank) => [...(blank ? [['', blank]] : []), ...META.scenarios.map((s) => [s.key, s.label])];
@@ -23,19 +23,19 @@ export async function overviewView() {
   return h('div', { class: 'page' },
     h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Overview'), h('p', null, 'The whole team at a glance. Full detail on each person is under Team.'))),
     h('div', { class: 'grid g4' },
-      kpi('Trainees', d.counts.trainees, `${d.counts.selfDone} Self Assessments · ${d.counts.liveDone} tests`),
+      kpi('Trainees', d.counts.trainees, `${d.counts.selfDone} Self Assessments, ${d.counts.liveDone} tests`),
       kpi('Average self rating', pct(d.avgSelf), d.avgSelf != null ? 'Latest Self Assessment' : 'No Self Assessment yet'),
       kpi('Average test score', pct(d.avgLive), d.avgSelf != null && d.avgLive != null ? `${d.avgLive - d.avgSelf >= 0 ? '+' : ''}${Math.round(d.avgLive - d.avgSelf)} pts vs self rating` : d.avgLive != null ? 'Latest test' : 'No test yet'),
-      kpi('Plan completion', d.planTotals.total ? pct((d.planTotals.done / d.planTotals.total) * 100) : '–', d.planTotals.total ? `${d.planTotals.done} of ${d.planTotals.total} items` : 'No plans loaded yet')),
+      kpi('Plan completion', d.planTotals.total ? pct((d.planTotals.done / d.planTotals.total) * 100) : 'None', d.planTotals.total ? `${d.planTotals.done} of ${d.planTotals.total} items` : 'No plans loaded yet')),
     h('div', { class: 'grid g-8-4', style: 'margin-top:16px;align-items:start' },
       h('div', { class: 'card' }, h('h2', null, 'Team by scenario'), h('p', { class: 'sub' }, 'Average self rating next to average test score'), legend(), (() => { const has = rows.filter((r) => r.self != null || r.live != null); return has.length ? h('div', null, pairedBars(has), has.length < rows.length ? h('div', { class: 'muted small' }, `${rows.length - has.length} scenarios without results yet`) : null) : h('div', { class: 'empty' }, 'No results yet: import a Self Assessment or a test under Imports.'); })()),
       h('div', { class: 'stack' },
         h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('h2', null, 'Top training priorities'), h('a', { href: '#priorities' }, 'See all')),
-          d.topPriorities.map((p) => h('div', { class: 'row spread', style: 'padding:9px 0;border-top:1px solid var(--border-soft)' }, h('b', null, scShort(p.scenario)), h('span', { class: 'row' }, p.safetyNet ? h('span', { class: 'chip amber' }, 'Safety net') : null, h('span', { class: `chip ${p.tier === 1 ? 'coral' : p.tier === 2 ? 'amber' : 'grey'}` }, `${p.priority} · Tier ${p.tier}`))))),
+          d.topPriorities.map((p) => h('div', { class: 'row spread', style: 'padding:9px 0;border-top:1px solid var(--border-soft)' }, h('b', null, scShort(p.scenario)), h('span', { class: 'row' }, p.safetyNet ? h('span', { class: 'chip amber' }, 'Safety net') : null, h('span', { class: `chip ${p.tier === 1 ? 'coral' : p.tier === 2 ? 'amber' : 'grey'}` }, `${p.priority}, Tier ${p.tier}`))))),
         h('div', { class: 'card' }, h('h2', null, 'Regions'),
           h('table', { class: 'tbl', style: 'margin-top:8px' }, h('thead', null, h('tr', null, ['Region', 'Self', 'Test'].map((x, i) => h('th', { class: i ? 'num' : '' }, x)))),
-            h('tbody', null, d.byRegion.map((r) => h('tr', null, h('td', null, h('b', null, r.region), h('span', { class: 'muted small' }, ` · ${r.liveDone}/${r.people} tested`)), h('td', { class: 'num' }, pct(r.self)), h('td', { class: 'num' }, pct(r.live))))))),
-        d.pendingLive.length ? h('div', { class: 'card' }, h('h2', null, 'Test not taken yet'), h('p', { class: 'sub' }, 'CMs & Sales without a live test result'), d.pendingLive.map((p) => h('div', { class: 'row spread', style: 'padding:6px 0' }, h('a', { href: `#person-${p.id}` }, p.name), h('span', { class: 'chip grey' }, p.region || '–')))) : null)));
+            h('tbody', null, d.byRegion.map((r) => h('tr', null, h('td', null, h('b', null, r.region), h('span', { class: 'muted small sep-l' }, `${r.liveDone}/${r.people} tested`)), h('td', { class: 'num' }, pct(r.self)), h('td', { class: 'num' }, pct(r.live))))))),
+        d.pendingLive.length ? h('div', { class: 'card' }, h('h2', null, 'Test not taken yet'), h('p', { class: 'sub' }, 'CMs & Sales without a live test result'), d.pendingLive.map((p) => h('div', { class: 'row spread', style: 'padding:6px 0' }, h('a', { href: `#person-${p.id}` }, p.name), h('span', { class: 'chip grey' }, p.region || 'None')))) : null)));
 }
 
 // ---------------------------------------------------------------- Team
@@ -51,9 +51,9 @@ export async function teamView() {
     if (!rows.length) body.append(h('tr', null, h('td', { colspan: 8, class: 'empty' }, 'No one matches.')));
     rows.forEach((p) => body.append(h('tr', { class: 'click', tabindex: 0, on: { click: () => { location.hash = `person-${p.id}`; }, keydown: (e) => { if (e.key === 'Enter') location.hash = `person-${p.id}`; } } },
       h('td', null, h('div', { class: 'row' }, h('span', { class: 'avatar' }, initials(p.name)), h('div', null, h('b', null, p.name), h('div', { class: 'muted small' }, p.email)))),
-      h('td', null, p.region || '–'), h('td', null, p.team || '–'),
-      h('td', { class: 'num' }, pct(p.self)), h('td', { class: 'num' }, p.live != null ? (p.liveTotal ? `${p.liveCorrect}/${p.liveTotal} · ${pct(p.live)}` : pct(p.live)) : '–'),
-      h('td', { class: 'num' }, gapChip(p.self, p.live)), h('td', { class: 'num' }, p.planTotal ? `${p.planDone}/${p.planTotal}` : '–'))));
+      h('td', null, p.region || 'None'), h('td', null, p.team || 'None'),
+      h('td', { class: 'num' }, pct(p.self)), h('td', { class: 'num' }, p.live != null ? (p.liveTotal ? `${p.liveCorrect}/${p.liveTotal}, ${pct(p.live)}` : pct(p.live)) : 'None'),
+      h('td', { class: 'num' }, gapChip(p.self, p.live)), h('td', { class: 'num' }, p.planTotal ? `${p.planDone}/${p.planTotal}` : 'None'))));
   };
   const th = (l, k, num) => h('th', { class: num ? 'num' : '', style: 'cursor:pointer', on: { click: () => { dir = sortKey === k ? -dir : 1; sortKey = k; draw(); } } }, l);
   draw();
@@ -87,9 +87,9 @@ export async function personView(id) {
   };
   draw();
   return h('div', { class: 'page' },
-    h('a', { href: '#team', class: 'muted' }, '← Team'),
+    h('a', { href: '#team', class: 'muted' }, 'Back to Team'),
     h('div', { class: 'page-head', style: 'margin-top:8px' }, h('div', { class: 'row' }, h('span', { class: 'avatar', style: 'width:52px;height:52px;font-size:16px' }, initials(u.name)),
-      h('div', null, h('h1', null, u.name), h('p', null, [u.email, u.region, u.team].filter(Boolean).join(' · '), u.last_login_at ? ` · last sign-in ${fmtDate(u.last_login_at)}` : ' · has not signed in yet'))),
+      h('div', null, h('h1', null, u.name), h('p', null, metaRow([u.email, u.region, u.team, u.last_login_at ? `last sign-in ${fmtDate(u.last_login_at)}` : 'has not signed in yet'])))),
       h('div', { class: 'row' }, !u.active ? h('span', { class: 'chip red' }, 'Deactivated') : null, h('a', { class: 'btn', href: `#pview-${id}` }, 'View as trainee'))),
     tabs, body);
 }
@@ -100,7 +100,7 @@ function tabResults(d) {
   const o = live?.map.overall;
   const missed = live ? d.questions.filter((q) => q.round_id === live.round.id && !q.correct) : [];
   return h('div', { class: 'stack' },
-    h('div', { class: 'grid g3' }, kpi('Self rating', pct(self?.map.overall?.pct), self?.round.label || 'Not completed'), kpi('Knowledge test', o ? (o.total ? `${o.correct}/${o.total}` : pct(o.pct)) : '–', live ? `${pct(o.pct)} · ${live.round.label}` : 'Not taken'), kpi('Gap', o && self?.map.overall ? `${o.pct - self.map.overall.pct >= 0 ? '+' : ''}${Math.round(o.pct - self.map.overall.pct)} pts` : '–', 'Test minus self rating')),
+    h('div', { class: 'grid g3' }, kpi('Self rating', pct(self?.map.overall?.pct), self?.round.label || 'Not completed'), kpi('Knowledge test', o ? (o.total ? `${o.correct}/${o.total}` : pct(o.pct)) : 'None', live ? `${pct(o.pct)}, ${live.round.label}` : 'Not taken'), kpi('Gap', o && self?.map.overall ? `${o.pct - self.map.overall.pct >= 0 ? '+' : ''}${Math.round(o.pct - self.map.overall.pct)} pts` : 'None', 'Test minus self rating')),
     h('div', { class: 'card' }, h('h2', null, 'By scenario'), legend(), self || live ? pairedBars(rows) : h('div', { class: 'empty' }, 'No results loaded for this person yet.')),
     d.oneToOne ? h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('h2', null, '1:1 priority'), h('span', { class: `chip ${d.oneToOne.flagged ? 'coral' : 'grey'}` }, d.oneToOne.flagged ? 'Flagged for a 1:1' : 'Below the 55 flag')),
       h('p', { class: 'sub' }, 'Highest scenarios for this person (40% demand, 30% weakness, 15% struggle, 10% over-confidence, 5% risk).'),
@@ -123,7 +123,7 @@ function tabPlan(d, reload) {
   if (!d.plan.length) wrap.append(h('div', { class: 'card empty' }, h('b', null, 'No plan yet'), 'Add items one by one, or import a plan from the Training plans page.'));
   const statusChip = (st) => h('span', { class: `chip ${st === 'done' ? 'green' : st === 'in_progress' ? 'amber' : 'grey'}` }, st === 'in_progress' ? 'In progress' : st === 'done' ? 'Done' : 'To do');
   const planRow = (p) => h('tr', { class: 'click', on: { click: () => edit(p) } },
-    h('td', null, h('b', null, p.title), h('div', { class: 'muted small' }, [KIND[p.kind], p.scenario ? scShort(p.scenario) : null, DELIVERY[p.delivery]].filter(Boolean).join(' · '))),
+    h('td', null, h('b', null, p.title), h('div', { class: 'muted small' }, metaRow([KIND[p.kind], p.scenario ? scShort(p.scenario) : null, DELIVERY[p.delivery]]))),
     h('td', null, p.due_date ? fmtDate(p.due_date) : ''), h('td', null, statusChip(p.status)));
   [1, 2, 3].forEach((m) => {
     const items = d.plan.filter((p) => p.month === m);
@@ -157,12 +157,12 @@ function tabCoaching(d, reload) {
       h('div', { class: 'row', style: 'margin-top:10px' }, u.demand_scenario ? h('span', { class: 'chip blue' }, `Clients bring most: ${scShort(u.demand_scenario)}`) : null, (u.struggle_scenarios || []).map((s) => h('span', { class: 'chip coral' }, `Struggle: ${scShort(s)}`)), u.profile?.learning_pref ? h('span', { class: 'chip grey' }, `Prefers: ${u.profile.learning_pref}`) : null)),
     h('div', { class: 'card' }, h('h2', null, 'Add a note'), h('p', { class: 'sub' }, 'Private notes are visible to admins only. Shared notes also appear on the trainee’s Home.'), body,
       h('div', { class: 'row spread', style: 'margin-top:10px' }, h('label', { class: 'row', style: 'font-weight:600' }, shared, 'Share with trainee'), h('button', { class: 'btn primary', on: { click: async () => { try { await api('POST', `/api/admin/trainees/${u.id}/notes`, { body: body.value, shared: shared.checked }); toast('Note added'); reload(); } catch (e) { toast(e.message, true); } } } }, 'Add note'))),
-    h('div', { class: 'card' }, h('h2', null, 'Notes'), d.notes.length ? d.notes.map((n) => h('div', { class: 'note-box', style: n.shared ? '' : 'border-color:var(--ink-400);background:var(--bg-app)' }, h('div', null, n.body), h('div', { class: 'when row spread' }, h('span', null, `${n.shared ? 'Shared' : 'Private'} · ${n.author || 'Unknown'} · ${fmtDate(n.created_at)}`), h('button', { class: 'btn sm danger', on: { click: async () => { if (!confirm('Delete this note?')) return; try { await api('DELETE', `/api/admin/notes/${n.id}`); reload(); } catch (e) { toast(e.message, true); } } } }, 'Delete')))) : h('div', { class: 'muted' }, 'No notes yet.')));
+    h('div', { class: 'card' }, h('h2', null, 'Notes'), d.notes.length ? d.notes.map((n) => h('div', { class: 'note-box', style: n.shared ? '' : 'border-color:var(--ink-400);background:var(--bg-app)' }, h('div', null, n.body), h('div', { class: 'when row spread' }, h('span', null, `${n.shared ? 'Shared' : 'Private'}, ${n.author || 'Unknown'}, ${fmtDate(n.created_at)}`), h('button', { class: 'btn sm danger', on: { click: async () => { if (!confirm('Delete this note?')) return; try { await api('DELETE', `/api/admin/notes/${n.id}`); reload(); } catch (e) { toast(e.message, true); } } } }, 'Delete')))) : h('div', { class: 'muted' }, 'No notes yet.')));
 }
 
 function tabProfile(d, reload) {
   const u = d.user;
-  const name = h('input', { type: 'text', value: u.name }), region = select([['', '–'], ...META.regions.map((r) => [r, r])], u.region), team = select([['', '–'], ...META.teams.map((r) => [r, r])], u.team);
+  const name = h('input', { type: 'text', value: u.name }), region = select([['', 'Not set'], ...META.regions.map((r) => [r, r])], u.region), team = select([['', 'Not set'], ...META.teams.map((r) => [r, r])], u.team);
   const weight = h('input', { type: 'number', min: 0, max: 1, step: 0.5, value: u.weight }), dem = select(scOpts('None'), u.demand_scenario);
   const sts = META.scenarios.map((s) => ({ s, el: h('input', { type: 'checkbox', checked: (u.struggle_scenarios || []).includes(s.key), style: 'width:auto' }) }));
   const save = async () => { try { await api('PATCH', `/api/admin/trainees/${u.id}`, { name: name.value, region: region.value, team: team.value, weight: Number(weight.value), demand_scenario: dem.value, struggle_scenarios: sts.filter((x) => x.el.checked).map((x) => x.s.key) }); toast('Saved'); reload(); } catch (e) { toast(e.message, true); } };
@@ -170,7 +170,7 @@ function tabProfile(d, reload) {
     h('div', { class: 'card' }, h('h2', null, 'Profile'), h('div', { style: 'margin-top:12px' }, field('Name', name), h('div', { class: 'grid g2' }, field('Region', region), field('Team', team)), field('Priority weight', weight, '1 = CM & Sales. 0.5 = other departments. 0 = excluded from priority scoring.'), field('Scenario clients bring most', dem)), h('button', { class: 'btn primary', on: { click: save } }, 'Save profile')),
     h('div', { class: 'stack' },
       h('div', { class: 'card' }, h('h2', null, 'Struggle tags'), h('p', { class: 'sub' }, 'Scenarios their “dreaded question” relates to. Feeds the 15% struggle part of the priority score.'), h('div', { class: 'pick-list' }, sts.map((x) => h('label', null, x.el, x.s.label))), h('div', { style: 'margin-top:12px' }, h('button', { class: 'btn primary', on: { click: save } }, 'Save tags'))),
-      h('div', { class: 'card' }, h('h2', null, 'Access'), h('p', { class: 'sub' }, `${u.email} · ${u.role === 'admin' ? 'Admin' : 'Trainee'} · ${u.active ? 'Active' : 'Deactivated'}${u.must_change_password ? ' · has not set their own password yet' : ''}`),
+      h('div', { class: 'card' }, h('h2', null, 'Access'), h('p', { class: 'sub' }, metaRow([u.email, u.role === 'admin' ? 'Admin' : 'Trainee', u.active ? 'Active' : 'Deactivated', u.must_change_password ? 'has not set their own password yet' : null])),
         h('div', { class: 'row' },
           h('button', { class: 'btn', on: { click: async () => { if (!confirm(`Reset ${u.name}'s password to the generic password? They will be asked to change it at next sign-in.`)) return; try { await api('POST', `/api/admin/users/${u.id}/reset-password`); toast('Password reset'); reload(); } catch (e) { toast(e.message, true); } } } }, 'Reset password'),
           h('button', { class: `btn ${u.active ? 'danger' : ''}`, on: { click: async () => { if (u.active && !confirm(`Deactivate ${u.name}? They will no longer be able to sign in.`)) return; try { await api('PATCH', `/api/admin/trainees/${u.id}`, { active: !u.active }); toast(u.active ? 'Deactivated' : 'Reactivated'); reload(); } catch (e) { toast(e.message, true); } } } }, u.active ? 'Deactivate' : 'Reactivate'),
@@ -189,7 +189,7 @@ export function previewView(sub) {
 // ---------------------------------------------------------------- Priorities
 const PARTS = [['demand', 'Demand 40%', 0.4], ['weakness', 'Weakness 30%', 0.3], ['struggle', 'Struggle 15%', 0.15], ['reach', 'Reach 10%', 0.1], ['risk', 'Risk 5%', 0.05]];
 /** One bar per scenario: each segment is a component's weighted points, so the segments add up to the priority (0-100). */
-const priBar = (p) => h('span', { class: 'pri-bar', title: PARTS.map(([k, l, w]) => `${l.split(' ')[0]} ${Math.round(p[k] * w)} pts`).join(' · ') }, PARTS.map(([k, , w], i) => h('i', { class: `s${i}`, style: `width:${Math.max(0, p[k] * w)}%` })));
+const priBar = (p) => h('span', { class: 'pri-bar', title: PARTS.map(([k, l, w]) => `${l.split(' ')[0]} ${Math.round(p[k] * w)} pts`).join(', ') }, PARTS.map(([k, , w], i) => h('i', { class: `s${i}`, style: `width:${Math.max(0, p[k] * w)}%` })));
 export async function prioritiesView() {
   await meta();
   let basis = 'auto', showParts = false, editRisk = false;
@@ -206,11 +206,11 @@ export async function prioritiesView() {
             h('td', { class: 'num' }, h('span', { class: 'pri-cell' }, priBar(p), h('b', null, p.priority))), h('td', null, h('span', { class: `chip ${p.tier === 1 ? 'coral' : p.tier === 2 ? 'amber' : 'grey'}` }, `Tier ${p.tier}`)), ...PARTS.map(([k]) => h('td', { class: 'num part' }, p[k]))))))),
         h('div', { class: 'row', style: 'margin-top:10px;gap:14px' }, h('button', { class: 'btn sm', on: { click: () => { showParts = !showParts; draw(); } } }, showParts ? 'Hide breakdown' : 'Show breakdown'), h('span', { class: 'muted small row', style: 'gap:6px' }, 'Safety net', tipI('Half the team at level 2 or lower gets a resource regardless of demand.')))),
       h('div', { class: 'card' }, h('h2', null, 'Delivery theme: Human Interpretation vs AI Translation'), h('p', { class: 'sub' }, 'Ranked separately, as the Guide workflows differ. Every training and 1:1 covers both.'),
-        d.scenarios.filter((p) => THEME.includes(p.scenario)).map((p) => h('div', { class: 'row spread', style: 'padding:9px 0;border-top:1px solid var(--border-soft)' }, h('b', null, scLabel(p.scenario)), h('span', { class: 'row' }, h('span', { class: 'muted small' }, `Weakness ${p.weakness} · Struggle ${p.struggle} · Reach ${p.reach}`), h('span', { class: `chip ${p.tier === 1 ? 'coral' : p.tier === 2 ? 'amber' : 'grey'}` }, `${p.priority} · Tier ${p.tier}`))))),
+        d.scenarios.filter((p) => THEME.includes(p.scenario)).map((p) => h('div', { class: 'row spread', style: 'padding:9px 0;border-top:1px solid var(--border-soft)' }, h('b', null, scLabel(p.scenario)), h('span', { class: 'row' }, h('span', { class: 'muted small' }, `Weakness ${p.weakness}, Struggle ${p.struggle}, Reach ${p.reach}`), h('span', { class: `chip ${p.tier === 1 ? 'coral' : p.tier === 2 ? 'amber' : 'grey'}` }, `${p.priority}, Tier ${p.tier}`))))),
       h('div', { class: 'card' }, h('h2', null, '1:1 coaching flags'), h('p', { class: 'sub' }, 'CMs & Sales scoring 55 or more on any scenario'),
-        flagged.length ? h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Person', 'Region', 'Top scenarios', 'Score'].map((x, i) => h('th', { class: i === 3 ? 'num' : '' }, x)))), h('tbody', null, flagged.map((x) => h('tr', { class: 'click', on: { click: () => { location.hash = `person-${x.user_id}`; } } }, h('td', null, h('b', null, x.name)), h('td', null, x.region || '–'), h('td', null, x.scenarios.map((s) => scShort(s.scenario)).join(', ')), h('td', { class: 'num' }, h('span', { class: 'chip coral' }, x.top.score))))))) : h('div', { class: 'muted' }, 'No one is above the flag right now.'),
-        d.oneToOne.length ? h('p', { class: 'muted small', style: 'margin:12px 0 0' }, `Next highest: ${d.oneToOne.filter((x) => !x.flagged).slice(0, 3).map((x) => `${x.name} (${x.top.score})`).join(', ') || '–'}`) : null),
-      h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'Risk inputs ', tipI('Critical steps in the CM Onboarding Guide for each scenario (platform steps counted in each scenario that uses them). Update when the Guide changes.')), h('p', { class: 'sub keep', style: 'margin:0' }, `${Object.values(d.critical).filter((v) => v > 0).length} of ${META.scenarios.length} scenarios with critical steps · 5% of the priority`)),
+        flagged.length ? h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Person', 'Region', 'Top scenarios', 'Score'].map((x, i) => h('th', { class: i === 3 ? 'num' : '' }, x)))), h('tbody', null, flagged.map((x) => h('tr', { class: 'click', on: { click: () => { location.hash = `person-${x.user_id}`; } } }, h('td', null, h('b', null, x.name)), h('td', null, x.region || 'None'), h('td', null, x.scenarios.map((s) => scShort(s.scenario)).join(', ')), h('td', { class: 'num' }, h('span', { class: 'chip coral' }, x.top.score))))))) : h('div', { class: 'muted' }, 'No one is above the flag right now.'),
+        d.oneToOne.length ? h('p', { class: 'muted small', style: 'margin:12px 0 0' }, `Next highest: ${d.oneToOne.filter((x) => !x.flagged).slice(0, 3).map((x) => `${x.name} (${x.top.score})`).join(', ') || 'None'}`) : null),
+      h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'Risk inputs ', tipI('Critical steps in the CM Onboarding Guide for each scenario (platform steps counted in each scenario that uses them). Update when the Guide changes.')), h('p', { class: 'sub keep', style: 'margin:0' }, `${Object.values(d.critical).filter((v) => v > 0).length} of ${META.scenarios.length} scenarios with critical steps, 5% of the priority`)),
           editRisk ? null : h('button', { class: 'btn sm', on: { click: () => { editRisk = true; draw(); } } }, 'Edit')),
         editRisk ? h('div', { style: 'margin-top:12px' }, crit, h('div', { class: 'row', style: 'margin-top:14px;gap:8px' }, h('button', { class: 'btn primary', on: { click: async () => { const vals = {}; const inputs = [...crit.querySelectorAll('input')]; META.scenarios.forEach((s, i) => { vals[s.key] = Number(inputs[i].value); }); try { await api('PUT', '/api/admin/settings/critical-steps', { critical: vals }); toast('Saved'); editRisk = false; draw(); } catch (e) { toast(e.message, true); } } } }, 'Save risk inputs'), h('button', { class: 'btn', on: { click: () => { editRisk = false; draw(); } } }, 'Cancel'))) : null));
   };
@@ -225,7 +225,7 @@ export async function plansView() {
   let region = '', team = '';
   const checks = new Map();
   const box = h('div', { class: 'pick-list' });
-  const draw = () => { box.replaceChildren(...list.filter((p) => (!region || p.region === region) && (!team || p.team === team)).map((p) => { if (!checks.has(p.id)) checks.set(p.id, h('input', { type: 'checkbox' })); return h('label', null, checks.get(p.id), `${p.name}`, h('span', { class: 'muted small' }, ` ${p.region || ''} · ${p.team || ''}`)); })); };
+  const draw = () => { box.replaceChildren(...list.filter((p) => (!region || p.region === region) && (!team || p.team === team)).map((p) => { if (!checks.has(p.id)) checks.set(p.id, h('input', { type: 'checkbox' })); return h('label', null, checks.get(p.id), `${p.name}`, h('span', { class: 'muted small' }, ` ${p.region || ''}, ${p.team || ''}`)); })); };
   draw();
   const visible = () => list.filter((p) => (!region || p.region === region) && (!team || p.team === team));
   return h('div', { class: 'page' },
@@ -252,7 +252,7 @@ export async function importView() {
   await meta();
   const type = select(Object.entries(IMPORTS).map(([k, v]) => [k, v.label]), 'roster', { 'aria-label': 'Import type' });
   const key = h('input', { type: 'text', placeholder: 'e.g. oct-2026-live' }), lab = h('input', { type: 'text', placeholder: 'e.g. Oct 2026 Knowledge Test' }), when = h('input', { type: 'date' }), sort = h('input', { type: 'number', value: 1 });
-  const txt = h('textarea', { style: 'min-height:200px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px', placeholder: 'Paste CSV here, or choose a file', spellcheck: 'false' });
+  const txt = h('textarea', { style: 'min-height:200px;font-family:var(--font-mono);font-size:12.5px', placeholder: 'Paste CSV here, or choose a file', spellcheck: 'false' });
   const file = h('input', { type: 'file', accept: '.csv,text/csv', 'aria-label': 'CSV file', on: { change: async (e) => { const f = e.target.files[0]; if (f) txt.value = await f.text(); } } });
   const roundBox = h('div'), noteBox = h('p', { class: 'muted small' }), tplLink = h('a', { href: '#' }), out = h('div');
   const upd = () => { const i = IMPORTS[type.value]; noteBox.textContent = i.note + (type.value === 'profile' ? META.scenarios.map((s) => s.key).join(', ') : ''); tplLink.href = `/templates/${i.tpl}`; tplLink.textContent = `Download template (${i.tpl})`; tplLink.setAttribute('download', i.tpl); roundBox.replaceChildren(i.round ? h('div', { class: 'card flat', style: 'margin-bottom:14px;background:var(--bg-app)' }, h('div', { class: 'grid g2' }, field('Round key', key, 'Lowercase, numbers, hyphens'), field('Round label', lab, 'End with “Self Assessment” or “Knowledge Test”')), h('div', { class: 'grid g2' }, field('Date taken', when), field('Order', sort, 'Older rounds first: 1, 2, 3…'))) : ''); };
@@ -268,10 +268,10 @@ export async function usersView() {
   const [list, { user: me }] = await Promise.all([api('GET', '/api/admin/users'), api('GET', '/api/auth/me')]);
   const myId = me?.id;
   const add = () => {
-    const email = h('input', { type: 'email', placeholder: 'name@kudo.ai' }), name = h('input', { type: 'text' }), role = select([['trainee', 'Trainee'], ['admin', 'Admin']], 'trainee'), region = select([['', '–'], ...META.regions.map((r) => [r, r])], ''), team = select([['', '–'], ...META.teams.map((r) => [r, r])], '');
+    const email = h('input', { type: 'email', placeholder: 'name@kudo.ai' }), name = h('input', { type: 'text' }), role = select([['trainee', 'Trainee'], ['admin', 'Admin']], 'trainee'), region = select([['', 'Not set'], ...META.regions.map((r) => [r, r])], ''), team = select([['', 'Not set'], ...META.teams.map((r) => [r, r])], '');
     modal('Add a person', h('div', null, field('Email', email), field('Name', name), field('Access', role), h('div', { class: 'grid g2' }, field('Region', region), field('Team', team)), h('p', { class: 'muted small' }, 'They sign in with the generic password and are asked to choose their own.')), { actions: (close) => [h('button', { class: 'btn', on: { click: close } }, 'Cancel'), h('button', { class: 'btn primary', on: { click: async () => { try { await api('POST', '/api/admin/users', { email: email.value, name: name.value, role: role.value, region: region.value, team: team.value }); close(); toast('Account created'); location.hash = 'users'; window.dispatchEvent(new HashChangeEvent('hashchange')); } catch (e) { toast(e.message, true); } } } }, 'Create')] });
   };
-  const rows = list.map((u) => h('tr', null, h('td', null, h('b', null, u.name), h('div', { class: 'muted small' }, u.email)), h('td', null, h('span', { class: `chip ${u.role === 'admin' ? 'coral' : 'blue'}` }, u.role === 'admin' ? 'Admin' : 'Trainee')), h('td', null, u.region || '–'), h('td', null, u.active ? (u.must_change_password ? h('span', { class: 'chip amber' }, 'Generic password') : h('span', { class: 'chip green' }, 'Active')) : h('span', { class: 'chip red' }, 'Deactivated')), h('td', null, u.last_login_at ? fmtDate(u.last_login_at) : 'Never'),
+  const rows = list.map((u) => h('tr', null, h('td', null, h('b', null, u.name), h('div', { class: 'muted small' }, u.email)), h('td', null, h('span', { class: `chip ${u.role === 'admin' ? 'coral' : 'blue'}` }, u.role === 'admin' ? 'Admin' : 'Trainee')), h('td', null, u.region || 'None'), h('td', null, u.active ? (u.must_change_password ? h('span', { class: 'chip amber' }, 'Generic password') : h('span', { class: 'chip green' }, 'Active')) : h('span', { class: 'chip red' }, 'Deactivated')), h('td', null, u.last_login_at ? fmtDate(u.last_login_at) : 'Never'),
     h('td', null, h('div', { class: 'row', style: 'justify-content:flex-end;flex-wrap:nowrap' }, u.role === 'trainee' ? h('a', { class: 'btn sm', href: `#person-${u.id}` }, 'Open') : h('button', { class: 'btn sm', on: { click: async () => { if (!confirm(`Reset ${u.name}'s password to the generic password?`)) return; try { await api('POST', `/api/admin/users/${u.id}/reset-password`); toast('Password reset'); } catch (e) { toast(e.message, true); } } } }, 'Reset password'),
       u.id === myId ? null : h('button', { class: 'btn sm danger', 'aria-label': `Delete ${u.name}`, on: { click: () => deletePerson(u, () => location.reload()) } }, 'Delete')))));
   return h('div', { class: 'page' }, h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Users & access'), h('p', null, 'Everyone who can sign in. Admins see the whole team; trainees see only their own data.')), h('button', { class: 'btn primary', on: { click: add } }, 'Add person')),
@@ -282,7 +282,7 @@ export async function usersView() {
 export async function auditView() {
   const rows = await api('GET', '/api/admin/audit');
   return h('div', { class: 'page' }, h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Activity log'), h('p', null, 'The last 200 sign-ins and changes'))),
-    h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['When', 'Who', 'Action', 'Target', 'Detail'].map((x) => h('th', null, x)))), h('tbody', null, rows.map((r) => h('tr', null, h('td', null, new Date(r.at).toLocaleString('en-GB')), h('td', null, r.actor_email || '–'), h('td', null, h('span', { class: 'chip grey' }, r.action)), h('td', null, r.target || ''), h('td', { class: 'muted small' }, (r.detail || '').slice(0, 120))))))));
+    h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['When', 'Who', 'Action', 'Target', 'Detail'].map((x) => h('th', null, x)))), h('tbody', null, rows.map((r) => h('tr', null, h('td', null, new Date(r.at).toLocaleString('en-GB')), h('td', null, r.actor_email || 'None'), h('td', null, h('span', { class: 'chip grey' }, r.action)), h('td', null, r.target || ''), h('td', { class: 'muted small' }, (r.detail || '').slice(0, 120))))))));
 }
 
 // ---------------------------------------------------------------- Logic notes

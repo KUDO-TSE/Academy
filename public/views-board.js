@@ -21,7 +21,7 @@ export async function boardView() {
   const replyTo = (t) => {
     const ta = h('textarea', { rows: 5, placeholder: 'Your reply: the trainee sees it in their coach panel', maxlength: 4000 });
     const send = async (noted, close) => { try { await api('POST', `/api/admin/trainer-messages/${t.messageId}/reply`, noted ? { noted: true, reply: ta.value } : { reply: ta.value }); close(); toast(noted ? 'Marked as noted' : 'Reply sent'); window.dispatchEvent(new HashChangeEvent('hashchange')); } catch (e) { toast(e.message, true); } };
-    modal(`${t.title}`, h('div', null, h('div', { class: 'note-box' }, h('div', { class: 'muted small' }, `${t.person} · ${new Date(t.sent).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`), h('p', { style: 'white-space:pre-wrap;margin:6px 0 0' }, t.detail)), h('label', { class: 'f', style: 'margin-top:12px' }, h('span', { class: 'l' }, 'Reply'), ta)),
+    modal(`${t.title}`, h('div', null, h('div', { class: 'note-box' }, h('div', { class: 'muted small' }, `${t.person}, ${new Date(t.sent).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`), h('p', { style: 'white-space:pre-wrap;margin:6px 0 0' }, t.detail)), h('label', { class: 'f', style: 'margin-top:12px' }, h('span', { class: 'l' }, 'Reply'), ta)),
       { actions: (close) => [h('button', { class: 'btn', on: { click: close } }, 'Cancel'), h('button', { class: 'btn', title: 'No answer needed: the trainee sees it was noted (with your note, if you wrote one)', on: { click: () => send(true, close) } }, 'Noted'), h('button', { class: 'btn primary', on: { click: () => send(false, close) } }, 'Send reply')] });
   };
   const card = (t) => h('div', { class: `task ${t.urgency}` },
@@ -44,23 +44,23 @@ export async function boardView() {
       h('a', { class: 'btn', href: '/api/admin/board/week.ics' }, 'Add this week\'s sessions to my calendar')),
     h('div', { class: 'grid g4' },
       h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Sessions to hold'), h('div', { class: 'value' }, c.session), h('div', { class: 'note' }, 'This week, next week and overdue')),
-      h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Approvals and messages'), h('div', { class: 'value' }, c.approval + (c.message || 0)), h('div', { class: 'note' }, `${c.approval} plan${c.approval === 1 ? '' : 's'} · ${c.message || 0} message${c.message === 1 ? '' : 's'}`)),
-      h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Reviews and sign-offs'), h('div', { class: 'value' }, c.review + c.signoff), h('div', { class: 'note' }, [b.reviewSplit ? `${b.reviewSplit.recording} recording${b.reviewSplit.recording === 1 ? '' : 's'}` : `${c.review} reviews`, b.reviewSplit?.practice ? `${b.reviewSplit.practice} practice` : null, c.signoff ? `${c.signoff} sign-off${c.signoff === 1 ? '' : 's'}` : null].filter(Boolean).join(' · '))),
+      h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Approvals and messages'), h('div', { class: 'value' }, c.approval + (c.message || 0)), h('div', { class: 'note' }, `${c.approval} plan${c.approval === 1 ? '' : 's'}, ${c.message || 0} message${c.message === 1 ? '' : 's'}`)),
+      h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Reviews and sign-offs'), h('div', { class: 'value' }, c.review + c.signoff), h('div', { class: 'note' }, [b.reviewSplit ? `${b.reviewSplit.recording} recording${b.reviewSplit.recording === 1 ? '' : 's'}` : `${c.review} reviews`, b.reviewSplit?.practice ? `${b.reviewSplit.practice} practice` : null, c.signoff ? `${c.signoff} sign-off${c.signoff === 1 ? '' : 's'}` : null].filter(Boolean).join(', '))),
       h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'Trainees to nudge'), h('div', { class: 'value' }, c.nudge), h('div', { class: 'note' }, 'Behind pace or inactive'))),
 
     h('div', { class: 'card', style: 'margin-top:16px' },
-      h('div', { class: 'row spread', style: 'flex-wrap:wrap;gap:12px' }, h('div', null, h('h2', null, 'Your suggested week'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, `Needs ${hrs(b.week.needMinutes)} · you have ${hrs(b.week.capacityMinutes)}. Sessions are spread out, small tasks are batched.`)),
+      h('div', { class: 'row spread', style: 'flex-wrap:wrap;gap:12px' }, h('div', null, h('h2', null, 'Your suggested week'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, `Needs ${hrs(b.week.needMinutes)}, you have ${hrs(b.week.capacityMinutes)}. Sessions are spread out, small tasks are batched.`)),
         h('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap' }, h('span', { class: 'muted small' }, 'Hours a week for the Academy'), hours, ...dayBoxes, h('button', { class: 'btn sm', on: { click: saveSettings } }, 'Save'))),
       over ? h('div', { class: 'warn-line' }, `This week needs more time than you have. ${b.week.overflow.length} task${b.week.overflow.length > 1 ? 's' : ''} do not fit: snooze them, or raise your hours.`) : null,
       h('div', { class: 'weekgrid' }, b.week.days.map((d) => h('div', { class: `wday ${d.date === b.today ? 'today' : ''}` },
         h('div', { class: 'wday-h' }, h('b', null, d.label), h('span', null, fmtDate(d.date)), h('span', { class: 'muted small' }, hrs(d.minutes))),
-        d.tasks.length ? d.tasks.map((t) => h('div', { class: `wtask ${t.type}` }, h('b', null, t.person || 'Content'), h('div', null, t.title), h('span', { class: 'muted small' }, `${t.minutes} min`))) : h('div', { class: 'muted small' }, 'Free')))),
-      b.week.overflow.length ? h('div', { class: 'small', style: 'margin-top:10px' }, h('b', null, 'Does not fit: '), b.week.overflow.map((t) => `${t.title}${t.person ? ` (${t.person})` : ''}`).join(' · ')) : null),
+        d.tasks.length ? d.tasks.map((t) => h('div', { class: `wtask ${t.type}` }, h('b', null, t.person || 'Content'), h('div', null, t.title), h('span', { class: 'muted small' }, `${TYPE[t.type]?.[1] || 'Task'}, ${t.minutes} min`))) : h('div', { class: 'muted small' }, 'Free')))),
+      b.week.overflow.length ? h('div', { class: 'small', style: 'margin-top:10px' }, h('b', null, 'Does not fit: '), b.week.overflow.map((t) => `${t.title}${t.person ? ` (${t.person})` : ''}`).join(', ')) : null),
 
     ...GROUPS.map(([k, label, sub]) => {
       const list = b.tasks.filter((t) => t.urgency === k);
       if (!list.length) return null;
-      return h('div', { class: 'card', style: 'margin-top:16px' }, h('div', { class: 'row spread' }, h('h2', null, `${label} · ${list.length}`), sub ? h('span', { class: 'muted small' }, sub) : null), list.map(card));
+      return h('div', { class: 'card', style: 'margin-top:16px' }, h('div', { class: 'row spread' }, h('h2', null, `${label} (${list.length})`), sub ? h('span', { class: 'muted small' }, sub) : null), list.map(card));
     }),
     b.tasks.length ? null : h('div', { class: 'card empty', style: 'margin-top:16px' }, h('b', null, 'Nothing waiting on you'), 'Enjoy it.'));
 }

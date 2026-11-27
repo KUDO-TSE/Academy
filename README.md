@@ -213,3 +213,5 @@ Before shipping any change, check what depends on it and update it in the same c
 - **My Results / My Progress** and the **admin views**: do new results show, and is anything counted twice?
 - **Scenario doc and handover pack**: the sandbox scenarios doc and the briefing for the KUDO Trainer.
 - **Automated tests** (`npm test`), then deploy and check the deployment.
+
+**Design rules (Hallmark polish, Nov 2026).** The stylesheet opens with a Hallmark stamp (pbakaus/impeccable and nutlope/hallmark were used as checklists; nothing from them is installed or run). Every colour and font goes through a token in `:root` (sandbox replica shades are the `--mock-*` group); no middle-dot meta strings (use `metaRow([...])` from `ui.js`), no arrows on link or button text, no em or en dashes in copy (empty values read "None"), no small labels in capitals, one containment layer per card, ticks and crosses through `mark(ok)`, and decorative icons hidden from screen readers by `svg()`.

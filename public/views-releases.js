@@ -31,8 +31,8 @@ export async function releasesView() {
     h('tbody', null, releases.map((r) => h('tr', null,
       h('td', null, h('b', null, r.title), h('div', { class: 'muted small' }, fmtDate(r.released_on))),
       h('td', null, String(r.count)), h('td', { class: 'small' }, `${r.modules.length}`),
-      h('td', null, r.flagged ? String(r.flagged) : '–'),
-      h('td', null, r.status === 'applied' ? h('span', { class: 'chip green' }, `Applied · ${r.notes + r.edits} changes`) : h('span', { class: 'chip amber' }, 'To review')),
+      h('td', null, r.flagged ? String(r.flagged) : 'None'),
+      h('td', null, r.status === 'applied' ? h('span', { class: 'chip green' }, `Applied, ${r.notes + r.edits} changes`) : h('span', { class: 'chip amber' }, 'To review')),
       h('td', null, h('a', { class: 'btn sm', href: `#release-${r.id}` }, r.status === 'applied' ? 'Open' : 'Review'))))))) : h('div', { class: 'card empty' }, h('b', null, 'No release notes yet'), 'Import the next one when it comes out: the Academy keeps up with the product.');
 
   return h('div', { class: 'page' },
@@ -87,7 +87,7 @@ export async function releaseView(id) {
 
     const flags = it.flags.map((f) => {
       const strong = f.strength === 'strong';
-      const head = h('div', { class: 'rl-fh' }, h('span', { class: `chip ${strong ? 'coral' : 'amber'}` }, strong ? 'Likely out of date' : 'Worth a check'), h('span', { class: 'muted small' }, `${modTitle(f.module)} · ${f.where}`));
+      const head = h('div', { class: 'rl-fh' }, h('span', { class: `chip ${strong ? 'coral' : 'amber'}` }, strong ? 'Likely out of date' : 'Worth a check'), h('span', { class: 'muted small' }, `${modTitle(f.module)}, ${f.where}`));
       const orig = h('blockquote', { class: 'rl-orig' }, f.text, f.detail ? h('div', { class: 'muted small', style: 'margin-top:4px' }, f.detail) : null);
       let act = null;
       if (f.kind === 'line') {
@@ -121,12 +121,12 @@ export async function releaseView(id) {
   const stat = (k, v, s) => h('div', { class: 'jm-fact' }, h('span', { class: 'jm-fk' }, k), h('b', null, v), s ? h('span', { class: 'jm-fs' }, s) : null);
   tally();
   return h('div', { class: 'page rl-page' },
-    h('a', { href: '#releases', class: 'muted small' }, '← Imports · Release notes'),
-    h('div', { class: 'page-head', style: 'margin-top:8px' }, h('div', null, h('h1', null, r.title), h('p', null, `Released ${fmtDate(r.released_on)}${applied ? ` · applied ${fmtDate(r.applied_at)}` : ' · not applied yet'}`)),
+    h('a', { href: '#releases', class: 'muted small' }, 'Back to release notes'),
+    h('div', { class: 'page-head', style: 'margin-top:8px' }, h('div', null, h('h1', null, r.title), h('p', null, `Released ${fmtDate(r.released_on)}${applied ? `, applied ${fmtDate(r.applied_at)}` : ', not applied yet'}`)),
       h('div', { class: 'row' }, applied ? h('button', { class: 'btn', on: { click: async () => { if (!confirm('Undo every change this release made? News and FAQ entries are withdrawn, lines go back to what they said and questions return to the pool.')) return; await api('POST', `/api/admin/releases/${id}/revert`); toast('Changes undone'); location.reload(); } } }, 'Undo all changes')
         : h('button', { class: 'btn', on: { click: async () => { if (!confirm('Delete this import?')) return; try { await api('DELETE', `/api/admin/releases/${id}`); location.hash = 'releases'; } catch (e) { toast(e.message, true); } } } }, 'Delete import'))),
     h('div', { class: 'jm-head' },
-      stat('Items', String(r.items.length), Object.entries(kinds).map(([k, n]) => `${n} ${(PLURAL[k] || PLURAL.feature)[n > 1 ? 1 : 0]}`).join(' · ')),
+      stat('Items', String(r.items.length), Object.entries(kinds).map(([k, n]) => `${n} ${(PLURAL[k] || PLURAL.feature)[n > 1 ? 1 : 0]}`).join(', ')),
       stat('Modules concerned', String(touched.length), touched.slice(0, 3).map(modTitle).join(', ') + (touched.length > 3 ? '…' : '')),
       stat('Likely out of date', String(strong), strong ? 'Lines or questions that contradict the note' : 'Nothing contradicts the note'),
       stat('Worth a check', String(flagged.length - strong), 'Close to what changed')),

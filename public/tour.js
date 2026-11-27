@@ -80,7 +80,7 @@ export function startTour(steps, { go, onEnd } = {}) {
     }
     shade.hidden = true; spot.hidden = false; pop.classList.remove('center');
     const r = target.getBoundingClientRect(), pad = 8;
-    Object.assign(spot.style, { top: `${r.top - pad}px`, left: `${r.left - pad}px`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px` });
+    Object.assign(spot.style, { transform: `translate(${r.left - pad}px, ${r.top - pad}px)`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px` });
     const pw = Math.min(380, window.innerWidth - 24), ph = pop.offsetHeight || 220, vw = window.innerWidth, vh = window.innerHeight;
     if (vw <= 600) { // phones: the card sits at the bottom (or top, if the highlight is low on the screen)
       const low = r.top + r.height / 2 > vh / 2;

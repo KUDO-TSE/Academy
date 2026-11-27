@@ -29,7 +29,7 @@ export function coachWidget() {
   const chips = h('div', { class: 'co-chips' }, SUGGEST.map((s) => h('button', { type: 'button', on: { click: () => send(s) } }, s)));
   const bubble = (role, text, links = []) => {
     const b = h('div', { class: `co-msg ${role}` }, ...(role === 'coach' ? rich(text) : [h('p', null, text)]),
-      links.length ? h('div', { class: 'co-links' }, links.map((l) => h('a', { href: l.href, ...(l.href.startsWith('https') ? { target: '_blank', rel: 'noopener' } : {}), on: { click: (e) => { if (l.href === '#ask-trainer') { e.preventDefault(); toTrainer(l.prefill || ''); return; } if (l.href.startsWith('#') && window.innerWidth < 760) toggle(false); } } }, `${l.label} →`))) : null);
+      links.length ? h('div', { class: 'co-links' }, links.map((l) => h('a', { href: l.href, ...(l.href.startsWith('https') ? { target: '_blank', rel: 'noopener' } : {}), on: { click: (e) => { if (l.href === '#ask-trainer') { e.preventDefault(); toTrainer(l.prefill || ''); return; } if (l.href.startsWith('#') && window.innerWidth < 760) toggle(false); } } }, `${l.label}`))) : null);
     log.append(b); log.scrollTop = log.scrollHeight; return b;
   };
   async function send(q) {

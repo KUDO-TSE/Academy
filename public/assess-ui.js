@@ -1,4 +1,4 @@
-import { h, api, toast, fmtDate } from './ui.js';
+import { h, api, toast, fmtDate, mark } from './ui.js';
 
 const CERT = [[1, 'Guessing'], [2, 'Fairly sure'], [3, 'Certain']];
 const pctOf = (a, b) => Math.round((a / b) * 100);
@@ -11,7 +11,7 @@ export function checkForm(items, { url, itemKey, onResult, submitLabel = 'Check 
   const renderItem = (x, i) => {
     const st = state[i];
     const head = h('legend', null, `${i + 1}. ${x.q}`);
-    const tag = { mcq: null, multi: x.pick ? `Pick ${x.pick} · a wrong pick cancels a right one` : 'Pick all that fit · wrong picks cancel right ones', match: 'Match each one', order: 'Put in order' }[x.t];
+    const tag = { mcq: null, multi: x.pick ? `Pick ${x.pick}, a wrong pick cancels a right one` : 'Pick all that fit, wrong picks cancel right ones', match: 'Match each one', order: 'Put in order' }[x.t];
     let body;
     if (x.t === 'mcq') body = x.o.map((opt, oi) => h('label', { class: 'opt' }, h('input', { type: 'radio', name: `q${i}`, on: { change: () => { st.v = oi; } } }), h('span', null, opt)));
     else if (x.t === 'multi') body = x.o.map((opt, oi) => h('label', { class: 'opt' }, h('input', { type: 'checkbox', on: { change: (e) => { st.v = e.target.checked ? [...st.v, oi] : st.v.filter((z) => z !== oi); } } }), h('span', null, opt)));
@@ -47,8 +47,8 @@ export function resultView(r, items, { pass = 0.8, baseline = false, onRetry } =
   const acc = pctOf(r.correct, r.total); const passed = baseline || r.passed;
   const certMsg = r.cbm == null ? null : r.cbm >= 2 ? 'You knew what you knew: your certainty matched your answers well.' : r.cbm >= 0.5 ? 'Reasonable judgement of what you know. Look at the answers you were unsure of.' : 'Your certainty did not match your answers. Review the ones you were sure of but got wrong.';
   const ansText = (x, res) => {
-    if (res.t === 'mcq') return h('div', null, 'Correct: ', h('b', null, res.correct.o[res.correct.a]), res.conf ? h('span', { class: 'muted small' }, ` · you said: ${CERT.find((c) => c[0] === res.conf)[1].toLowerCase()}`) : null);
-    if (res.t === 'multi') return h('div', null, 'All that fit: ', h('b', null, res.correct.a.map((i) => res.correct.o[i]).join(' · ')));
+    if (res.t === 'mcq') return h('div', null, 'Correct: ', h('b', null, res.correct.o[res.correct.a]), res.conf ? h('span', { class: 'muted small sep-l' }, `you said: ${CERT.find((c) => c[0] === res.conf)[1].toLowerCase()}`) : null);
+    if (res.t === 'multi') return h('div', null, 'All that fit: ', h('b', null, res.correct.a.map((i) => res.correct.o[i]).join(', ')));
     if (res.t === 'match') return h('ul', { class: 'ans-list' }, res.correct.pairs.map((p) => h('li', null, `${p[0]} → `, h('b', null, p[1]))));
     if (res.t === 'order') return h('ol', { class: 'ans-list' }, res.correct.steps.map((s) => h('li', null, s)));
     return null;
@@ -104,10 +104,10 @@ function resultBox(s, rubric) {
   return h('div', { class: 'review' },
     h('div', { class: 'row spread' }, h('b', null, who), auto.rating && s.status !== 'reviewed' ? h('span', { class: `chip ${{ solid: 'green', developing: 'amber', gap: 'coral' }[auto.rating]}` }, { solid: 'Solid', developing: 'Developing', gap: 'Gap' }[auto.rating]) : null),
     s.rubric ? h('div', { class: 'rub' }, rubric.map((c) => { const fbOnly = s.status !== 'reviewed' && (auto.feedbackOnly || []).includes(c.key);
-      return h('span', { class: `chip ${fbOnly ? 'grey' : chipCls[s.rubric[c.key]]}`, title: fbOnly ? 'Feedback only: pace and filler words do not count towards your level.' : null }, `${c.label}: ${s.rubric[c.key]}/3${fbOnly ? ' · tip only' : ''}`); })) : null,
+      return h('span', { class: `chip ${fbOnly ? 'grey' : chipCls[s.rubric[c.key]]}`, title: fbOnly ? 'Feedback only: pace and filler words do not count towards your level.' : null }, `${c.label}: ${s.rubric[c.key]}/3${fbOnly ? ', tip only' : ''}`); })) : null,
     s.review_comment ? h('div', { style: 'margin-top:8px' }, s.review_comment) : null,
     s.counts === false ? h('div', { class: 'practice-note' }, 'Practice attempt: your recorded result is the one from your first submission.') : s.counts ? h('div', { class: 'practice-note rec' }, (s.kind === 'practice' ? 'First submission: this is your recorded result. Try again any time to practise.' : `First submission: this is your recorded result and it ${s.status === 'reviewed' ? 'moved your level with your KUDO Trainer\'s score' : 'moved your level. If your KUDO Trainer reviews it, their score replaces this one'}. Try again any time to practise.`)) : null,
-    auto.points && s.status !== 'reviewed' ? h('ul', { class: 'pts' }, auto.points.map((p) => h('li', { class: p.covered ? 'yes' : 'no' }, p.covered ? '✓ ' : '✗ ', p.point))) : null,
+    auto.points && s.status !== 'reviewed' ? h('ul', { class: 'pts' }, auto.points.map((p) => h('li', { class: p.covered ? 'yes' : 'no' }, mark(p.covered), ' ', p.point))) : null,
     auto.missed?.length && s.status !== 'reviewed' ? h('details', null, h('summary', null, 'Where the missed points are in the lesson'), auto.missed.map((x) => h('div', { class: 'small', style: 'margin-top:4px' }, h('b', null, `${x.point}: `), x.lesson))) : null,
     s.transcript ? h('details', null, h('summary', null, 'What the system heard'), h('div', { class: 'pre' }, s.transcript), h('div', { class: 'muted small' }, 'If the transcript is wrong (bad microphone, background noise), ask your KUDO Trainer to listen.')) : null,
     s.status === 'auto' ? h('div', { class: 'muted small', style: 'margin-top:6px' }, s.human_requested ? 'You asked your KUDO Trainer to look at it.' : s.needs_human ? 'Your KUDO Trainer will also look at this one.' : '') : null,
@@ -129,7 +129,7 @@ export function explainCard(moduleKey, ex, submissions, rubric, { onDone, kind =
     } catch (e) { resultArea.replaceChildren(h('div', { class: 'muted' }, e.message)); }
   };
   const last = submissions[0];
-  if (last) { if (last.status === 'processing') poll(last.id); else if (last.status === 'submitted') resultArea.append(h('div', { class: 'muted small' }, `Sent ${fmtDate(last.created_at)} · waiting for your KUDO Trainer's review.`)); else showResult(last); }
+  if (last) { if (last.status === 'processing') poll(last.id); else if (last.status === 'submitted') resultArea.append(h('div', { class: 'muted small' }, `Sent ${fmtDate(last.created_at)}, waiting for your KUDO Trainer's review.`)); else showResult(last); }
 
   let rec = null, chunks = [], blob = null, startedAt = 0, timer = null, secs = 0;
   const time = h('span', { class: 'rec-time' }, '0:00');
@@ -180,7 +180,7 @@ export function feedbackCard(moduleKey, { onDone } = {}) {
   const comment = h('textarea', { rows: 2, placeholder: 'One thing that would make this module better (optional)' });
   const box = h('div', { class: 'card fb-card' }, h('h2', null, 'How was this module?'), h('p', { class: 'sub' }, '20 seconds. It helps improve the Academy. Your KUDO Trainer sees module results without names.'),
     scale('clear', 'It was clear'), scale('relevant', 'It fits what my clients ask'), scale('confidence', 'I could do this with a client now'),
-    h('div', { class: 'muted small', style: 'margin:2px 0 8px' }, '1 = not at all · 5 = completely'), comment,
+    h('div', { class: 'muted small', style: 'margin:2px 0 8px' }, '1 means not at all, 5 means completely'), comment,
     h('button', { class: 'btn primary', style: 'margin-top:8px', on: { click: async () => {
       try { await api('POST', `/api/me/modules/${moduleKey}/feedback`, { ...v, comment: comment.value.trim() || null }); box.replaceChildren(h('div', { class: 'ok' }, 'Thank you. Noted.')); onDone?.(); } catch (e) { toast(e.message, true); }
     } } }, 'Send'));
@@ -229,7 +229,7 @@ export async function surveyView() {
     if (x.type === 'choice') return h('div', null, x.o.map((o) => h('label', { class: 'opt' }, h('input', { type: 'radio', name: x.key, on: { change: () => { answers[x.key] = o; } } }), h('span', null, o))));
     return h('textarea', { rows: 2, on: { input: (e) => { answers[x.key] = e.target.value; } } });
   };
-  return h('div', { class: 'page lesson' }, h('a', { href: '#programme', class: 'muted' }, '← Home'),
+  return h('div', { class: 'page lesson' }, h('a', { href: '#programme', class: 'muted' }, 'Back to Home'),
     h('div', { class: 'page-head', style: 'margin-top:8px' }, h('div', null, h('h1', null, 'How did the programme work for you?'), h('p', null, s.done ? 'You have already answered. You can update your answers.' : 'Ten questions, about five minutes. Ratings are 1 (not at all) to 5 (completely).'))),
     h('div', { class: 'card' }, s.questions.map((x, i) => h('div', { class: 'qq' }, h('b', null, `${i + 1}. ${x.q}`), h('div', { style: 'margin-top:6px' }, q(x)))),
       h('button', { class: 'btn primary', on: { click: async () => { try { await api('POST', '/api/me/survey', { answers }); toast('Thank you'); location.hash = `${document.body.dataset.me ? 'me-' : ''}programme`; } catch (e) { toast(e.message, true); } } } }, 'Send my answers')));

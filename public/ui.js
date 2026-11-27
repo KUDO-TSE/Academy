@@ -1,4 +1,5 @@
 // Tiny DOM helpers. Everything is built with textContent / attributes (never innerHTML) so data can never become markup.
+export const metaRow = (parts) => h('span', { class: 'meta-row' }, parts.filter(Boolean).map((p) => h('span', null, p)));
 export function h(tag, attrs, ...kids) {
   const el = document.createElement(tag);
   if (attrs) for (const [k, v] of Object.entries(attrs)) {
@@ -17,7 +18,7 @@ export function h(tag, attrs, ...kids) {
   }
   return el;
 }
-export const svg = (markup) => { const t = document.createElement('template'); t.innerHTML = markup; return t.content.firstElementChild; };
+export const svg = (markup) => { const t = document.createElement('template'); t.innerHTML = markup; const el = t.content.firstElementChild; if (el && el.tagName.toLowerCase() === 'svg' && !el.hasAttribute('aria-label') && !el.hasAttribute('role') && !el.querySelector('title')) el.setAttribute('aria-hidden', 'true'); return el; };
 
 export async function api(method, url, body) {
   const res = await fetch(url, {
@@ -47,7 +48,7 @@ export function modal(title, bodyEl, { actions } = {}) {
   return close;
 }
 
-export const pct = (v, d = 0) => (v == null ? '–' : `${Number(v).toFixed(d)}%`);
+export const pct = (v, d = 0) => (v == null ? 'None' : `${Number(v).toFixed(d)}%`);
 export const initials = (n) => String(n || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0].toUpperCase()).join('');
 export const fmtDate = (d) => {
   if (!d) return '';
@@ -79,9 +80,12 @@ export const ICON = {
   star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M12 8l1.2 2.5 2.8.4-2 2 .5 2.8-2.5-1.3-2.5 1.3.5-2.8-2-2 2.8-.4z"/></svg>',
   info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></svg>',
   log: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h7"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  cross: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg>',
   user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>',
 };
 export const icon = (name) => svg(ICON[name]);
+export const mark = (ok) => h('span', { class: `mk ${ok ? 'ok' : 'no'}`, role: 'img', 'aria-label': ok ? 'Yes' : 'No' }, icon(ok ? 'check' : 'cross'));
 
 // The Imports section: results and rosters, sessions and release notes share one menu entry and these tabs.
 export function importsHead(active, desc, action = null) {
@@ -104,7 +108,7 @@ export function quiet(root) {
   const tiles = () => root.querySelectorAll('.kpi > .note:not([data-q]), .jm-fact > .jm-fs:not([data-q])').forEach((n) => {
     n.dataset.q = '1'; const t = n.textContent.trim(); const tile = n.parentElement;
     const v = tile.querySelector('.value, b')?.textContent.trim();
-    if (!t || /\d/.test(t) || n.classList.contains('keep') || !v || v === '–') return;
+    if (!t || /\d/.test(t) || n.classList.contains('keep') || !v || v === 'None') return;
     tile.querySelector('.label, .jm-fk')?.append(' ', tipI(t)); n.remove();
   });
   const all = () => { run(); tiles(); };
