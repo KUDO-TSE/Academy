@@ -69,6 +69,7 @@ function brandHero(title, text, { preview = true } = {}) {
 function loginScreen() {
   const email = h('input', { type: 'email', autocomplete: 'username', required: true, placeholder: 'you@kudo.ai' });
   const pw = h('input', { type: 'password', autocomplete: 'current-password', required: true });
+  const show = h('button', { type: 'button', class: 'pw-show', 'aria-pressed': 'false', on: { click: () => { const on = pw.type === 'password'; pw.type = on ? 'text' : 'password'; show.textContent = on ? 'Hide' : 'Show'; show.setAttribute('aria-pressed', String(on)); pw.focus(); } } }, 'Show');
   const err = h('div');
   const btn = h('button', { class: 'btn primary block', type: 'submit' }, 'Sign in');
   const form = h('form', { novalidate: true, on: { submit: async (e) => {
@@ -76,7 +77,7 @@ function loginScreen() {
     try { me = (await api('POST', '/api/auth/login', { email: email.value, password: pw.value })).user; location.hash = ''; render(); }
     catch (ex) { err.replaceChildren(h('div', { class: 'err', role: 'alert' }, ex.message)); btn.disabled = false; pw.value = ''; pw.focus(); }
   } } },
-  h('label', { class: 'f' }, h('span', { class: 'l' }, 'Email'), email), h('label', { class: 'f' }, h('span', { class: 'l' }, 'Password'), pw), err, btn);
+  h('label', { class: 'f' }, h('span', { class: 'l' }, 'Email'), email), h('label', { class: 'f' }, h('span', { class: 'l' }, 'Password'), h('span', { class: 'pw-wrap' }, pw, show)), err, btn);
   return h('div', { class: 'login' }, brandHero('Become the person clients trust with KUDO', 'Your own 12-week plan: learn each scenario, practise it on real client situations and prove it with your KUDO Trainer.'),
     h('div', { class: 'login-panel' }, h('div', { class: 'login-card' }, h('h2', null, 'Sign in'), h('p', { class: 'lead' }, 'Use your KUDO email to open your programme'), form,
       h('p', { class: 'login-help' }, h('b', null, 'First time here? '), 'Use the password you were given. You will choose your own right after.')),
@@ -113,9 +114,11 @@ function shell() {
   const nav = me.role === 'admin' ? [...NAV_ADMIN.slice(0, 10), ...(me.isTrainee ? [['SEP', 'My Academy'], ...NAV_ME] : []), ...NAV_ADMIN.slice(10)] : NAV_TRAINEE;
   const list = h('ul', { class: 'nav' }, nav.map(([k, l, ic]) => k === 'SEP' ? h('li', { class: 'sep' }, l) : h('li', null, h('a', { href: `#${k}`, 'data-r': k }, icon(ic), l))),
     h('li', { class: 'nav-tour' }, h('a', { href: '#', class: 'tour-link', on: { click: (e) => { e.preventDefault(); runTour(); } } }, icon('info'), 'Guided tour')));
-  const menu = h('div', { class: 'menu', role: 'menu', hidden: true }, h('button', { role: 'menuitem', on: { click: () => { menu.hidden = true; changePasswordModal(); } } }, 'Change password'), h('button', { class: 'out', role: 'menuitem', on: { click: logout } }, 'Log out'));
-  const acct = h('div', { class: 'acct' }, menu, h('button', { class: 'acct-btn', 'aria-haspopup': 'menu', on: { click: (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; } } }, h('span', { class: 'avatar' }, initials(me.name)), h('span', { class: 'acct-meta' }, h('div', { class: 'acct-name' }, me.name), h('div', { class: 'acct-role' }, me.role === 'admin' ? 'Admin' : 'Trainee'))));
-  document.addEventListener('click', () => { menu.hidden = true; });
+  const menu = h('div', { class: 'menu', hidden: true }, h('button', { type: 'button', on: { click: () => { menu.hidden = true; changePasswordModal(); } } }, 'Change password'), h('button', { type: 'button', class: 'out', on: { click: logout } }, 'Log out'));
+  const acct = h('div', { class: 'acct' }, menu, h('button', { type: 'button', class: 'acct-btn', 'aria-expanded': 'false', on: { click: (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; e.currentTarget.setAttribute('aria-expanded', String(!menu.hidden)); } } }, h('span', { class: 'avatar' }, initials(me.name)), h('span', { class: 'acct-meta' }, h('div', { class: 'acct-name' }, me.name), h('div', { class: 'acct-role' }, me.role === 'admin' ? 'Admin' : 'Trainee'))));
+  const closeMenu = () => { menu.hidden = true; acct.querySelector('.acct-btn')?.setAttribute('aria-expanded', 'false'); };
+  document.addEventListener('click', closeMenu);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) { closeMenu(); acct.querySelector('.acct-btn')?.focus(); } });
   const testBar = me.actingAs ? h('div', { class: 'test-bar' }, h('span', null, h('b', null, 'Test mode. '), `You are ${me.name}. Nothing you do here counts in the team results.`),
     h('button', { class: 'btn sm', on: { click: async () => { await api('POST', '/api/auth/act-as/stop'); location.hash = 'try'; location.reload(); } } }, `Back to admin (${me.actingAs.adminName})`)) : null;
   // Phones: the menu folds into a drawer behind a button; trainees also get a tab bar at the bottom.
@@ -123,7 +126,7 @@ function shell() {
     h('span'), h('span'), h('span'));
   const traineeTabs = me.role !== 'admin' ? h('nav', { class: 'tabbar', 'aria-label': 'Main' }, NAV_TRAINEE.map(([k, l, ic]) => h('a', { href: `#${k}`, 'data-r': k }, icon(ic), h('span', null, l.replace(/^My (.)/, (_m, c) => c.toUpperCase()))))) : null;
   document.body.dataset.admin = me.role === 'admin' ? '1' : '';
-  return h('div', { class: `shell ${me.actingAs ? 'testing' : ''} ${traineeTabs ? 'has-tabbar' : ''}` }, testBar, h('aside', { class: 'sidebar' }, h('div', { class: 'brand' }, h('img', { src: '/kudo-logo-navy.png', alt: 'KUDO' }), h('span', { class: 'tag' }, 'Academy')), list, acct, toggle), h('main', { class: 'main', id: 'main', tabindex: -1 }), traineeTabs, (me.role !== 'admin' || me.isTrainee) && !me.mustChange ? coachWidget() : null);
+  return h('div', { class: `shell ${me.actingAs ? 'testing' : ''} ${traineeTabs ? 'has-tabbar' : ''}` }, h('a', { class: 'skip-link', href: '#main', on: { click: (e) => { e.preventDefault(); const t = document.querySelector('#main h1') || document.getElementById('main'); if (t.tagName === 'H1') t.setAttribute('tabindex', '-1'); t.focus(); } } }, 'Skip to main content'), testBar, h('aside', { class: 'sidebar' }, h('div', { class: 'brand' }, h('img', { src: '/kudo-logo-navy.png', alt: 'KUDO' }), h('span', { class: 'tag' }, 'Academy')), list, acct, toggle), h('main', { class: 'main', id: 'main', tabindex: -1 }), traineeTabs, (me.role !== 'admin' || me.isTrainee) && !me.mustChange ? coachWidget() : null);
 }
 
 // ------------------------------------------------------------ Router
@@ -135,6 +138,7 @@ const isAdminDyn = (r) => r.startsWith('session-') || r.startsWith('release-') |
 // An admin who is also on the team uses their own Academy under "me-" addresses. While they are there, in-page links
 // to trainee pages (#training, #results, #module-…) stay in their Academy instead of opening the admin pages.
 let lastMeMode = false;
+let lastRouted = null;
 document.addEventListener('click', (e) => {
   const a = e.target.closest?.('a[href^="#"]'); if (!a || !lastMeMode || e.defaultPrevented) return;
   const k = a.getAttribute('href').slice(1);
@@ -158,6 +162,7 @@ async function route() {
   const navKey = meMode ? `me-${r}` : r;
   document.body.classList.remove('nav-open'); document.querySelector('.nav-toggle')?.setAttribute('aria-expanded', 'false');
   document.querySelectorAll('.nav a, .tabbar a').forEach((a) => a.classList.toggle('active', a.dataset.r === navKey || (r.startsWith('person-') && a.dataset.r === 'team') || (r.startsWith('curriculum-') && a.dataset.r === 'curriculum') || ((r === 'sessions' || r === 'releases' || r.startsWith('session-') || r.startsWith('release-')) && a.dataset.r === 'imports') || (isTraineeDyn(r) && a.dataset.r === (meMode ? 'me-training' : 'training'))));
+  document.querySelectorAll('.nav a, .tabbar a').forEach((a) => { if (a.classList.contains('active')) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   main.replaceChildren(h('div', { class: 'page muted' }, 'Loading…'));
   try {
     let view;
@@ -185,6 +190,9 @@ async function route() {
       view = TRAINEE_ROUTES[r](data, { onChange: () => {} });
     }
     main.replaceChildren(view);
+    // A new page (not a refresh of the same one): move keyboard and screen-reader focus to its title.
+    if (lastRouted != null && lastRouted !== location.hash) { const h1 = main.querySelector('h1'); if (h1) { h1.setAttribute('tabindex', '-1'); h1.focus({ preventScroll: true }); } }
+    lastRouted = location.hash;
     if (!main.dataset.quiet) { main.dataset.quiet = '1'; quiet(main); }
     main.scrollTop = 0;
     if ((!isAdmin || meMode) && r !== 'collection' && !r.startsWith('sandbox-')) revealNew();

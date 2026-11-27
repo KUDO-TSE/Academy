@@ -136,7 +136,7 @@ export function explainCard(moduleKey, ex, submissions, rubric, { onDone, kind =
   const player = h('audio', { controls: true, hidden: true });
   const recBtn = h('button', { class: 'btn primary', type: 'button' }, last ? 'Record a new one' : 'Start recording');
   const writeFirst = type !== 'speak';
-  const text = h('textarea', { rows: writeFirst ? 9 : 4, placeholder: type === 'write' ? 'Write it here, as you would send it.' : type === 'steps' ? 'Describe what you did, step by step, in order.' : 'Or write it, as you would say it to the client.' });
+  const text = h('textarea', { rows: writeFirst ? 9 : 4, 'aria-label': type === 'write' ? 'Your written answer' : 'Your answer', placeholder: type === 'write' ? 'Write it here, as you would send it.' : type === 'steps' ? 'Describe what you did, step by step, in order.' : 'Or write it, as you would say it to the client.' });
   const send = h('button', { class: 'btn', type: 'button' }, 'Send for review');
   const fmt = (x) => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
   const stop = () => { if (rec && rec.state !== 'inactive') rec.stop(); clearInterval(timer); };

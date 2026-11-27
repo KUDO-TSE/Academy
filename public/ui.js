@@ -32,18 +32,33 @@ export async function api(method, url, body) {
   return data;
 }
 
+// Confirmations fade after a few seconds; errors stay until dismissed so they can be read.
 export function toast(msg, bad = false) {
-  const t = h('div', { class: 'toast' + (bad ? ' bad' : ''), role: 'status' }, msg);
+  document.querySelectorAll('.toast.bad').forEach((x) => x.remove());
+  const t = bad
+    ? h('div', { class: 'toast bad', role: 'alert' }, h('span', null, msg), h('button', { type: 'button', class: 'toast-x', 'aria-label': 'Dismiss', on: { click: () => t.remove() } }, '×'))
+    : h('div', { class: 'toast', role: 'status' }, msg);
   document.body.append(t);
-  setTimeout(() => t.remove(), 3200);
+  if (!bad) setTimeout(() => t.remove(), 3200);
 }
 
+// Dialog: focus moves in, Tab stays inside, Escape or a click outside closes it, focus returns to the opener.
 export function modal(title, bodyEl, { actions } = {}) {
-  const close = () => ov.remove();
+  const opener = document.activeElement;
+  const close = () => { ov.remove(); document.removeEventListener('keydown', onKey, true); if (opener?.isConnected && opener.offsetParent !== null) opener.focus(); else document.querySelector('.acct-btn, #main')?.focus(); };
+  const focusables = () => [...ov.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter((x) => x.offsetParent !== null);
+  const onKey = (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); return; }
+    if (e.key !== 'Tab') return;
+    const f = focusables(); if (!f.length) return;
+    if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+  };
   const ov = h('div', { class: 'overlay', on: { mousedown: (e) => { if (e.target === ov) close(); } } },
     h('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
       h('h2', null, title), bodyEl, actions ? h('div', { class: 'actions' }, actions(close)) : null));
   document.body.append(ov);
+  document.addEventListener('keydown', onKey, true);
   ov.querySelector('input,select,textarea,button')?.focus();
   return close;
 }

@@ -33,7 +33,7 @@ export async function boardView() {
       t.canHandle ? h('button', { class: 'btn sm', on: { click: () => act(t.key, 'handled') } }, 'Done') : null,
       h('button', { class: 'btn sm', title: 'Hide for a week', on: { click: () => act(t.key, 'snooze') } }, 'Snooze')));
 
-  const hours = h('input', { type: 'number', min: 1, max: 40, value: b.settings.hours, style: 'width:80px' });
+  const hours = h('input', { type: 'number', min: 1, max: 40, value: b.settings.hours, style: 'width:80px', id: 'wk-hours' });
   const dayBoxes = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => h('label', { class: 'daybox' }, h('input', { type: 'checkbox', checked: b.settings.days.includes(i + 1) }), h('span', null, d)));
   const saveSettings = async () => { try { await api('PUT', '/api/admin/board/settings', { hours: Number(hours.value), days: dayBoxes.map((x, i) => (x.querySelector('input').checked ? i + 1 : null)).filter(Boolean) }); toast('Saved'); window.dispatchEvent(new HashChangeEvent('hashchange')); } catch (e) { toast(e.message, true); } };
   const over = b.week.needMinutes > b.week.capacityMinutes;
@@ -50,7 +50,7 @@ export async function boardView() {
 
     h('div', { class: 'card', style: 'margin-top:16px' },
       h('div', { class: 'row spread', style: 'flex-wrap:wrap;gap:12px' }, h('div', null, h('h2', null, 'Your suggested week'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, `Needs ${hrs(b.week.needMinutes)}, you have ${hrs(b.week.capacityMinutes)}. Sessions are spread out, small tasks are batched.`)),
-        h('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap' }, h('span', { class: 'muted small' }, 'Hours a week for the Academy'), hours, ...dayBoxes, h('button', { class: 'btn sm', on: { click: saveSettings } }, 'Save'))),
+        h('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap' }, h('label', { class: 'muted small', for: 'wk-hours' }, 'Hours a week for the Academy'), hours, ...dayBoxes, h('button', { class: 'btn sm', on: { click: saveSettings } }, 'Save'))),
       over ? h('div', { class: 'warn-line' }, `This week needs more time than you have. ${b.week.overflow.length} task${b.week.overflow.length > 1 ? 's' : ''} do not fit: snooze them, or raise your hours.`) : null,
       h('div', { class: 'weekgrid' }, b.week.days.map((d) => h('div', { class: `wday ${d.date === b.today ? 'today' : ''}` },
         h('div', { class: 'wday-h' }, h('b', null, d.label), h('span', null, fmtDate(d.date)), h('span', { class: 'muted small' }, hrs(d.minutes))),
