@@ -17,7 +17,7 @@ Node 22 + Express, PostgreSQL, vanilla JS front end. No data or password is stor
 |---|---|
 | `SESSION_SECRET` | long random string (24+ characters) |
 | `INITIAL_PASSWORD` | the generic first-login password (everyone must change it at first login) |
-| `ADMIN_EMAILS` | `jack@kudo.ai,nils@kudo.ai,erick@kudo.ai,fardad@kudo.ai` |
+| `ADMIN_EMAILS` | `jack@kudo.ai,nils@kudo.ai,erick@kudo.ai` |
 | `NODE_ENV` | `production` |
 
 4. Deploy. Tables are created automatically at start-up (`/healthz` for health check).
