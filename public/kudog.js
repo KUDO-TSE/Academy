@@ -3,7 +3,7 @@
 // their own pivot. Motion follows the 12 animation principles at 50% intensity (image-to-3d-rebuild skill):
 // every beat is a pure function of time (anticipation, fast action, squash on landing, follow-through),
 // nothing linear, angles on more than one part so it never moves "in one piece".
-import { h } from './ui.js';
+import { h, modal } from './ui.js';
 
 const SRC = '/kudog.webp';
 const pct = (pts) => `polygon(${pts.map(([x, y]) => `${x / 5}% ${y / 5}%`).join(',')})`;
@@ -128,3 +128,13 @@ export function kudogPuppet({ size = 96, label = 'Pet KUDOG', onPet } = {}) {
 
 /** The round face used on the coach button. */
 export const kudogFace = () => h('i', { class: 'kd-face', 'aria-hidden': 'true', style: `background-image:url(${SRC})` });
+
+/** A pop-up told by KUDOG: he sits beside a speech bubble and reacts with a mood. Keyboard-safe (built on modal()).
+ *  body: extra content under the bubble. actions(close): buttons. Returns close(). */
+export function kudogSays({ title, say, mood = 'happy', body = null, actions = null, wide = false, onClose } = {}) {
+  const dog = kudogPuppet({ size: 96 });
+  const bubble = h('div', { class: 'kd-bubble' }, h('b', { class: 'kd-name' }, 'KUDOG'), ...(Array.isArray(say) ? say : [say]).map((p) => (typeof p === 'string' ? h('p', null, p) : p)));
+  const close = modal(title, h('div', null, h('div', { class: 'kd-says' }, dog.el, bubble), body), { actions, cls: `kd-modal ${wide ? 'wide' : ''}`, onClose: () => { dog.stop(); onClose?.(); } });
+  dog.start(); setTimeout(() => dog.mood(mood), 250);
+  return Object.assign(close, { dog });
+}

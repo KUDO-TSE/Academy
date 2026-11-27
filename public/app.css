@@ -474,7 +474,7 @@ details.phase[open] > summary::after{content:'▾'}
 .tour-shade{position:fixed;inset:0;background:color-mix(in srgb,var(--primary-600) 55%,transparent);pointer-events:auto}
 .tour-spot{position:fixed;border-radius:12px;box-shadow:0 0 0 9999px color-mix(in srgb,var(--primary-600) 55%,transparent),0 0 0 3px var(--coral);top:0;left:0;transition:transform .3s var(--ease);pointer-events:auto}
 .tour-pop{position:fixed;background:var(--white);border-radius:16px;padding:18px 20px 16px;box-shadow:0 18px 48px color-mix(in srgb,var(--primary-600) 28%,transparent);pointer-events:auto;transition:opacity .2s var(--ease);max-width:calc(100% - 24px)}
-.tour-pop.center{top:50%;left:50%;transform:translate(-50%,-50%);width:min(520px,calc(100% - 32px));padding:28px 30px 22px;border-top:6px solid var(--coral)}
+.tour-pop.center{top:50%;left:50%;transform:translate(-50%,-50%);width:min(520px,calc(100% - 32px));padding:24px 26px 20px}
 .tour-pop.center h3{font-size:22px}
 .tour-pop h3{margin:6px 0 6px;font-size:17px;color:var(--primary-600)}
 .tour-pop p{margin:0 0 12px;color:var(--ink-700);line-height:1.5;font-size:14px}
@@ -1259,3 +1259,28 @@ a,button,label,summary,select,input,[role="button"]{touch-action:manipulation}
 .co-panel header .kd{margin:-8px 0 -10px -6px}
 .co-panel header .kd:focus-visible{outline-offset:-2px}
 @media (prefers-reduced-motion: reduce){.co-fab.kd-hop{animation:none}}
+/* KUDOG speaks: pop-ups and toasts */
+.kd-modal{max-width:560px}.kd-modal.wide{max-width:680px}
+.kd-says{display:flex;gap:14px;align-items:flex-start;margin:4px 0 14px}
+.kd-bubble{position:relative;flex:1;background:var(--bg-app);border-radius:14px;padding:12px 16px;font-size:14.5px;line-height:1.5}
+.kd-bubble::before{content:'';position:absolute;left:-8px;top:26px;border:8px solid transparent;border-left:0;border-right-color:var(--bg-app)}
+.kd-bubble p{margin:0 0 6px}.kd-bubble p:last-child{margin:0}
+.kd-name{display:block;font-size:12px;color:var(--primary);margin-bottom:2px}
+.toast .toast-face{width:26px;height:26px;margin-right:4px;box-shadow:none}
+.toast:has(.toast-face){display:flex;align-items:center;gap:8px;padding-left:8px}
+@media (max-width:520px){.kd-says .kd{width:72px!important;height:72px!important}}
+/* Module recap */
+.recap-tbl{width:100%;margin-top:2px}.recap-tbl .num{text-align:right;white-space:nowrap}
+.recap-tbl tfoot th{border-top:2px solid var(--border);padding-top:10px}
+.recap-plan{margin-top:14px}.recap-plan h3{margin:0 0 6px;font-size:15px}.recap-plan ol{margin:0;padding-left:20px;display:grid;gap:6px;font-size:14px}
+.recap-banner{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0 4px;padding:10px 14px;border-radius:12px;background:color-mix(in srgb,var(--green) 12%,var(--white))}
+.recap-banner.support{background:var(--primary-100)}
+.recap-banner > div{flex:1;min-width:200px}
+.reveal-kd{margin:0 0 8px;text-align:left}.reveal-kd .kd-bubble{font-size:14px}
+
+/* The tour is told by KUDOG */
+.tour-pop{width:440px}
+.tour-kd{margin:6px 0 10px}.tour-kd .kd-bubble h3{margin:0 0 4px;font-size:16px}.tour-kd .kd-bubble p{font-size:14px}
+.tour-pop.center .tour-kd .kd{width:104px!important;height:104px!important}
+.tour-pop.center .tour-kd .kd-bubble h3{font-size:20px}
+@media (max-width:600px){.tour-kd .kd{width:58px!important;height:58px!important}.tour-pop.center .tour-kd .kd{width:72px!important;height:72px!important}}

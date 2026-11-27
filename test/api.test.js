@@ -766,3 +766,36 @@ test('card rarity: anonymous share of real trainees, test accounts never count',
   assert.equal(after.total, total - 1); assert.equal(after.n, holders - 1, 'a test account is not counted');
   await q('UPDATE users SET is_demo=false WHERE id=$1', [id]);
 });
+
+test('module recap: scores per task, KUDOG celebrates or supports, never waits for a human review', async () => {
+  const { moduleRecap } = await import('../server/recaps.js');
+  const { stepScore } = await import('../server/engine.js');
+  // Recordings and practice: the automatic score counts at once.
+  assert.equal(stepScore({ kind: 'explain', module: 'x' }, [], [{ module_key: 'x', kind: 'explain', counts: true, status: 'auto', rubric: { accurate: 3, complete: 2, handover: 3 } }]), 83);
+  assert.equal(stepScore({ kind: 'explain', module: 'x' }, [], [{ module_key: 'x', kind: 'explain', counts: true, status: 'processing', rubric: null }]), null);
+  assert.equal(stepScore({ kind: 'scenario', module: 'x' }, [{ module_key: 'x', kind: 'scenario', counts: true, correct: 9, total: 10 }], []), 90);
+  const id = (await q("SELECT id FROM users WHERE email='dana@test.local'")).rows[0].id;
+  const sc = (await import('../server/curriculum.js')).MODULE_BY_KEY.platform.scenario;
+  const prog = (check, done = true) => ({ state: { next: [{ title: 'Learn: Teams', module: 'teams' }], levels: [{ scenario: sc, baseline: 70, label: 'KUDO Platform' }], items: [
+    { key: 'platform.lesson', module: 'platform', owner: 'you', kind: 'lesson', done: true },
+    { key: 'platform.check', module: 'platform', owner: 'you', kind: 'check', done, recorded: check },
+    { key: 'platform.scenario', module: 'platform', owner: 'you', kind: 'scenario', done: true, recorded: 90 },
+    { key: 'review.platform', module: 'platform', owner: 'you', kind: 'review', done: false, week: 8, title: 'Spaced review' }] } });
+  await q("DELETE FROM sandbox_runs WHERE user_id=$1 AND scenario IN ('platform-1','platform-2')", [id]);
+  const low = await moduleRecap(id, 'platform', prog(60));
+  assert.equal(low.complete, true); assert.equal(low.overall, 75); assert.equal(low.initial, 70);
+  assert.equal(low.verdict, 'support', 'under the pass mark: KUDOG is supportive'); assert.deepEqual(low.weak, ['check']);
+  assert.equal(low.review.week, 8, 'he points to the next scored chance');
+  assert.equal(low.tasks.find((t) => t.kind === 'lesson').score, null);
+  const high = await moduleRecap(id, 'platform', prog(100));
+  assert.equal(high.overall, 95); assert.equal(high.verdict, 'great'); assert.equal(high.next.module, 'teams');
+  assert.equal((await moduleRecap(id, 'platform', prog(null, false))).complete, false, 'not every step done');
+  // A recording still being scored holds the recap until its score is in.
+  const sub = (await q("INSERT INTO submissions (user_id,module_key,text_answer,status,kind,counts,cycle) VALUES ($1,'platform','x','processing','explain',true,0) RETURNING id", [id])).rows[0].id;
+  assert.equal((await moduleRecap(id, 'platform', prog(100))).complete, false);
+  await q('DELETE FROM submissions WHERE id=$1', [sub]);
+  // Routes: nothing to show for a module that is not in the plan; it cannot be marked seen before it is complete.
+  const d = client(); await d('POST', '/api/auth/login', { email: 'dana@test.local', password: 'Quiet-valley-pass-73' });
+  assert.equal((await d('GET', '/api/me/recaps/pending')).status, 200);
+  assert.equal((await d('POST', '/api/me/recaps/zoom/seen')).status, 409);
+});

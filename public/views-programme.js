@@ -4,6 +4,7 @@ import { journeyMap } from './journey.js';
 import { SCENARIOS as SANDBOXES } from './sandbox.js';
 import { storyPlayer } from './story.js';
 import { collectionStrip } from './collectibles.js';
+import { recapBanner } from './recap.js';
 import { checkForm, resultView, walkthroughCard, explainCard, feedbackCard, challengeCard, spacedCard } from './assess-ui.js';
 
 // ------------------------------------------------------------------ shared bits
@@ -31,7 +32,7 @@ function itemRow(it, { readOnly, compact } = {}) {
       h('div', { class: 'pi-t' }, href && !readOnly ? h('a', { href }, it.title) : it.title),
       h('div', { class: 'pi-meta' }, h('span', { class: `chip ${KIND_CHIP[it.kind] || 'grey'}` }, KIND_LABEL[it.kind] || it.kind), h('span', { class: 'muted small' }, `${it.minutes} min`),
         it.owner === 'jack' ? h('span', { class: 'muted small' }, 'Your KUDO Trainer books this') : null, it.mandatory ? h('span', { class: 'muted small' }, 'Core') : null, !compact && it.why ? tipI(it.why) : null,
-        it.recorded != null ? h('span', { class: `chip ${it.below ? 'amber' : 'green'}` }, `Recorded ${it.recorded}%`) : null, it.signoff && it.done ? h('span', { class: `chip ${it.signed_off ? 'green' : 'grey'}` }, it.signed_off ? 'Signed off' : 'Waiting for sign-off') : null, it.how ? h('span', { class: 'muted small' }, it.how) : null),
+        it.recorded != null ? h('span', { class: `chip ${it.below ? 'amber' : 'green'}` }, `Recorded ${it.recorded}%`) : null, it.signoff && it.done && it.signed_off ? h('span', { class: 'chip green' }, 'Signed off') : null, it.how ? h('span', { class: 'muted small' }, it.how) : null),
       null),
     href && !readOnly && !it.done && !compact ? h('a', { class: 'btn sm', href }, ACTION[it.kind] || 'Open') : null);
 }
@@ -277,6 +278,7 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
       h('div', { class: 'lesson-meta' }, metaRow([m.depth ? `${DEPTH_LABEL[m.depth]} depth` : null, m.minutes ? `about ${m.minutes} min` : null, m.delivery && m.delivery !== 'both' ? (m.delivery === 'ai' ? 'AI Translation' : 'Human Interpretation') : null]),
         m.depth ? h('span', null, ' ', tipI('Depth is how far your role takes this scenario: Set up (you do it yourself), Hand over (you prepare it and pass it on), Know (you can explain it).')) : null),
       why || reviewKey ? h('p', { class: 'why-line' }, h('b', null, reviewKey ? 'Spaced review: ' : 'Why it is in your plan: '), reviewKey ? 'retrieve it from memory first, then check. A pass here completes the review.' : why) : null)),
+    admin || m.key === 'baseline' ? null : recapBanner(m.key),
     m.key === 'baseline' ? null : h('div', { class: 'grid g-8-4' },
       h('div', { class: 'stack' },
         h('div', { class: 'card lesson-card' }, h('h2', null, 'Step 1: Learn'),

@@ -8,6 +8,7 @@ import { boardView } from './views-board.js';
 import { sessionsView, sessionView } from './views-sessions.js';
 import { releasesView, releaseView } from './views-releases.js';
 import { collectionView, revealNew, cardArt } from './collectibles.js';
+import { revealRecap } from './recap.js';
 import { coachWidget } from './coach.js';
 import { startTour, tourFor } from './tour.js';
 import { sandboxView, SCENARIOS as SANDBOXES } from './sandbox.js';
@@ -195,7 +196,8 @@ async function route() {
     lastRouted = location.hash;
     if (!main.dataset.quiet) { main.dataset.quiet = '1'; quiet(main); }
     main.scrollTop = 0;
-    if ((!isAdmin || meMode) && r !== 'collection' && !r.startsWith('sandbox-')) revealNew();
+    // KUDOG first congratulates a completed module (with its scores), then reveals any new card.
+    if ((!isAdmin || meMode) && r !== 'collection' && !r.startsWith('sandbox-')) revealRecap(() => revealNew()).then((shown) => { if (!shown) revealNew(); });
   } catch (e) {
     if (e.status === 401) { me = null; return render(); }
     if (e.code === 'MUST_CHANGE') { me.mustChange = true; return render(); }

@@ -1,6 +1,7 @@
 // Collectibles: the trainee's card collection, the card art (original, drawn in code) and the reveal when a new
 // card is earned. Cards reward real milestones; locked cards show exactly how to earn them.
-import { h, api, svg, modal } from './ui.js';
+import { h, api, svg } from './ui.js';
+import { kudogPuppet, kudogSays } from './kudog.js';
 
 const SET = { Journey: ['var(--primary-600)', 'var(--primary)'], Scenarios: ['var(--primary)', 'var(--teal)'], Topics: ['var(--c-24566b)', 'var(--c-3e8fa8)'], 'Hands-on': ['var(--c-1f6b4e)', 'var(--c-38a06f)'], Craft: ['var(--c-b8492a)', 'var(--coral)'], Habit: ['var(--c-b8860b)', 'var(--amber)'] };
 const TIER = { bronze: ['var(--c-c07a45)', 'Bronze'], silver: ['var(--c-b9c4cb)', 'Silver'], gold: ['var(--c-f2c94c)', 'Gold'] };
@@ -117,13 +118,21 @@ export async function revealNew() {
     await api('POST', '/api/me/collectibles/seen');
     let i = 0;
     const stage = h('div', { class: 'reveal-stage' });
+    // KUDOG presents each new card.
+    const dog = kudogPuppet({ size: 76 }); const line = h('p');
+    const host = h('div', { class: 'kd-says reveal-kd' }, dog.el, h('div', { class: 'kd-bubble' }, h('b', { class: 'kd-name' }, 'KUDOG'), line));
     const ov = h('div', { class: 'overlay reveal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'New card collected' }, h('div', { class: 'modal reveal-box' }, stage));
-    const close = () => { ov.remove(); window.removeEventListener('hashchange', close); };
+    const close = () => { ov.remove(); dog.stop(); window.removeEventListener('hashchange', close); };
     window.addEventListener('hashchange', close);
     const show = () => {
       const c = fresh[i];
+      const r = c.rarity;
+      line.textContent = r && r.n === 1 ? `Woof! You are the first trainee to earn ${c.title}. Legendary!`
+        : r && r.n && r.pct <= 35 ? `Woof! ${c.title} is yours, and only ${r.pct}% of trainees have it. Good job!`
+          : i ? `Another one! ${c.title} joins your collection.` : `Woof! A new card for your collection: ${c.title}.`;
+      setTimeout(() => dog.mood('excited'), 200);
       const flip = h('div', { class: 'flip' }, h('div', { class: 'flip-in' }, h('div', { class: 'flip-back' }, cardArt({ ...c, title: '?', glyph: 'spark' }, { earned: false, size: 200 })), h('div', { class: 'flip-front' }, cardArt(c, { earned: true, size: 200 }))));
-      stage.replaceChildren(
+      stage.replaceChildren(host,
         h('div', { class: 'reveal-k' }, fresh.length > 1 ? `New card ${i + 1} of ${fresh.length}` : 'New card collected'),
         flip, confetti(),
         h('h2', null, c.title), h('p', { class: 'muted' }, h('b', null, 'Earned for: '), c.earn), rarityLine(c),
@@ -133,7 +142,7 @@ export async function revealNew() {
         d.brag?.on && !c.bragged ? bragPanel(c, d.brag) : null);
       requestAnimationFrame(() => setTimeout(() => flip.classList.add('on'), 120));
     };
-    document.body.append(ov); show(); window.dispatchEvent(new CustomEvent('kudog', { detail: 'excited' }));
+    document.body.append(ov); dog.start(); show(); window.dispatchEvent(new CustomEvent('kudog', { detail: 'excited' }));
   } catch { /* never block the page */ } finally { revealing = false; }
 }
 function confetti() {
@@ -177,7 +186,7 @@ export function bragPanel(c, brag, { onDone } = {}) {
 function bragModal(c, brag, from) {
   let close;
   const panel = bragPanel(c, brag, { onDone: () => { from.replaceWith(h('span', { class: 'muted small' }, ' Bragged.')); setTimeout(() => close?.(), 1800); } });
-  close = modal(`Brag about ${c.title}`, h('div', null, h('div', { class: 'brag-card' }, cardArt(c, { size: 120 })), panel));
+  close = kudogSays({ title: `Brag about ${c.title}`, say: [`Show-off time! Let's tell the team about ${c.title}.`, 'You see the exact message before it goes out.'], mood: 'excited', body: h('div', null, h('div', { class: 'brag-card' }, cardArt(c, { size: 120 })), panel) });
   panel.querySelector('.brag-btn')?.click();
 }
 

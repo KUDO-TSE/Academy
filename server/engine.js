@@ -326,6 +326,16 @@ export function diffPlans(a, b) {
 }
 
 /** The live view of a plan: item status, levels now, readiness, week. */
+// The recorded score of a walkthrough, an explain-it or a practice task (first attempt; automatic review unless the KUDO
+// Trainer has reviewed it), as 0-100. Null while there is nothing scored yet.
+export function stepScore(it, attempts, subs) {
+  if (it.kind === 'scenario') { const a = attempts.find((x) => x.module_key === it.module && x.kind === 'scenario' && x.counts !== false); return a ? round((a.correct / a.total) * 100) : null; }
+  if (it.kind === 'explain' || it.kind === 'practice') {
+    const sb = subs.filter((x) => x.module_key === it.module && (x.kind || 'explain') === it.kind && x.counts !== false && ['auto', 'reviewed'].includes(x.status))[0];
+    const v = sb ? explainScore(sb.rubric) : null; return v == null ? null : round(v);
+  }
+  return null;
+}
 export function liveState(u, planRow, ctx) {
   const levels = computeLevels(u, ctx);
   const data = planRow.data, target = data.target;
@@ -343,14 +353,15 @@ export function liveState(u, planRow, ctx) {
     else if (it.kind === 'review') done = passed(it.module, it.key);
     else if (it.kind === 'baseline') done = attempts.some((a) => a.module_key === 'baseline');
     else if (it.kind === 'scenario') done = attempts.some((a) => a.module_key === it.module && a.kind === 'scenario');
-    else if (it.kind === 'explain') { const sb = subs.filter((x) => x.module_key === it.module && (x.kind || 'explain') === 'explain' && x.counts !== false)[0]; done = !!sb; const rt = sb?.status === 'reviewed' ? 'reviewed by your KUDO Trainer' : sb?.auto?.rating; how = sb ? (sb.status === 'processing' ? 'Being reviewed' : rt ? `Recorded result: ${rt}` : 'Waiting for review') : null; }
+    else if (it.kind === 'explain') { const sb = subs.filter((x) => x.module_key === it.module && (x.kind || 'explain') === 'explain' && x.counts !== false)[0]; done = !!sb; const rt = sb?.status === 'reviewed' ? 'reviewed by your KUDO Trainer' : sb?.auto?.rating; how = sb ? (sb.status === 'processing' ? 'Being scored, about a minute' : rt ? `Recorded result: ${rt}` : null) : null; }
     else if (it.kind === 'survey') done = !!ctx.surveys?.has(u.id);
     else if (it.kind === 'one_to_one') { const inp = inputs.find((i) => i.item_key === it.key); done = !!inp || prog.has(it.key); how = inp ? `Logged by your KUDO Trainer on ${new Date(inp.happened_on).toISOString().slice(0, 10)}` : null; }
     else if (it.kind === 'milestone') done = !!(latestLive && data.baseline_round && latestLive.id !== data.baseline_round) || prog.has(it.key);
     else done = prog.has(it.key);
     const p = prog.get(it.key);
     const rec = it.kind === 'check' ? recorded(it.module) : it.kind === 'review' ? recorded(it.module, it.key) : null;
-    const score = rec ? round((rec.correct / rec.total) * 100) : null;
+    // Every scored step shows its score as soon as the system has it: no need to wait for the KUDO Trainer.
+    const score = rec ? round((rec.correct / rec.total) * 100) : stepScore(it, attempts, subs);
     return { ...it, done, how, note: p?.note || null, signed_off: !!p?.signed_off_at, best: score, recorded: score, below: score != null && score < PASS * 100 };
   });
   const week = start ? clamp(Math.floor((Date.now() - start.getTime()) / (7 * 864e5)) + 1, 1, WEEKS) : 1;

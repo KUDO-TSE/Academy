@@ -16,6 +16,7 @@ import { boardRouter } from './board.js';
 import { warmUp, resumePending } from './autoreview.js';
 import { sessionsRouter, loadFieldItems, failInterrupted } from './sessions.js';
 import { collectiblesRouter } from './collectibles.js';
+import { recapRouter } from './recaps.js';
 import { releasesRouter, whatsNewRouter, loadContentEdits } from './releases.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -149,6 +150,7 @@ export async function createApp() {
   app.use('/api/me', requireAuth, meRouter);
   app.use('/api/me', requireAuth, meProgramme);
   app.use('/api/me', requireAuth, collectiblesRouter);
+  app.use('/api/me', requireAuth, recapRouter);
   app.use('/api/me', requireAuth, whatsNewRouter);
   app.use('/api/me', requireAuth, coachRouter);
   app.use('/api/admin', requireAdmin, adminRouter);

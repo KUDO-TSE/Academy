@@ -373,3 +373,12 @@ CREATE TABLE IF NOT EXISTS trainer_messages (
 
 -- A trainee may brag about a card once, on the team's Slack channel (only when SLACK_WEBHOOK_URL is set).
 ALTER TABLE collectibles ADD COLUMN IF NOT EXISTS bragged_at TIMESTAMPTZ;
+
+-- KUDOG's module recap: shown once when every step of a module in the plan is done.
+CREATE TABLE IF NOT EXISTS module_recaps (
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  module_key TEXT NOT NULL,
+  overall INT,
+  shown_at TIMESTAMPTZ,
+  PRIMARY KEY (user_id, module_key)
+);

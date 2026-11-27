@@ -3,10 +3,11 @@
 // Each step can open a page (route), then highlights one element on it. When the element is not there (for example a
 // trainee with no plan yet), the step shows as a centred card instead, so the tour never gets stuck.
 import { h } from './ui.js';
+import { kudogPuppet } from './kudog.js';
 
 // ------------------------------------------------------------------ scripts
 const TRAINEE = [
-  { title: 'Welcome to the KUDO Academy', text: 'This is your personal 12-week programme to master the KUDO client scenarios: what to set up yourself, what to hand over, and how to explain it to a client. It is self-paced: work through it whenever suits you in the week. This tour takes about a minute.', center: true },
+  { title: 'Woof! I am KUDOG', text: 'Your virtual coach, and your companion all the way through the KUDO Academy. This is your personal 12-week programme to master the KUDO client scenarios: what to set up yourself, what to hand over, and how to explain it to a client. It is self-paced, so work through it whenever suits you in the week. I will cheer every module you complete, show you your scores straight away, and when something is hard, help you train on it. Let me show you around: it takes about a minute.', center: true, mood: 'excited' },
   { route: 'programme', sel: '.prog .hero', title: 'Your goal and your progress', text: 'Your programme, built for you, with the goal set by your KUDO Trainer underneath, and how much of your plan is done. The pace tells you if you are on track for the 12 weeks.' },
   { route: 'programme', sel: '.home-stats', title: 'Home: your programme at a glance', text: 'Home is the overview: your readiness, how many scenarios are at target, and your focus areas. To work, use Continue my training.' },
   { route: 'programme', sel: '.roadmap-card', title: 'Your 12 weeks at a glance', text: 'Your route through the four phases, one stop per week. Each stop says what the week covers and how much is done. Coral means steps to catch up, and the dark tags are your KUDO Trainer sessions. Select a week to see its steps.' },
@@ -21,12 +22,12 @@ const TRAINEE = [
   { route: 'module-foundations', sel: '.check-card', title: 'Prove it', text: 'Your first attempt at a check is the score that counts for your learning curve. After that, retake it as often as you like: retakes are practice. Say honestly how sure you are: lucky guesses only count half.' },
   { route: 'programme', sel: '.nav a[data-r="results"]', title: 'Your results', text: 'Your score on every test: the module tests, decision walkthroughs, explain-it recordings and sandbox exercises you take here, then your October Self Assessment and knowledge test. Your first attempt is the result of record; retakes are practice.' },
   { route: 'programme', sel: '.nav a[data-r="progress"]', title: 'Your progress, live', text: 'How each test moves your level, up or down, scenario by scenario, against where you started in October. Lessons and practice never move it: only test results do.' },
-  { route: 'programme', sel: '.co-fab', title: 'Ask KUDOG, your coach', text: 'KUDOG, the virtual coach, answers from your own programme and results: what is next, when your sessions are, how you are progressing and how you are scored. For anything else, the second tab sends a question, remark or observation to your KUDO Trainer, and their reply comes back there.' },
+  { route: 'programme', sel: '.co-fab', title: 'That is me: ask KUDOG', text: 'Click me any time. I answer from your own programme and results: what is next, when your sessions are, how you are progressing and how you are scored. For anything else, the second tab sends a question, remark or observation to your KUDO Trainer, and their reply comes back there.' },
   { route: 'programme', sel: '.nav .tour-link', title: 'Need a refresher?', text: 'Open this tour again from here at any time. Good luck, and enjoy the programme.' },
 ];
 
 const ADMIN = [
-  { title: 'Welcome to the Academy Tracker', text: 'The admin side of the KUDO Academy. Plans are built automatically from each trainee\'s results and your inputs; you approve them. Practice and recordings are reviewed by the system, so your time goes to coaching. This tour takes about two minutes.', center: true },
+  { title: 'Woof! I am KUDOG', text: 'The virtual coach of the KUDO Academy, and your guide to the admin side. Plans are built automatically from each trainee\'s results and your inputs; you approve them. Practice and recordings are reviewed by the system, so your time goes to coaching. Let me show you around: it takes about two minutes.', center: true, mood: 'excited' },
   { route: 'board', sel: '.nav a[data-r="board"]', title: 'My board: your week, organised', text: 'Everything that needs you: messages from trainees (reply from the card), plans to approve, sessions due, spot-checks, trainees to nudge (with a message ready to copy) and teach-back pairs. It suggests a week that fits your hours, and exports it to your calendar.' },
   { route: 'overview', sel: '.nav a[data-r="overview"]', title: 'Overview', text: 'The whole team at a glance: Self Assessment against the live test by scenario, the top training priorities, regions, and who has not taken the test yet.' },
   { route: 'team', sel: '.nav a[data-r="team"]', title: 'Team: one page per person', text: 'Open a trainee to see their results, their roadmap and readiness chart, and their plan. Log a 1:1 or a recording there (Inputs): it shapes their plan (levels move only with test results), and the plan updates as a draft.' },
@@ -65,11 +66,13 @@ export function startTour(steps, { go, onEnd } = {}) {
   const pop = h('div', { class: 'tour-pop', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'tour-title' });
   const layer = h('div', { class: 'tour-layer' }, shade, spot, pop);
   document.body.append(layer);
+  // KUDOG walks the trainee through: he sits in the card and reacts to each step.
+  const dog = kudogPuppet({ size: 76, label: 'Pet KUDOG' }); dog.start();
 
   const close = (completed) => {
     if (closed) return; closed = true; active = null;
     window.removeEventListener('resize', place); window.removeEventListener('keydown', onKey, true); document.getElementById('main')?.removeEventListener('scroll', place);
-    layer.remove(); document.body.classList.remove('nav-open'); window.removeEventListener('scroll', place, true); onEnd?.(completed);
+    dog.stop(); layer.remove(); document.body.classList.remove('nav-open'); window.removeEventListener('scroll', place, true); onEnd?.(completed);
   };
   let target = null;
   function place() {
@@ -81,7 +84,7 @@ export function startTour(steps, { go, onEnd } = {}) {
     shade.hidden = true; spot.hidden = false; pop.classList.remove('center');
     const r = target.getBoundingClientRect(), pad = 8;
     Object.assign(spot.style, { transform: `translate(${r.left - pad}px, ${r.top - pad}px)`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px` });
-    const pw = Math.min(380, window.innerWidth - 24), ph = pop.offsetHeight || 220, vw = window.innerWidth, vh = window.innerHeight;
+    const pw = Math.min(440, window.innerWidth - 24), ph = pop.offsetHeight || 220, vw = window.innerWidth, vh = window.innerHeight;
     if (vw <= 600) { // phones: the card sits at the bottom (or top, if the highlight is low on the screen)
       const low = r.top + r.height / 2 > vh / 2;
       pop.style.cssText = `left:12px;right:12px;width:auto;${low ? 'top:12px' : 'bottom:12px'}`; return;
@@ -112,12 +115,13 @@ export function startTour(steps, { go, onEnd } = {}) {
     const last = i === steps.length - 1;
     pop.replaceChildren(
       h('div', { class: 'tour-head' }, h('span', { class: 'tour-count' }, `${i + 1} of ${steps.length}`), h('button', { class: 'tour-skip', type: 'button', on: { click: () => close(false) } }, last ? 'Close' : 'Skip tour')),
-      h('h3', { id: 'tour-title' }, s.title), h('p', null, s.text),
+      h('div', { class: 'kd-says tour-kd' }, dog.el, h('div', { class: 'kd-bubble' }, h('h3', { id: 'tour-title' }, s.title), h('p', null, s.text))),
       h('div', { class: 'tour-dots', 'aria-hidden': 'true' }, steps.map((_, k) => h('i', { class: k === i ? 'on' : k < i ? 'past' : '' }))),
       h('div', { class: 'tour-actions' },
         i > 0 ? h('button', { class: 'btn sm', type: 'button', on: { click: () => show(i - 1) } }, 'Back') : h('span'),
         h('button', { class: 'btn sm primary tour-next', type: 'button', on: { click: () => (last ? close(true) : show(i + 1)) } }, last ? 'Done' : i === 0 ? 'Show me around' : 'Next')));
     place();
+    dog.mood(s.mood || (last ? 'excited' : i % 2 ? 'listening' : 'tilt'));
     pop.querySelector('.tour-next')?.focus();
   }
   function onKey(e) {
