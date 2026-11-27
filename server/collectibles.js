@@ -129,18 +129,88 @@ export async function syncCollection(uid) {
   const lapsed = LIVE_KEYS.filter((k) => !now.includes(k));
   if (lapsed.length) await q('DELETE FROM collectibles WHERE user_id=$1 AND key = ANY($2)', [uid, lapsed]);
   const passedSbx = (await q('SELECT count(DISTINCT scenario)::int n FROM sandbox_runs WHERE user_id=$1 AND score >= 80 AND scenario = ANY($2)', [uid, Object.keys(SANDBOX)])).rows[0].n;
-  const rows = (await q('SELECT key,earned_at,seen_at FROM collectibles WHERE user_id=$1', [uid])).rows;
+  const rows = (await q('SELECT key,earned_at,seen_at,bragged_at FROM collectibles WHERE user_id=$1', [uid])).rows;
   const mine = new Map(rows.map((r) => [r.key, r]));
-  return CATALOG.map((c) => ({ ...c, progress: c.key === 'sbx-all' ? `${passedSbx} of ${SANDBOX_N} passed` : null, earned: mine.has(c.key), earned_at: mine.get(c.key)?.earned_at || null, isNew: mine.has(c.key) && !mine.get(c.key).seen_at }));
+  return CATALOG.map((c) => ({ ...c, progress: c.key === 'sbx-all' ? `${passedSbx} of ${SANDBOX_N} passed` : null, earned: mine.has(c.key), earned_at: mine.get(c.key)?.earned_at || null, bragged: !!mine.get(c.key)?.bragged_at, isNew: mine.has(c.key) && !mine.get(c.key).seen_at }));
 }
 
 export const collectiblesRouter = Router();
 collectiblesRouter.get('/collectibles', async (req, res, next) => {
   try {
     const cards = await syncCollection(req.user.id);
-    res.json({ cards, earned: cards.filter((c) => c.earned).length, total: cards.length });
+    res.json({ cards, earned: cards.filter((c) => c.earned).length, total: cards.length, brag: bragOn(req) });
   } catch (e) { next(e); }
 });
 collectiblesRouter.post('/collectibles/seen', async (req, res, next) => {
   try { await q('UPDATE collectibles SET seen_at=now() WHERE user_id=$1 AND seen_at IS NULL', [req.user.id]); res.json({ ok: true }); } catch (e) { next(e); }
+});
+
+// ---- Brag to the team: a trainee posts one earned card to the team's Slack channel, once per card.
+// SLACK_WEBHOOK_URL (a Slack incoming webhook, added by the owner in Railway) turns it on; SLACK_CHANNEL_NAME only
+// labels the button. Test accounts and admins stepping into a test trainee never post.
+const TIER_LABEL = { bronze: ['Bronze', ':3rd_place_medal:'], silver: ['Silver', ':2nd_place_medal:'], gold: ['Gold', ':1st_place_medal:'] };
+export const BRAG_LINES = [
+  (n, c) => `Breaking news from the KUDO Academy: *${n}* just earned *${c}*. Autographs available on request.`,
+  (n, c) => `Not to brag, but *${n}* is bragging: *${c}* is now in their collection.`,
+  (n, c) => `Quick interruption to your day: *${n}* unlocked *${c}* in the KUDO Academy. You may now return to your meetings.`,
+  (n, c) => `*${n}* just pulled *${c}* from the KUDO Academy deck. Please form an orderly queue to say well done.`,
+  (n, c) => `Sound the airhorn :mega: *${n}* unlocked *${c}*. The rest of you have been warned.`,
+  (n, c) => `*${n}* added *${c}* to their collection. Too early to call them a KUDO Champion? Probably. Are they acting like one anyway? Yes.`,
+];
+const slackEsc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const webhook = () => { const u = String(process.env.SLACK_WEBHOOK_URL || '').trim(); return /^https:\/\/hooks\.slack\.com\/services\/[\w/-]+$/.test(u) ? u : null; };
+function bragOn(req) {
+  const ok = !!webhook() && !req.user.is_demo && !req.realAdmin;
+  return ok ? { on: true, channel: process.env.SLACK_CHANNEL_NAME || null, lines: BRAG_LINES.length } : { on: false };
+}
+function academyUrl() {
+  const u = process.env.ACADEMY_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : '');
+  return /^https:\/\//.test(u) ? u.replace(/\/$/, '') : null;
+}
+export function bragMessage(user, card, { line = 0, note = '', earned = 0, total = CATALOG.length } = {}) {
+  const first = slackEsc(String(user.name || '').trim().split(/\s+/)[0] || 'Someone');
+  const [tier, medal] = TIER_LABEL[card.tier] || ['', ':star:'];
+  const title = slackEsc(`${card.title}${tier ? ` (${tier})` : ''}`);
+  const head = `${medal} ${BRAG_LINES[((Number(line) % BRAG_LINES.length) + BRAG_LINES.length) % BRAG_LINES.length](first, title)}`;
+  const say = String(note || '').replace(/\s+/g, ' ').trim().slice(0, 140);
+  const ctx = `Earned for: ${slackEsc(card.earn)}  |  ${earned} of ${total} cards collected`;
+  const url = academyUrl();
+  const blocks = [{ type: 'section', text: { type: 'mrkdwn', text: head } }];
+  if (say) blocks.push({ type: 'section', text: { type: 'mrkdwn', text: `> ${slackEsc(say)}` } });
+  blocks.push({ type: 'context', elements: [{ type: 'mrkdwn', text: url ? `${ctx}  |  <${url}|Open the KUDO Academy>` : ctx }] });
+  const plain = [head, say ? `"${slackEsc(say)}"` : null, ctx].filter(Boolean).join('\n');
+  return { text: plain.replace(/:[a-z0-9_]+: ?/g, '').replace(/\*/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'), payload: { text: plain, blocks, unfurl_links: false } };
+}
+export const slack = { post: async (url, payload) => {
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: AbortSignal.timeout(6000) });
+  if (!r.ok) throw new Error(`Slack answered ${r.status}`);
+} };
+async function bragCard(req) {
+  const cards = await syncCollection(req.user.id);
+  const card = cards.find((c) => c.key === req.params.key);
+  if (!card || !card.earned) return { err: [404, 'You have not earned that card yet.'] };
+  if (card.bragged) return { err: [409, 'You already bragged about this card. Once is classy.'] };
+  return { card, earned: cards.filter((c) => c.earned).length, total: cards.length };
+}
+collectiblesRouter.get('/collectibles/:key/brag', async (req, res, next) => {
+  try {
+    if (!bragOn(req).on) return res.status(409).json({ error: 'Sharing to Slack is not switched on.' });
+    const b = await bragCard(req); if (b.err) return res.status(b.err[0]).json({ error: b.err[1] });
+    res.json({ preview: bragMessage(req.user, b.card, { line: req.query.line, note: req.query.note, earned: b.earned, total: b.total }).text });
+  } catch (e) { next(e); }
+});
+collectiblesRouter.post('/collectibles/:key/brag', async (req, res, next) => {
+  try {
+    if (!bragOn(req).on) return res.status(409).json({ error: 'Sharing to Slack is not switched on.' });
+    const b = await bragCard(req); if (b.err) return res.status(b.err[0]).json({ error: b.err[1] });
+    // Claim the brag first so a double click cannot post twice; give it back if Slack refuses.
+    const claim = await q('UPDATE collectibles SET bragged_at=now() WHERE user_id=$1 AND key=$2 AND bragged_at IS NULL', [req.user.id, b.card.key]);
+    if (!claim.rowCount) return res.status(409).json({ error: 'You already bragged about this card. Once is classy.' });
+    const m = bragMessage(req.user, b.card, { line: req.body?.line, note: req.body?.note, earned: b.earned, total: b.total });
+    try { await slack.post(webhook(), m.payload); } catch {
+      await q('UPDATE collectibles SET bragged_at=NULL WHERE user_id=$1 AND key=$2', [req.user.id, b.card.key]);
+      return res.status(502).json({ error: 'Slack did not take the message. Try again in a minute.' });
+    }
+    res.json({ ok: true });
+  } catch (e) { next(e); }
 });

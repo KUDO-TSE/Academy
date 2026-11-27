@@ -1,6 +1,6 @@
 // Collectibles: the trainee's card collection, the card art (original, drawn in code) and the reveal when a new
 // card is earned. Cards reward real milestones; locked cards show exactly how to earn them.
-import { h, api, svg } from './ui.js';
+import { h, api, svg, modal } from './ui.js';
 
 const SET = { Journey: ['var(--primary-600)', 'var(--primary)'], Scenarios: ['var(--primary)', 'var(--teal)'], Topics: ['var(--c-24566b)', 'var(--c-3e8fa8)'], 'Hands-on': ['var(--c-1f6b4e)', 'var(--c-38a06f)'], Craft: ['var(--c-b8492a)', 'var(--coral)'], Habit: ['var(--c-b8860b)', 'var(--amber)'] };
 const TIER = { bronze: ['var(--c-c07a45)', 'Bronze'], silver: ['var(--c-b9c4cb)', 'Silver'], gold: ['var(--c-f2c94c)', 'Gold'] };
@@ -81,12 +81,12 @@ export async function collectionView() {
   const intro = { Journey: 'Milestones of your 12 weeks. "First step" is yours from your first connection; every other card is earned by working in the Academy.', Scenarios: 'One card per client scenario: reach your target level (October assessment and Academy tests combined) with at least one lesson, test or sandbox exercise on it in the Academy.', Topics: 'One card per cross-cutting module: reach your target on its module test, first attempt.', 'Hands-on': 'Sandbox exercises on the replica of the KUDO screens: finish them, pass them, then do them fast and flawless.', Craft: 'Work done well: tests, decisions, explanations, honest judgement, progress.', Habit: 'Steady practice over the 12 weeks.' };
   const pct = Math.round((d.earned / d.total) * 100);
   const page = h('div', { class: 'page' },
-    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My collection'), h('p', null, 'Cards you earn at real milestones of your programme. They are yours to keep: none can be lost, and nobody else sees your collection.'))),
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My collection'), h('p', null, 'Cards you earn at real milestones of your programme. They are yours to keep: none can be lost, and nobody else sees your collection unless you brag about a card.'))),
     h('div', { class: 'card coll-head' }, h('div', { class: 'coll-count' }, h('b', null, d.earned), h('span', null, ` of ${d.total} collected`)), h('div', { class: 'ph-bar', style: 'flex:1' }, h('i', { style: `width:${pct}%` })),
       h('div', { class: 'muted small' }, `${d.cards.filter((c) => c.set === 'Scenarios' && c.earned).length} of 12 scenario cards`)),
     sets.map((s) => h('section', { class: 'coll-set' }, h('h2', null, s), h('p', { class: 'sub' }, intro[s]),
       h('div', { class: 'coll-grid' }, d.cards.filter((c) => c.set === s).map((c) => h('div', { class: `coll-card ${c.earned ? 'earned' : 'locked'}`, tabindex: 0 },
-        cardArt(c), h('div', { class: 'coll-meta' }, c.earned ? h('span', { class: 'muted small' }, `Earned ${fmt(c.earned_at)}`, c.live ? ', kept while every new exercise is passed' : '') : h('span', { class: 'small' }, h('b', null, 'How to earn: '), c.earn, c.progress ? h('div', { class: 'muted small' }, c.progress) : null))))))));
+        cardArt(c), h('div', { class: 'coll-meta' }, c.earned ? [h('span', { class: 'muted small' }, `Earned ${fmt(c.earned_at)}`, c.live ? ', kept while every new exercise is passed' : ''), d.brag?.on && !c.bragged ? h('button', { type: 'button', class: 'link-btn brag-link', on: { click: (e) => bragModal(c, d.brag, e.currentTarget) } }, 'Brag to the team') : c.bragged ? h('span', { class: 'muted small' }, ' Bragged.') : null] : h('span', { class: 'small' }, h('b', null, 'How to earn: '), c.earn, c.progress ? h('div', { class: 'muted small' }, c.progress) : null))))))));
   if (d.cards.some((c) => c.isNew)) api('POST', '/api/me/collectibles/seen').catch(() => {});
   return page;
 }
@@ -129,7 +129,8 @@ export async function revealNew() {
         h('h2', null, c.title), h('p', { class: 'muted' }, h('b', null, 'Earned for: '), c.earn),
         h('div', { class: 'row', style: 'justify-content:center;gap:8px;margin-top:8px' },
           i < fresh.length - 1 ? h('button', { class: 'btn primary', on: { click: () => { i++; show(); } } }, 'Next card') : h('button', { class: 'btn primary', on: { click: close } }, 'Keep going'),
-          h('a', { class: 'btn', href: '#collection', on: { click: close } }, 'My collection')));
+          h('a', { class: 'btn', href: '#collection', on: { click: close } }, 'My collection')),
+        d.brag?.on && !c.bragged ? bragPanel(c, d.brag) : null);
       requestAnimationFrame(() => setTimeout(() => flip.classList.add('on'), 120));
     };
     document.body.append(ov); show();
@@ -138,4 +139,44 @@ export async function revealNew() {
 function confetti() {
   const cols = ['var(--coral)', 'var(--amber)', 'var(--teal)', 'var(--c-2f7a45)', 'var(--primary)'];
   return h('div', { class: 'confetti', 'aria-hidden': 'true' }, Array.from({ length: 26 }, (_, k) => h('i', { style: `left:${(k * 37) % 100}%;background:${cols[k % cols.length]};animation-delay:${(k % 7) * 0.06}s;transform:rotate(${k * 29}deg)` })));
+}
+
+/** Brag to the team: a playful Slack post about one card. The trainee sees the exact message before it goes out. */
+export function bragPanel(c, brag, { onDone } = {}) {
+  const where = brag.channel ? `#${brag.channel.replace(/^#/, '')}` : 'the team channel';
+  let line = Math.floor(Math.random() * (brag.lines || 1));
+  const box = h('div', { class: 'brag' });
+  const note = h('input', { type: 'text', maxlength: 140, 'aria-label': 'Your own line (optional)', placeholder: 'Add your own line (optional)' });
+  const preview = h('div', { class: 'brag-preview', 'aria-live': 'polite' });
+  const err = h('div', { class: 'err-line', role: 'alert' });
+  const load = async () => {
+    try { const r = await api('GET', `/api/me/collectibles/${encodeURIComponent(c.key)}/brag?line=${line}&note=${encodeURIComponent(note.value)}`); preview.textContent = r.preview; }
+    catch (e) { err.textContent = e.message; }
+  };
+  let t; note.addEventListener('input', () => { clearTimeout(t); t = setTimeout(load, 300); });
+  const post = h('button', { type: 'button', class: 'btn primary', on: { click: async () => {
+    post.disabled = true; err.textContent = '';
+    try {
+      await api('POST', `/api/me/collectibles/${encodeURIComponent(c.key)}/brag`, { line, note: note.value });
+      c.bragged = true;
+      box.replaceChildren(h('p', { class: 'brag-done', role: 'status' }, `Posted in ${where}. The team has been informed of your greatness.`));
+      onDone?.();
+    } catch (e) { err.textContent = e.message; post.disabled = false; }
+  } } }, `Post it in ${where}`);
+  const open = () => {
+    box.replaceChildren(
+      h('div', { class: 'brag-head' }, h('b', null, 'Your brag'), h('button', { type: 'button', class: 'link-btn', on: { click: () => { line = (line + 1) % (brag.lines || 1); load(); } } }, 'Try another line')),
+      preview, note, err,
+      h('div', { class: 'row', style: 'gap:8px;justify-content:center' }, post, h('button', { type: 'button', class: 'btn', on: { click: closed } }, 'Not this time')));
+    load(); setTimeout(() => post.focus(), 50);
+  };
+  const closed = () => box.replaceChildren(h('button', { type: 'button', class: 'btn brag-btn', on: { click: open } }, 'Brag to the team'), h('div', { class: 'muted small' }, `Posts this card in ${where}. You see the message first.`));
+  closed();
+  return box;
+}
+function bragModal(c, brag, from) {
+  let close;
+  const panel = bragPanel(c, brag, { onDone: () => { from.replaceWith(h('span', { class: 'muted small' }, ' Bragged.')); setTimeout(() => close?.(), 1800); } });
+  close = modal(`Brag about ${c.title}`, h('div', null, h('div', { class: 'brag-card' }, cardArt(c, { size: 120 })), panel));
+  panel.querySelector('.brag-btn')?.click();
 }

@@ -370,3 +370,6 @@ CREATE TABLE IF NOT EXISTS trainer_messages (
   seen_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- A trainee may brag about a card once, on the team's Slack channel (only when SLACK_WEBHOOK_URL is set).
+ALTER TABLE collectibles ADD COLUMN IF NOT EXISTS bragged_at TIMESTAMPTZ;

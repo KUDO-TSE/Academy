@@ -1221,3 +1221,15 @@ a,button,label,summary,select,input,[role="button"]{touch-action:manipulation}
 .pw-show{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--primary);font:inherit;font-weight:600;font-size:13px;min-height:32px;padding:0 8px;border-radius:6px;cursor:pointer}
 @media (max-width:640px){.acct-btn,.nav-toggle,.ord-btns .btn{min-width:44px}}
 .has-tabbar .main{padding-bottom:140px} .main{scroll-padding-bottom:96px} @media (min-width:861px){.page{padding-bottom:96px}}
+/* Brag to the team */
+.link-btn{background:none;border:0;padding:4px 2px;font:inherit;font-weight:600;color:var(--primary);cursor:pointer;text-decoration:underline;text-underline-offset:3px;min-height:28px}
+.brag{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:grid;gap:8px;text-align:left}
+.brag > .btn.brag-btn{justify-self:center}
+.brag > .muted.small{text-align:center}
+.brag-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.brag-preview{white-space:pre-line;background:var(--bg-app);border-radius:10px;padding:12px 14px;font-size:13.5px;line-height:1.5;min-height:66px}
+.brag input{width:100%}
+.err-line{color:var(--danger);font-size:13px}.err-line:empty{display:none}
+.brag-done{margin:0;text-align:center;font-weight:600;color:var(--green)}
+.brag-card{display:flex;justify-content:center;margin-bottom:4px}
+.coll-meta .brag-link{display:block;font-size:13px}

@@ -6,6 +6,7 @@ import { pool, q } from '../server/db.js';
 import * as imp from '../server/importers.js';
 import { itemById, POOLS, seal } from '../server/assess.js';
 import { WALKTHROUGHS } from '../server/curriculum-extra.js';
+import { slack } from '../server/collectibles.js';
 
 // Answers in the order the browser was shown them (options are shuffled and the order is sealed in x.k).
 const shownRight = (x) => { const it = itemById(x.id); const at = (i) => x.o.indexOf(it.o[i]);
@@ -707,4 +708,42 @@ test('a trainee can undo a step marked done by mistake, but not once it is signe
   await d('DELETE', '/api/me/items/glossary.lesson/done');
   assert.equal((await q("SELECT 1 FROM plan_progress WHERE user_id=$1 AND item_key='glossary.lesson'", [id])).rowCount, 1, 'a signed-off step stays done');
   await q("DELETE FROM plan_progress WHERE user_id=$1 AND item_key='glossary.lesson'", [id]);
+});
+
+test('brag to the team: off without a webhook, previews first, posts once, never for test accounts', async () => {
+  const d = client(); await d('POST', '/api/auth/login', { email: 'dana@test.local', password: 'Quiet-valley-pass-73' });
+  const id = (await q("SELECT id FROM users WHERE email='dana@test.local'")).rows[0].id;
+  delete process.env.SLACK_WEBHOOK_URL;
+  assert.equal((await d('GET', '/api/me/collectibles')).json.brag.on, false);
+  assert.equal((await d('POST', '/api/me/collectibles/first-step/brag', { line: 0 })).status, 409, 'nothing goes out without a webhook');
+  process.env.SLACK_WEBHOOK_URL = 'http://127.0.0.1:1/not-slack';
+  assert.equal((await d('GET', '/api/me/collectibles')).json.brag.on, false, 'only a hooks.slack.com address switches it on');
+  process.env.SLACK_WEBHOOK_URL = 'https://hooks.slack.com/services/T000/B000/fake';
+  const sent = []; const real = slack.post;
+  slack.post = async (url, payload) => { sent.push({ url, payload }); };
+  try {
+    assert.equal((await d('GET', '/api/me/collectibles')).json.brag.on, true);
+    const p = await d('GET', '/api/me/collectibles/first-step/brag?line=1&note=' + encodeURIComponent('<!channel> coffee is on me'));
+    assert.equal(p.status, 200); assert.match(p.json.preview, /Dana/); assert.match(p.json.preview, /First step/);
+    assert.ok(!/:[a-z_]+:/.test(p.json.preview) && !p.json.preview.includes('*'), 'the preview reads as plain text');
+    assert.equal((await d('GET', '/api/me/collectibles/graduate/brag')).status, 404, 'only earned cards');
+    const r = await d('POST', '/api/me/collectibles/first-step/brag', { line: 1, note: '<!channel> coffee is on me' });
+    assert.equal(r.status, 200); assert.equal(sent.length, 1);
+    const body = JSON.stringify(sent[0].payload);
+    assert.match(body, /Dana/); assert.ok(!body.includes('Four'), 'first name only');
+    assert.ok(!body.includes('<!channel>'), 'a note cannot ping the whole channel');
+    assert.equal((await d('POST', '/api/me/collectibles/first-step/brag', { line: 2 })).status, 409, 'once per card');
+    assert.equal(sent.length, 1);
+    assert.ok((await d('GET', '/api/me/collectibles')).json.cards.find((c) => c.key === 'first-step').bragged);
+    // Slack refuses: nothing is recorded, so the trainee can try again.
+    await q("UPDATE collectibles SET bragged_at=NULL WHERE user_id=$1 AND key='first-step'", [id]);
+    slack.post = async () => { throw new Error('down'); };
+    assert.equal((await d('POST', '/api/me/collectibles/first-step/brag', { line: 0 })).status, 502);
+    assert.equal((await q("SELECT bragged_at FROM collectibles WHERE user_id=$1 AND key='first-step'", [id])).rows[0].bragged_at, null);
+    // Test accounts never post.
+    await q('UPDATE users SET is_demo=true WHERE id=$1', [id]);
+    assert.equal((await d('GET', '/api/me/collectibles')).json.brag.on, false);
+    assert.equal((await d('POST', '/api/me/collectibles/first-step/brag', { line: 0 })).status, 409);
+    await q('UPDATE users SET is_demo=false WHERE id=$1', [id]);
+  } finally { slack.post = real; delete process.env.SLACK_WEBHOOK_URL; }
 });

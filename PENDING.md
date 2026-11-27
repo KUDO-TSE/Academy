@@ -4,6 +4,7 @@ Updated 26 Nov 2026 (client calls added to the Widget and RTMP exercises). Ask "
 
 ## Waiting on Nils
 - **Claude API key for the virtual coach.** Add `ANTHROPIC_API_KEY` in Railway (service variables). Until then the coach gives built-in answers only; with it, it answers any question from the trainee's own data. Optional: `COACH_MODEL`.
+- **Slack webhook for "Brag to the team".** In Slack, create an incoming webhook for the channel the brags should go to (Slack app settings, Incoming Webhooks, Add New Webhook). In Railway add `SLACK_WEBHOOK_URL` (the hooks.slack.com address) and `SLACK_CHANNEL_NAME` (for example `kudo-academy`, shown on the button). Until then the brag button stays hidden. Once academy.kudo.ai is live, also set `ACADEMY_URL` so the message links there.
 - **Recordings (announced for 27 Nov):**
   - The client's side of each integration, to rebuild as generic look-alikes and to correct the screen mocks in the lesson slides: Microsoft Teams (KUDO app panel and admin center), Zoom (meeting settings), Google Meet, Webex, ON24 (Console Builder), RingCentral Events (app settings).
   - KUDO screens not recorded yet: the external meeting form, the live meeting page, Create glossary and term screens, AI detection and voices, Audio Manager, onsite QR, the KUDO app in Teams, the KUDO Live phone app (Meet Now), the preparation materials page, partial booking, the full Usage & analytics.
