@@ -37,6 +37,8 @@
   --c-1f6b4e:#1F6B4E; --c-24566b:#24566B; --c-2f7a45:#2F7A45; --c-38a06f:#38A06F; --c-3e8fa8:#3E8FA8; --c-b8492a:#B8492A; --c-b8860b:#B8860B; --c-b9c4cb:#B9C4CB; --c-c07a45:#C07A45; --c-c8d1d6:#C8D1D6; --c-f2c94c:#F2C94C; --mock-e3e6ea:#E3E6EA;
   /* layers: one scale for everything that floats */
   --z-menu:30; --z-sticky:40; --z-drawer:45; --z-banner:50; --z-coach:55; --z-coach-panel:56; --z-overlay:70; --z-toast:80; --z-tooltip:90; --z-tour:1000;
+  /* KUDOG eyelid fur */
+  --c-b8732f:#B8732F; --c-c98a4b:#C98A4B; --c-6e3f1a:#6E3F1A;
 }
 *{box-sizing:border-box}
 html,body{height:100%;overflow-x:clip}
@@ -1242,3 +1244,18 @@ a,button,label,summary,select,input,[role="button"]{touch-action:manipulation}
 .rar-rare{background:var(--primary);color:var(--white)}
 .rar-uncommon{background:var(--primary-100);color:var(--primary-600)}
 .rar-unclaimed{background:transparent;border:1px dashed var(--ink-400);color:var(--ink-500)}
+/* KUDOG, the virtual coach */
+.kd{position:relative;display:block;padding:0;border:0;background:none;cursor:pointer;flex:none;border-radius:16px}
+.kd-whole,.kd-head,.kd-l{position:absolute;inset:0;display:block}
+.kd-l{background-size:100% 100%;background-repeat:no-repeat}
+.kd-whole,.kd-head,.kd-l,.kd-lid i{will-change:transform}
+.kd-lid{position:absolute;display:block;border-radius:50%;overflow:hidden;pointer-events:none}
+.kd-lid i{position:absolute;inset:0;display:block;transform:scaleY(0);transform-origin:50% 0;background:linear-gradient(180deg,var(--c-b8732f) 0%,var(--c-c98a4b) 78%,var(--c-6e3f1a) 100%)}
+.kd-face{display:block;width:34px;height:34px;border-radius:50%;background-color:var(--white);background-size:165% 165%;background-position:21% 36%;flex:none;box-shadow:0 0 0 2px color-mix(in srgb,var(--white) 70%,transparent)}
+.co-fab{padding:6px 16px 6px 6px}
+.co-fab.kd-hop{animation:kdHop .72s both}
+@keyframes kdHop{0%{transform:translateY(0) scale(1,1)}18%{transform:translateY(3px) scale(1.03,.95)}45%{transform:translateY(-14px) rotate(-3deg) scale(.98,1.04)}70%{transform:translateY(0) rotate(1deg) scale(1.04,.95)}84%{transform:translateY(-2px) rotate(-.5deg) scale(.99,1.01)}100%{transform:translateY(0) scale(1,1)}}
+.co-panel header .co-who{display:flex;align-items:center;gap:10px}
+.co-panel header .kd{margin:-8px 0 -10px -6px}
+.co-panel header .kd:focus-visible{outline-offset:-2px}
+@media (prefers-reduced-motion: reduce){.co-fab.kd-hop{animation:none}}

@@ -198,7 +198,7 @@ const fmtCtx = (c) => JSON.stringify({
   group_sessions: c.groups.map((g) => ({ title: g.title, topic: g.topic, starts_at: new Date(g.starts_at).toISOString(), minutes: g.minutes, link: g.link })), cards: c.cards,
 });
 
-const SYSTEM = (c) => `You are the virtual coach in the KUDO Academy, a 12-week training programme for KUDO's client-facing staff. You speak to ${c.name || 'the trainee'}.
+const SYSTEM = (c) => `You are KUDOG, the virtual coach of the KUDO Academy (a friendly dog with a headset; a light touch of dog humour now and then is welcome, never at the expense of a clear answer), a 12-week training programme for KUDO's client-facing staff. You speak to ${c.name || 'the trainee'}.
 Answer ONLY from the trainee's data and the description of the Academy below. If the answer is not there, say you do not know and suggest asking their KUDO Trainer; never guess dates, scores, rules or product facts. Do not teach KUDO product content beyond pointing to the right lesson.
 Be brief and warm: two to six short lines, plain English, "you". Use "- " bullets for lists. Dates as "Mon 7 Dec". Always write KUDO in capitals. Link to pages with markdown links whose target starts with "#" (for example [My training](#training), [the lesson](#module-rtmp)); no other links except a group session's join link.
 The coach role ("your KUDO Trainer") is a person; you are not them.
@@ -226,6 +226,18 @@ export async function claudeAnswer(history, question, c) {
   return text || null;
 }
 
+// KUDOG's reaction to an answer (the coach is a dog): good news makes him excited, gaps make him concerned, a question
+// he cannot answer gets the classic head tilt. Only drives the animation; never changes the answer.
+export function moodFor(base, c) {
+  const r = c.readiness;
+  if (base.intent === 'progress' && r) return r.now > r.start ? 'excited' : r.now < r.start ? 'concerned' : 'happy';
+  if (base.intent === 'weak') return 'concerned';
+  if (base.intent === 'cards') return 'excited';
+  if (base.intent === 'help') return 'tilt';
+  if (/Everything on your side is done|already at target on every scenario/.test(base.text || '')) return 'excited';
+  return 'happy';
+}
+
 // ------------------------------------------------------------------ routes
 const usage = new Map(); // user -> timestamps in the last hour (no question text is kept)
 coachRouter.post('/coach', async (req, res, next) => {
@@ -239,7 +251,7 @@ coachRouter.post('/coach', async (req, res, next) => {
     const base = builtInAnswer(question, c);
     let ai = null;
     if (process.env.ANTHROPIC_API_KEY) { try { ai = await claudeAnswer(Array.isArray(req.body?.history) ? req.body.history : [], question, c); } catch (e) { console.error('coach:', e.message); } }
-    res.json(ai ? { text: ai, links: [], mode: 'ai' } : { ...base, mode: 'built-in' });
+    res.json(ai ? { text: ai, links: [], mode: 'ai', mood: 'happy' } : { ...base, mode: 'built-in', mood: moodFor(base, c) });
   } catch (e) { next(e); }
 });
 coachRouter.get('/coach', (_req, res) => res.json({ ai: !!process.env.ANTHROPIC_API_KEY }));

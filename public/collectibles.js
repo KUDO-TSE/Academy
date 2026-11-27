@@ -133,7 +133,7 @@ export async function revealNew() {
         d.brag?.on && !c.bragged ? bragPanel(c, d.brag) : null);
       requestAnimationFrame(() => setTimeout(() => flip.classList.add('on'), 120));
     };
-    document.body.append(ov); show();
+    document.body.append(ov); show(); window.dispatchEvent(new CustomEvent('kudog', { detail: 'excited' }));
   } catch { /* never block the page */ } finally { revealing = false; }
 }
 function confetti() {
@@ -160,7 +160,7 @@ export function bragPanel(c, brag, { onDone } = {}) {
       await api('POST', `/api/me/collectibles/${encodeURIComponent(c.key)}/brag`, { line, note: note.value });
       c.bragged = true;
       box.replaceChildren(h('p', { class: 'brag-done', role: 'status' }, `Posted in ${where}. The team has been informed of your greatness.`));
-      onDone?.();
+      onDone?.(); window.dispatchEvent(new CustomEvent('kudog', { detail: 'excited' }));
     } catch (e) { err.textContent = e.message; post.disabled = false; }
   } } }, `Post it in ${where}`);
   const open = () => {

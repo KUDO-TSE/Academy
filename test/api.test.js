@@ -660,6 +660,9 @@ test('virtual coach: answers from the trainee\'s own data; group sessions come f
   assert.equal((await d('POST', '/api/me/coach', { message: '' })).status, 400);
   const sc = (await d('POST', '/api/me/coach', { message: 'How is my score evaluated?' })).json;
   assert.equal(sc.mode, 'built-in', 'no API key in tests: built-in answers'); assert.match(sc.text, /80%/); assert.match(sc.text, /first attempt/);
+  assert.equal(sc.mood, 'happy', 'KUDOG reacts to each answer');
+  assert.equal((await d('POST', '/api/me/coach', { message: 'blorp zzz qwerty' })).json.mood, 'tilt', 'a question he cannot answer gets the head tilt');
+  assert.equal((await d('POST', '/api/me/coach', { message: 'What are my weak areas?' })).json.mood, 'concerned');
   // Group sessions: admin only, https links only, then visible to the trainee and the coach.
   assert.equal((await d('POST', '/api/admin/group-sessions', { title: 'x', starts_at: new Date(Date.now() + 864e5).toISOString() })).status, 403);
   assert.equal((await adm('POST', '/api/admin/group-sessions', { title: 'x', starts_at: new Date(Date.now() + 864e5).toISOString(), link: 'http://insecure.example' })).status, 400);
