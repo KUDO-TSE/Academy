@@ -140,23 +140,37 @@ export function weeksCard({ items, week, weeks = 12, phases, levels = [], module
 export function readinessCard({ progression = [], start, now, compact = false, cls = '' }) {
   const pts = progression.length ? progression : [{ v: start, what: 'Starting point', changes: [] }];
   const diff = now - start;
-  const W = compact ? 360 : 440, H = compact ? 120 : 170, P = { l: 30, r: 12, t: 10, b: 12 };
+  // A step line (the level holds until the next result moves it) over a soft gradient, the starting point as a dashed
+  // line, the latest level in a bubble, and the dates under the chart.
+  const W = 320, H = compact ? 170 : 200, P = { l: 8, r: 40, t: 26, b: 24 };
   const vals = pts.map((p) => p.v);
-  const lo = Math.max(0, Math.floor((Math.min(...vals, start) - 6) / 10) * 10), hi = Math.min(100, Math.ceil((Math.max(...vals, start) + 6) / 10) * 10);
+  const lo = Math.max(0, Math.floor((Math.min(...vals, start) - 8) / 10) * 10), hi = Math.min(100, Math.ceil((Math.max(...vals, start) + 6) / 10) * 10);
   const x = (k) => P.l + (pts.length > 1 ? (k / (pts.length - 1)) * (W - P.l - P.r) : (W - P.l - P.r) / 2);
   const y = (v) => P.t + (1 - (v - lo) / Math.max(1, hi - lo)) * (H - P.t - P.b);
-  // A step line: the level holds until the next result moves it.
-  let d = `M${P.l},${y(pts[0].v)} L${x(0)},${y(pts[0].v)}`;
-  pts.forEach((p, k) => { if (k) d += ` L${x(k)},${y(pts[k - 1].v)} L${x(k)},${y(p.v)}`; });
-  d += ` L${W - P.r},${y(pts.at(-1).v)}`;
+  const rr = 4; // rounded corners on the steps
+  let d = `M${P.l},${y(pts[0].v)}`;
+  pts.forEach((p, k) => {
+    if (!k) return; const x1 = x(k), y0 = y(pts[k - 1].v), y1 = y(p.v), dir = Math.sign(y1 - y0), r = Math.min(rr, Math.abs(y1 - y0) / 2);
+    if (!dir || !r) { d += ` L${x1},${y1}`; return; }
+    d += ` L${x1 - r},${y0} Q${x1},${y0} ${x1},${y0 + dir * r} L${x1},${y1 - dir * r} Q${x1},${y1} ${x1 + r},${y1}`;
+  });
+  const xEnd = W - P.r, yEnd = y(pts.at(-1).v);
+  d += ` L${xEnd},${yEnd}`;
   const grid = []; for (let v = lo; v <= hi; v += 10) grid.push(v);
   const label = (p) => (p.moduleTitle ? `${p.what}: ${p.moduleTitle}` : p.what);
+  const day = (dt) => (dt ? new Date(dt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '');
+  const gid = `rdg${Math.random().toString(36).slice(2, 8)}`;
   const chart = svg(`<svg class="rd-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Readiness from ${start}% at the start to ${now}% now, over ${pts.length - 1} result${pts.length === 2 ? '' : 's'}">
-    ${grid.map((v) => `<line x1="${P.l}" x2="${W - P.r}" y1="${y(v)}" y2="${y(v)}" class="rd-grid"/><text x="${P.l - 8}" y="${y(v) + 4}" class="rd-ax" text-anchor="end">${v}</text>`).join('')}
-    <line x1="${P.l}" x2="${W - P.r}" y1="${y(start)}" y2="${y(start)}" class="rd-start"/>
-    <path d="${d} L${W - P.r},${H - P.b} L${P.l},${H - P.b} Z" class="rd-area"/>
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#48A1D8" stop-opacity=".32"/><stop offset="1" stop-color="#48A1D8" stop-opacity="0"/></linearGradient></defs>
+    ${grid.map((v) => `<line x1="${P.l}" x2="${xEnd}" y1="${y(v)}" y2="${y(v)}" class="rd-grid"/><text x="${xEnd + 8}" y="${y(v) + 4}" class="rd-ax">${v}%</text>`).join('')}
+    <path d="${d} L${xEnd},${H - P.b} L${P.l},${H - P.b} Z" fill="url(#${gid})"/>
+    <line x1="${P.l}" x2="${xEnd}" y1="${y(start)}" y2="${y(start)}" class="rd-start"/>
     <path d="${d}" class="rd-line"/>
-    ${pts.map((p, k) => `<circle cx="${x(k)}" cy="${y(p.v)}" r="${k === pts.length - 1 ? 5.5 : 3.5}" class="rd-pt ${k === 0 ? 'first' : k === pts.length - 1 ? 'last' : ''}"><title>${esc(k ? `${label(p)}${p.at ? `, ${fmtDate(p.at)}` : ''}: ${p.v}%` : `Starting point: ${p.v}%`)}</title></circle>`).join('')}
+    ${pts.slice(1, -1).map((p, k) => `<circle cx="${x(k + 1)}" cy="${y(p.v)}" r="3.2" class="rd-pt"><title>${esc(`${label(p)}${p.at ? `, ${fmtDate(p.at)}` : ''}: ${p.v}%`)}</title></circle>`).join('')}
+    <circle cx="${x(0)}" cy="${y(pts[0].v)}" r="4" class="rd-pt first"><title>Starting point: ${pts[0].v}%</title></circle>
+    <circle cx="${xEnd}" cy="${yEnd}" r="11" class="rd-halo"/><circle cx="${xEnd}" cy="${yEnd}" r="5.5" class="rd-pt last"><title>Now: ${now}%</title></circle>
+    <g class="rd-bubble" transform="translate(${xEnd - 30},${Math.max(14, yEnd - 16)})"><rect x="-22" y="-12" width="44" height="22" rx="11"/><text x="0" y="4" text-anchor="middle">${now}%</text></g>
+    <text x="${P.l}" y="${H - 6}" class="rd-ax">${pts[0].at ? `Start, ${day(pts[0].at)}` : 'Start'}</text><text x="${xEnd}" y="${H - 6}" class="rd-ax" text-anchor="end">Today</text>
   </svg>`);
   const recent = pts.slice(1).reverse().slice(0, compact ? 1 : 3);
   return h('section', { class: `card readiness-card ${compact ? 'compact' : ''} ${cls}` },
@@ -175,22 +189,21 @@ export function readinessCard({ progression = [], start, now, compact = false, c
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // ------------------------------------------------------------------ Your level, scenario by scenario
-const BAND = { ready: 'green', nearly: 'blue', developing: 'amber', gap: 'coral', none: 'grey' };
 const DEPTH = { setup: 'Set up', handover: 'Hand over' };
 const LVL_NAME = { external: 'External Meeting Platform' };
 export function levelsCard(levels) {
   const rows = [...levels].sort((a, b) => Number(b.focus) - Number(a.focus) || (a.now - a.target) - (b.now - b.target));
   return h('section', { class: 'card levels-card' },
     h('div', { class: 'lvl-head' },
-      h('div', null, h('h2', null, "My Knowledge's breakdown"), h('p', { class: 'sub' }, 'Where you started, where you are now and your target. Your focus scenarios come first.')),
-      h('div', { class: 'lvl-key', 'aria-hidden': 'true' }, h('span', null, h('i', { class: 'k-now' }), 'Now'), h('span', null, h('i', { class: 'k-start' }), 'Start'), h('span', null, h('i', { class: 'k-tgt' }), 'Target'))),
+      h('div', null, h('h2', null, "My Knowledge's breakdown"), h('p', { class: 'sub' }, 'Where you started, where you are now and your target. Your focus scenarios come first. The colour shows how close you are to your target.')),
+      h('div', { class: 'lvl-key', 'aria-hidden': 'true' }, h('span', null, h('i', { class: 'k-start' }), 'Start'), h('span', null, h('i', { class: 'k-tgt' }), 'Target'))),
+    h('div', { class: 'lvl-key lvl-cols', 'aria-hidden': 'true' }, [['ready', 'Target reached'], ['nearly', 'Nearly there'], ['developing', 'Developing'], ['gap', 'Far from target']].map(([k, t]) => h('span', null, h('i', { class: `k-b b-${k}` }), t))),
     h('div', { class: 'lvl-grid' }, rows.map((l) => {
       const b = l.band?.key || 'none', dv = l.baseline != null ? l.now - l.baseline : 0;
       return h('div', { class: `lvl-row ${l.focus ? 'focus' : ''}` },
         h('div', { class: 'lvl-top' },
-          h('div', { class: 'lvl-name' }, h('b', null, LVL_NAME[l.scenario] || l.short), h('span', null, DEPTH[l.depth] || ''), l.focus ? h('span', { class: 'chip coral' }, 'Focus') : null),
-          h('span', { class: `chip ${BAND[b]}` }, l.band?.label || '')),
-        h('div', { class: `lvl-track b-${b}`, role: 'img', 'aria-label': `${l.label}: ${l.now}% now, started at ${l.baseline}%, target ${l.target}%` },
+          h('div', { class: 'lvl-name' }, h('b', null, LVL_NAME[l.scenario] || l.short), h('span', null, DEPTH[l.depth] || ''))),
+        h('div', { class: `lvl-track b-${b}`, role: 'img', 'aria-label': `${l.label}: ${l.now}% now, started at ${l.baseline}%, target ${l.target}%${l.band?.label ? `, ${l.band.label.toLowerCase()}` : ''}` },
           h('i', { class: 'lvl-fill', style: `width:${l.now}%` }),
           l.baseline != null ? h('i', { class: 'lvl-start', style: `left:${l.baseline}%` }) : null,
           h('i', { class: 'lvl-tgt', style: `left:${l.target}%` })),

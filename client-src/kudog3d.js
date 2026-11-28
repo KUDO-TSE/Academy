@@ -1,6 +1,6 @@
 /* global document, window, ResizeObserver, requestAnimationFrame, cancelAnimationFrame */
 // KUDOG in 3D: a procedural model (no external file) built from the KUDOG picture: a tan puppy with big eyes behind
-// grey goggles, a lime headset with a microphone, floppy ears and a lime collar with a KUDOG tag.
+// grey goggles, a lime headset with a microphone, floppy ears and a gold necklace with a medal bearing his name.
 // Bundled with esbuild into public/kudog3d.bundle.js (npm run build:kudog). Loaded only when the chat opens.
 //
 // Motion is procedural and frame-rate independent (exponential damping towards per-mood targets, as in the
@@ -9,7 +9,7 @@
 import {
   Scene, PerspectiveCamera, WebGLRenderer, Group, Mesh, SphereGeometry, CapsuleGeometry, TorusGeometry, CylinderGeometry,
   CircleGeometry, MeshStandardMaterial, MeshPhysicalMaterial, MeshBasicMaterial, HemisphereLight, DirectionalLight, AmbientLight,
-  CanvasTexture, SRGBColorSpace, Raycaster, Vector2, MathUtils, Sprite, SpriteMaterial, ACESFilmicToneMapping,
+  CanvasTexture, SRGBColorSpace, Raycaster, Vector2, Vector3, Quaternion, MathUtils, Sprite, SpriteMaterial, ACESFilmicToneMapping,
 } from 'three';
 
 const C = {
@@ -29,11 +29,14 @@ const MOODS = {
   sleepy: { headTilt: 0.15, headNod: 0.35, earUp: -0.35, wag: 0.3, wagAmp: 0.05, eyeOpen: 0.04, tongue: 0, lookUp: 0, bounce: 0, lean: 0 },
 };
 
-function tagTexture() {
-  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 96;
+function medalTexture() {
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 256;
   const x = cv.getContext('2d');
-  x.fillStyle = '#2b2f33'; x.beginPath(); x.roundRect(4, 4, 248, 88, 44); x.fill();
-  x.fillStyle = '#ffffff'; x.font = 'bold 54px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('KUDOG', 128, 52);
+  const g = x.createRadialGradient(100, 90, 20, 128, 128, 128); g.addColorStop(0, '#FFE58A'); g.addColorStop(0.65, '#F2BE2E'); g.addColorStop(1, '#C98B10');
+  x.fillStyle = g; x.beginPath(); x.arc(128, 128, 126, 0, Math.PI * 2); x.fill();
+  x.strokeStyle = '#B57A0C'; x.lineWidth = 10; x.beginPath(); x.arc(128, 128, 104, 0, Math.PI * 2); x.stroke();
+  x.fillStyle = '#7A4A05'; x.font = 'bold 58px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('KUDOG', 128, 132);
+  x.fillStyle = '#7A4A05'; for (const dx of [-30, 0, 30]) { x.beginPath(); x.arc(128 + dx, 78, 6, 0, Math.PI * 2); x.fill(); }
   const t = new CanvasTexture(cv); t.colorSpace = SRGBColorSpace; return t;
 }
 function zTexture() {
@@ -69,10 +72,17 @@ function build() {
   add(tailMid, new CapsuleGeometry(0.08, 0.26, 6, 12), m.fur, [0, 0.12, -0.05], [1, 1, 1], [-0.35, 0, 0]);
   add(tailMid, sph(0.1), m.cream, [0, 0.27, -0.1]);
 
-  // Collar with the KUDOG tag.
-  add(body, new TorusGeometry(0.56, 0.1, 14, 40), m.lime, [0, 1.36, 0.08], [1, 1, 0.92], [Math.PI / 2 + 0.38, 0, 0]);
-  const tag = add(body, new CylinderGeometry(0.17, 0.17, 0.04, 28), m.greyDark, [0, 1.13, 0.74], [1.7, 1, 0.75], [Math.PI / 2 - 0.25, 0, 0]);
-  const label = new Mesh(new CircleGeometry(0.16, 28), new MeshBasicMaterial({ map: tagTexture(), transparent: true })); label.scale.set(1.55, 0.6, 1); label.position.set(0, 0.025, 0); label.rotation.x = -Math.PI / 2; tag.add(label);
+  // A gold necklace with a medal bearing his name.
+  const gold = std(0xe7b42c, { roughness: 0.28, metalness: 0.55 });
+  // The chain: a V from behind the cheeks down to the medal's loop.
+  const link = (a2, b2) => { const A = new Vector3(...a2), B = new Vector3(...b2), dir = B.clone().sub(A), len = dir.length();
+    const o = new Mesh(new CapsuleGeometry(0.028, len, 4, 10), gold); o.position.copy(A).add(B).multiplyScalar(0.5); o.quaternion.copy(new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), dir.normalize())); body.add(o); };
+  for (const s2 of [-1, 1]) { link([0.42 * s2, 1.42, 0.45], [0.2 * s2, 1.27, 0.74]); link([0.2 * s2, 1.27, 0.74], [0, 1.2, 0.86]); }
+  const medal = new Group(); medal.position.set(0, 0.95, 0.9); medal.rotation.x = -0.12; body.add(medal);
+  add(medal, new CylinderGeometry(0.24, 0.24, 0.05, 40), gold, [0, 0, 0], [1, 1, 1], [Math.PI / 2, 0, 0]);
+  add(medal, new TorusGeometry(0.24, 0.025, 10, 40), std(0xc98b10, { roughness: 0.3, metalness: 0.6 }), [0, 0, 0]);
+  const face = new Mesh(new CircleGeometry(0.225, 40), new MeshBasicMaterial({ map: medalTexture() })); face.position.z = 0.027; medal.add(face);
+  add(medal, new TorusGeometry(0.05, 0.018, 8, 16), gold, [0, 0.27, 0]); // loop
 
   // Head, on a neck pivot so it can tilt, nod and follow the pointer.
   const head = new Group(); head.position.set(0, 1.72, 0.05); body.add(head);
@@ -119,7 +129,7 @@ function build() {
   }
   // A "z" for naps.
   const zz = new Sprite(new SpriteMaterial({ map: zTexture(), transparent: true, opacity: 0, depthWrite: false })); zz.scale.set(0.35, 0.35, 1); zz.position.set(0.7, 2.9, 0.4); root.add(zz);
-  return { root, body, head, tail, tailMid, tongue, eyes, ears, zz };
+  return { root, body, head, tail, tailMid, tongue, eyes, ears, zz, medal };
 }
 
 /**
@@ -199,6 +209,7 @@ export function createKudog3D({ label = 'KUDOG', onPet = null } = {}) {
     // Tail wag.
     d.tail.rotation.y = Math.sin(t * cur.wag) * cur.wagAmp; d.tailMid.rotation.y = Math.sin(t * cur.wag - 0.7) * cur.wagAmp * 0.8;
     d.tail.rotation.x = mood === 'concerned' ? 0.5 : mood === 'sleepy' ? 0.6 : 0;
+    d.medal.rotation.z = Math.sin(t * 2.2) * 0.06 + (hopY ? Math.sin(t * 14) * 0.12 : 0); d.medal.rotation.y = Math.sin(t * 1.3) * 0.12;
     // Eyes: blink every few seconds, look up when thinking, follow the pointer a little.
     if (blinkT < 0 && t > blinkAt && mood !== 'sleepy') { blinkT = 0; }
     let lid = 1; if (blinkT >= 0) { blinkT += dt; lid = 1 - Math.sin(Math.min(1, blinkT / 0.16) * Math.PI); if (blinkT > 0.16) { blinkT = -1; blinkAt = t + 2.5 + Math.random() * 3.5; } }
