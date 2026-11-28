@@ -1,5 +1,5 @@
 import { h, api, toast, fmtDate, svg, tipI, metaRow, mark } from './ui.js';
-import { monthsCard, monthPlan, readinessCard, levelsCard } from './home.js';
+import { monthsCard, monthPlan, readinessCard, levelsCard, isStarted, courseLabel, COURSE_KINDS } from './home.js';
 import { SCENARIOS as SANDBOXES } from './sandbox.js';
 import { storyPlayer } from './story.js';
 import { revealNew } from './collectibles.js';
@@ -104,6 +104,7 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
 
   // ---- Home: a tiled dashboard built around what to do next. One step leads; everything else is context.
   const nextHref = nextUp && !readOnly ? itemHref(nextUp) : null;
+  const nextStarted = !!nextUp?.module && COURSE_KINDS.has(nextUp.kind) && isStarted(st.items.filter((i) => i.module === nextUp.module && COURSE_KINDS.has(i.kind)));
   const home = [
     h('div', { class: 'bento home-top' },
       h('section', { class: 'hero span-5' },
@@ -113,7 +114,7 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
           h('p', { class: 'hero-goal' }, settings.goal || 'Your custom programme to become a KUDO Champion.'),
           data.message ? h('div', { class: 'hero-msg' }, h('b', null, 'From your KUDO Trainer: '), data.message) : null,
           readOnly ? null : h('div', { class: 'hero-cta' },
-            nextUp ? h('a', { class: 'btn primary lg', href: nextHref || '#training', on: { click: () => focusStep(nextUp.kind) } }, 'Take the course') : null,
+            nextUp ? h('a', { class: `btn lg ${nextStarted ? 'continue' : 'primary'}`, href: nextHref || '#training', on: { click: () => focusStep(nextUp.kind) } }, courseLabel(nextStarted)) : null,
             h('span', { class: 'hero-next' }, nextUp ? nextUp.title : 'Everything on your side is done for now.')))),
       h('section', { class: 'card span-3 prog-tile' },
         h('div', { class: 'row spread' }, h('h2', null, "My Program's completion"), h('span', { class: `chip ${paceChip[0]}` }, paceChip[1])),

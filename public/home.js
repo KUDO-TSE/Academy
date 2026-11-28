@@ -10,7 +10,7 @@ const KIND = { scenario: 'Decide', explain: 'Explain it', survey: 'Survey', less
 const KIND_CHIP = { lesson: 'blue', practice: 'amber', check: 'green', review: 'green', scenario: 'grey', explain: 'grey', baseline: 'green' };
 const mine = (i) => (i.owner || 'you') === 'you';
 const STEP = { lesson: 'Learn', practice: 'Practise', scenario: 'Decide', explain: 'Explain it', check: 'Check' };
-const COURSE_KINDS = new Set(['lesson', 'practice', 'scenario', 'explain', 'check']);
+export const COURSE_KINDS = new Set(['lesson', 'practice', 'scenario', 'explain', 'check']);
 /** A week's steps as courses: the steps of one module make one all-in-one course; anything else stands alone. */
 function courseGroups(its) {
   const out = [], byMod = new Map();
@@ -94,7 +94,7 @@ export function weeksCard({ items, week, weeks = 12, phases, levels = [], module
               g.items.length > 1 ? g.items.map((i) => h('span', { class: `wk-step ${i.done ? 'on' : ''}`, title: i.done ? 'Done' : 'To do' }, i.done ? tick(10) : null, STEP[i.kind] || KIND[i.kind] || 'Step')) : h('span', { class: `chip ${KIND_CHIP[g.items[0].kind] || 'grey'}` }, KIND[g.items[0].kind] || 'Step'),
               h('span', null, mins(mins2)),
               g.items.filter((i) => i.recorded != null).map((i) => h('span', { class: `chip ${i.below ? 'amber' : 'green'}` }, `${STEP[i.kind] || 'Score'} ${i.recorded}%`)))),
-          href && !done ? h('a', { class: `btn sm ${st === 'now' || st === 'late' ? 'primary' : ''}`, href, on: { click: () => onStep(nextIt) } }, 'Take the course') : null);
+          href && !done ? courseBtn(g, { href, onClick: () => onStep(nextIt), strong: st === 'now' || st === 'late' }) : null);
       })) : null,
       h('div', { class: 'wk-nav' },
         h('button', { class: 'btn sm ghost', type: 'button', disabled: w <= 1, on: { click: () => select(w - 1, true) } }, 'Previous week'),
@@ -242,6 +242,14 @@ export function monthsCard({ items, week, phases, levels = [], modules = [], tit
     })));
 }
 
+/** A course is started once one of its steps is done: its button then reads Continue the course, in the amber "in progress" colour. */
+export const isStarted = (its) => its.some((i) => i.done) && its.some((i) => !i.done);
+export const courseLabel = (started) => (started ? 'Continue the course' : 'Take the course');
+function courseBtn(g, { href, onClick, strong, size = 'sm' }) {
+  const started = isStarted(g.items);
+  return h('a', { class: `btn ${size} ${started ? 'continue' : strong ? 'primary' : ''}`, href, on: { click: onClick } }, courseLabel(started));
+}
+
 /** One week's courses: the steps of a module make one all-in-one course, with one Take the course button. */
 export function courseList(its, { hrefFor = () => null, onStep = () => {}, strong = false } = {}) {
   return h('ul', { class: 'wk-steps' }, courseGroups(its).map((g) => {
@@ -254,7 +262,7 @@ export function courseList(its, { hrefFor = () => null, onStep = () => {}, stron
           g.items.length > 1 ? g.items.map((i) => h('span', { class: `wk-step ${i.done ? 'on' : ''}` }, i.done ? tick(10) : null, STEP[i.kind] || KIND[i.kind] || 'Step')) : h('span', { class: `chip ${KIND_CHIP[g.items[0].kind] || 'grey'}` }, KIND[g.items[0].kind] || 'Step'),
           h('span', null, mins(g.items.reduce((t, i) => t + (i.minutes || 0), 0))),
           g.items.filter((i) => i.recorded != null).map((i) => h('span', { class: `chip ${i.below ? 'amber' : 'green'}` }, `${STEP[i.kind] || 'Score'} ${i.recorded}%`)))),
-      href && !done ? h('a', { class: `btn sm ${strong ? 'primary' : ''}`, href, on: { click: () => onStep(nextIt) } }, 'Take the course') : null);
+      href && !done ? courseBtn(g, { href, onClick: () => onStep(nextIt), strong }) : null);
   }));
 }
 

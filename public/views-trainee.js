@@ -169,7 +169,7 @@ function academyResults() {
           h('span', null, 'Walkthrough ', h('b', null, m.walk ? `${m.walk.pct}%` : 'None')),
           h('span', null, 'Explain it ', h('b', null, m.explain ? `${m.explain.pct}%` : 'None')),
           h('span', null, 'Retakes ', h('b', null, m.practice ? String(m.practice.n) : '0'))),
-        c ? h('span', { class: `chip ${c.passed ? 'green' : 'amber'}` }, c.passed ? `Passed, ${fmtDate(c.at)}` : `Below ${passPct}%, ${fmtDate(c.at)}`) : h('span', { class: 'chip grey' }, 'Take the course'));
+        c ? h('span', { class: `chip ${c.passed ? 'green' : 'amber'}` }, c.passed ? `Passed, ${fmtDate(c.at)}` : `Below ${passPct}%, ${fmtDate(c.at)}`) : (m.walk || m.explain || m.practice) ? h('span', { class: 'chip amber' }, 'Continue the course') : h('span', { class: 'chip grey' }, 'Take the course'));
     };
     const worked = d.modules.filter((m) => m.check || m.walk || m.explain || m.practice), rest = d.modules.filter((m) => !worked.includes(m));
     const table = h('section', { class: 'card' }, h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'My course tests'), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, `The Prove it step of each course. Your first attempt is the result of record; the bar shows it against the ${passPct}% pass mark.`))),
@@ -224,20 +224,22 @@ function progressLive() {
     };
     pick.addEventListener('change', drawLine); drawLine();
     const over = h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'One scenario over time'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, 'October, then each test that moved it. The dashed line is your target')), pick), lineBox);
-    const feed = h('div', { class: 'card' }, h('h2', null, 'What moved my level'), h('p', { class: 'sub' }, 'Newest first, with what each test did'),
-      d.feed.length ? h('ul', { class: 'lp-feed' }, d.feed.slice(0, 30).map((e) => { const ch = e.to - e.from; return h('li', null,
+    // One card: what moved my level (the feed, or a single next step), then what counts and what does not.
+    const feedList = d.feed.length ? h('ul', { class: 'lp-feed' }, d.feed.slice(0, 30).map((e) => { const ch = e.to - e.from; return h('li', null,
         h('span', { class: 'muted small lp-when' }, ago(e.at)),
         h('div', { class: 'lp-what' }, e.module !== 'baseline' ? h('a', { href: `#module-${e.module}` }, e.moduleTitle) : h('b', null, e.moduleTitle), h('span', { class: 'muted small sep-l' }, `${KIND_LABEL[e.kind] || 'Test'}${e.kind === 'explain' ? (e.reviewed ? ', reviewed by your KUDO Trainer' : ', automatic review') : ''}, you scored ${e.score}%`)),
         h('div', { class: 'lp-eff' }, h('span', null, `${e.short} ${e.from}% → ${e.to}%`), h('span', { class: `lp-d ${ch > 0 ? 'up' : ch < 0 ? 'down' : ''}` }, signed(ch)))); }))
-        : h('p', { class: 'muted', style: 'margin:8px 0 0' }, 'Nothing yet. Your first course test moves your level.'));
-    const rules = h('div', { class: 'card lp-rules' }, h('h2', null, 'What moves my level'),
+      : h('div', { class: 'empty-note row spread' }, h('span', null, h('b', null, 'Nothing yet.'), ' Your level moves after the Prove it step of your first course.'), h('a', { class: 'btn primary sm', href: '#training' }, 'Go to My courses'));
+    const rules = h('div', { class: 'lp-rules-in' },
       h('div', { class: 'grid g2' },
-        h('div', null, h('b', { class: 'lp-yes' }, 'Counts'), h('ul', null, h('li', null, 'Your first attempt at each course test (Prove it)'), h('li', null, 'Your first decision walkthrough in each course'), h('li', null, 'Your first explain-it recording. If your KUDO Trainer reviews it, their score replaces the automatic one'), h('li', null, 'The baseline check'), h('li', null, 'The quarterly knowledge test, which resets your starting point'))),
-        h('div', null, h('b', { class: 'lp-no' }, 'Does not count'), h('ul', null, h('li', null, 'Reading the lesson and watching the videos'), h('li', null, 'Practice tasks and sandbox exercises (feedback only)'), h('li', null, 'Retakes, the weekly challenge and spaced reviews'), h('li', null, 'Marking a step as done')))),
-      h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'Each test pulls your level most of the way towards its score: a good result lifts it, a poor one lowers it. Only your first attempt counts, so work through the course and take the test when you feel ready'));
-    // Nothing has moved yet: one clear next step instead of two empty cards.
-    const none = h('div', { class: 'card empty-cta' }, h('div', null, h('h2', null, 'What moved my level'), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, 'Nothing yet. Your level moves after the Prove it step of your first course. Each test that moves it shows here, newest first, with a chart per scenario.')), h('a', { class: 'btn primary', href: '#training' }, 'Go to My courses'));
-    box.replaceChildren(...(d.feed.length ? [head, chart, over, feed, rules] : [head, chart, none, rules]));
+        h('div', { class: 'lp-col yes' }, h('b', { class: 'lp-yes' }, 'Moves your level'), h('ul', null, h('li', null, 'Your first attempt at each course test (Prove it)'), h('li', null, 'Your first decision walkthrough in each course'), h('li', null, 'Your first explain-it recording. If your KUDO Trainer reviews it, their score replaces the automatic one'), h('li', null, 'The baseline check'), h('li', null, 'The quarterly knowledge test, which resets your starting point'))),
+        h('div', { class: 'lp-col no' }, h('b', { class: 'lp-no' }, 'Does not move it'), h('ul', null, h('li', null, 'Reading the lesson and watching the videos'), h('li', null, 'Practice tasks and sandbox exercises (feedback only)'), h('li', null, 'Retakes, the weekly challenge and spaced reviews'), h('li', null, 'Marking a step as done')))),
+      h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'Each test pulls your level most of the way towards its score: a good result lifts it, a poor one lowers it. Only your first attempt counts, so work through the course and take the test when you feel ready.'));
+    const moved = h('div', { class: 'card lp-rules lp-moved' },
+      h('h2', null, 'What moved my level'), h('p', { class: 'sub keep' }, d.feed.length ? 'Newest first, with what each test did.' : 'Each test that moves a level shows here, newest first.'),
+      feedList,
+      d.feed.length ? h('details', { class: 'lp-how' }, h('summary', null, 'What moves a level, and what does not'), rules) : h('div', { class: 'lp-how open' }, h('h3', null, 'What moves a level, and what does not'), rules));
+    box.replaceChildren(...(d.feed.length ? [head, chart, over, moved] : [head, chart, moved]));
   }).catch((e) => box.replaceChildren(failed(e)));
   return box;
 }
