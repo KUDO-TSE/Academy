@@ -1,22 +1,12 @@
-// KUDOG, the virtual coach: a cut-out puppet made from one picture (public/kudog.webp, 500 x 500).
-// Parts (ears, head, tongue, eyelids) are layers of the same image clipped to their outline and moved around
-// their own pivot. Motion follows the 12 animation principles at 50% intensity (image-to-3d-rebuild skill):
-// every beat is a pure function of time (anticipation, fast action, squash on landing, follow-through),
-// nothing linear, angles on more than one part so it never moves "in one piece".
+// KUDOG, the virtual coach. The real dog is the 3D model (client-src/kudog3d.js). This file holds the light 2D
+// stand-in shown while the model loads, or for good when WebGL is missing: one still of the 3D dog
+// (public/kudog-sit.webp, 500 x 500) that breathes, hops, tilts and wiggles on the same moods. Motion follows the
+// 12 animation principles at 50% intensity: each beat is a pure function of time (anticipation, fast action,
+// squash on landing, follow-through), nothing linear.
 import { h, modal } from './ui.js';
 
-const SRC = '/kudog.webp';
-const pct = (pts) => `polygon(${pts.map(([x, y]) => `${x / 5}% ${y / 5}%`).join(',')})`;
-// Outlines on the 500 px picture.
-const CLIP = {
-  body: [[120, 298], [275, 298], [300, 340], [450, 405], [450, 478], [110, 478]],
-  head: [[78, 95], [100, 68], [150, 52], [200, 58], [240, 78], [262, 112], [290, 120], [316, 118], [320, 190], [305, 245], [290, 290], [268, 302], [268, 335], [140, 335], [132, 305], [95, 300], [54, 384], [42, 378], [84, 296], [58, 250], [50, 168], [78, 160]],
-  earL: [[0, 78], [62, 66], [98, 92], [98, 172], [62, 186], [0, 180]],
-  earR: [[228, 8], [300, 0], [388, 38], [388, 302], [328, 302], [342, 152], [318, 122], [288, 126], [258, 110], [236, 82]],
-  tongue: [[166, 268], [216, 268], [218, 312], [196, 320], [166, 312]],
-};
-const PIVOT = { whole: '50% 95%', head: '40% 64%', earL: '17.6% 27%', earR: '54% 22.4%', tongue: '38% 54%' };
-const EYES = [{ cx: 126, cy: 195, rx: 24, ry: 30 }, { cx: 210, cy: 175, rx: 25, ry: 26 }];
+const SRC = '/kudog-sit.webp';
+const FACE = '/kudog-face.webp';
 
 // ---- timing helpers
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
@@ -77,39 +67,26 @@ const MOODS = {
 };
 
 export function kudog2D({ size = 96, label = 'Pet KUDOG', onPet } = {}) {
-  const layer = (cls) => h('i', { class: `kd-l kd-${cls}`, style: `background-image:url(${SRC});clip-path:${pct(CLIP[cls])};transform-origin:${PIVOT[cls] || '50% 50%'}` });
-  const lid = (e) => h('i', { class: 'kd-lid', style: `left:${(e.cx - e.rx) / 5}%;top:${(e.cy - e.ry) / 5}%;width:${2 * e.rx / 5}%;height:${2 * e.ry / 5}%` }, h('i'));
-  const earL = layer('earL'), earR = layer('earR'), tongue = layer('tongue'), lids = EYES.map(lid);
-  const head = h('i', { class: 'kd-head', style: `transform-origin:${PIVOT.head}` }, earL, earR, layer('head'), tongue, ...lids);
-  const whole = h('i', { class: 'kd-whole', style: `transform-origin:${PIVOT.whole}` }, layer('body'), head);
+  const pic = h('i', { class: 'kd-l', style: `background-image:url(${SRC})` });
+  const whole = h('i', { class: 'kd-whole', style: 'transform-origin:50% 88%' }, pic);
   const el = h('button', { type: 'button', class: 'kd', style: `width:${size}px;height:${size}px`, 'aria-label': label, title: label, on: { click: () => { mood('pet'); onPet?.(); } } }, whole);
 
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let cur = 'idle', since = 0, prev = null, raf = 0, last = {};
-  let nextBlink = 2500, nextTwitch = 6000, twitchAt = -1e9, twitchEar = 'earL', blinkAt = -1e9;
   function pose(t) {
     const u = t - since; const m = MOODS[cur](u);
     if (m.done) { cur = 'idle'; since = t; prev = last; return pose(t); }
     const br = Math.sin(2 * Math.PI * t / (3400 * (m.breath || 1)));
-    if (t > nextBlink) { blinkAt = t; nextBlink = t + 2800 + Math.random() * 3600 + (Math.random() < 0.15 ? -2600 : 0); }
-    if (t > nextTwitch && cur === 'idle') { twitchAt = t; twitchEar = Math.random() < 0.6 ? 'earL' : 'earR'; nextTwitch = t + 5000 + Math.random() * 6000; }
-    const tw = t - twitchAt; const twitch = tw < 0 || tw > 700 ? 0 : (tw < 80 ? 3 * easeOut(tw / 80) : 3 - 15 * easeOut((tw - 80) / 80) * (tw < 160 ? 1 : 0)) + (tw >= 160 ? damp(tw - 160, -12, 200, 90) : 0);
-    const blink = bump(t - blinkAt, 0, 170);
     const p = {
       y: m.y || 0, rot: m.rot || 0, sx: (m.sx || 1) * (1 - 0.005 * br), sy: (m.sy || 1) * (1 + 0.01 * br),
       head: (m.head || 0) + 0.8 * Math.sin(2 * Math.PI * t / 5300), headY: m.headY || 0,
-      earL: (m.earL || 0) + (twitchEar === 'earL' ? twitch : 0), earR: (m.earR || 0) + (twitchEar === 'earR' ? twitch * 0.7 : 0),
-      tongue: (m.tongue || 1) * (1 + 0.012 * Math.sin(2 * Math.PI * t / 900)), lid: Math.max(m.lid || 0, blink),
     };
-    if (prev) { const k = easeOut((t - since) / 260); if (k >= 1) prev = null; else for (const key of Object.keys(p)) if (key !== 'lid') p[key] = prev[key] + (p[key] - prev[key]) * k; }
+    if (prev) { const k = easeOut((t - since) / 260); if (k >= 1) prev = null; else for (const key of Object.keys(p)) p[key] = prev[key] + (p[key] - prev[key]) * k; }
     return p;
   }
   function apply(p) {
-    whole.style.transform = `translateY(${p.y}%) rotate(${p.rot}deg) scale(${p.sx},${p.sy})`;
-    head.style.transform = `translateY(${p.headY}%) rotate(${p.head}deg)`;
-    earL.style.transform = `rotate(${p.earL}deg)`; earR.style.transform = `rotate(${-p.earR}deg)`;
-    tongue.style.transform = `scaleY(${p.tongue})`;
-    for (const l of lids) l.firstChild.style.transform = `scaleY(${p.lid})`;
+    // One picture, so the head's tilt and drop move the whole dog a little, around his paws.
+    whole.style.transform = `translateY(${p.y + p.headY * 0.6}%) rotate(${p.rot + p.head * 0.35}deg) scale(${p.sx},${p.sy})`;
   }
   const frame = (t) => { last = pose(t); apply(last); raf = requestAnimationFrame(frame); };
   function mood(name) {
@@ -127,7 +104,7 @@ export function kudog2D({ size = 96, label = 'Pet KUDOG', onPet } = {}) {
 }
 
 // ---- KUDOG in 3D everywhere he talks to the trainee (tour, cards, recaps, brags).
-// kudogPuppet() returns at once with the 2D puppet, loads the 3D dog (public/kudog3d.bundle.js) and swaps it in with
+// kudogPuppet() returns at once with the 2D puppet, loads the 3D dog (public/kudog3d.bundle.js) and, once its model is ready, swaps it in with
 // the same interface, carrying over the current mood. Without WebGL (or if the file cannot load) the 2D puppet stays.
 let load3d = null;
 const get3d = () => load3d || (load3d = import('/kudog3d.bundle.js'));
@@ -135,8 +112,11 @@ export function kudogPuppet({ size = 96, label = 'Pet KUDOG', onPet, scale = 1.6
   const flat = kudog2D({ size, label, onPet });
   const box = h('div', { class: 'kd-live', style: `width:${Math.round(size * scale)}px;height:${Math.round(size * scale)}px` }, flat.el);
   let impl = flat, mood = 'idle', running = false;
-  get3d().then((mod) => {
+  get3d().then(async (mod) => {
     const d3 = mod.createKudog3D({ label: `${label}. KUDOG, your virtual coach`, onPet });
+    // Swap only once the model has loaded, so the 2D puppet never gives way to an empty frame.
+    try { await d3.ready; } catch { d3.dispose?.(); return; }
+    if (!running && !box.isConnected) { d3.dispose?.(); return; }
     d3.el.classList.add('kd-3d'); flat.stop(); flat.el.replaceWith(d3.el); impl = d3;
     if (running) { d3.start(); d3.mood(mood); }
   }).catch(() => {});
@@ -150,7 +130,7 @@ export function kudogPuppet({ size = 96, label = 'Pet KUDOG', onPet, scale = 1.6
 }
 
 /** The round face used on the coach button. */
-export const kudogFace = () => h('i', { class: 'kd-face', 'aria-hidden': 'true', style: `background-image:url(${SRC})` });
+export const kudogFace = () => h('i', { class: 'kd-face', 'aria-hidden': 'true', style: `background-image:url(${FACE})` });
 
 /** A pop-up told by KUDOG: he sits beside a speech bubble and reacts with a mood. Keyboard-safe (built on modal()).
  *  body: extra content under the bubble. actions(close): buttons. Returns close(). */

@@ -55,7 +55,7 @@ export function coachWidget({ name = '' } = {}) {
   let dogReady = null;
   const loadDog = () => dogReady || (dogReady = (async () => {
     let d;
-    try { const mod = await import('/kudog3d.bundle.js'); d = mod.createKudog3D({ label: 'KUDOG, your virtual coach. Click to pet him.', onPet }); }
+    try { const mod = await import('/kudog3d.bundle.js'); d = mod.createKudog3D({ label: 'KUDOG, your virtual coach. Click to pet him.', onPet }); await d.ready; }
     catch { d = kudog2D({ size: 160, label: 'Pet KUDOG', onPet }); d.el.classList.add('kg-2d'); }
     dog.el.replaceWith(d.el); dog = d; if (open) { dog.start(); dog.mood(busy ? 'thinking' : 'happy'); }
   })());

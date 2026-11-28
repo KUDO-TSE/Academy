@@ -996,7 +996,7 @@ td.nowrap{white-space:nowrap;font-variant-numeric:tabular-nums}
 .kg-col{display:flex;flex-direction:column;gap:5px;max-width:84%;min-width:0}
 .kg-row.me .kg-col{align-items:flex-end}
 .kg-av{flex:0 0 28px;width:28px;height:28px;border-radius:50%;overflow:hidden;background:#FFF4DE;margin-top:2px}
-.kg-av .kd-face{display:block;width:100%;height:100%;background-size:150%;background-position:38% 30%}
+.kg-av .kd-face{display:block;width:100%;height:100%;background-size:cover;background-position:50% 30%}
 .kg-av.t{background:var(--kudo-navy);color:#fff;font-size:10.5px;font-weight:700;display:grid;place-items:center}
 .kg-bubble{padding:10px 13px;border-radius:18px;font-size:14px;line-height:1.5;overflow-wrap:anywhere}
 .kg-bubble p{margin:0 0 7px}.kg-bubble p:last-child{margin:0}

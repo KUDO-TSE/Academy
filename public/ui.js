@@ -43,7 +43,7 @@ export function toast(msg, bad = false) {
     ? h('div', { class: 'toast bad', role: 'alert' }, h('span', null, msg), h('button', { type: 'button', class: 'toast-x', 'aria-label': 'Dismiss', on: { click: () => t.remove() } }, '×'))
     : h('div', { class: 'toast', role: 'status' }, msg);
   // On trainee pages KUDOG says it: his face leads every message.
-  if (document.body.dataset.admin !== '1' || document.body.dataset.me === '1') t.prepend(h('i', { class: 'kd-face toast-face', 'aria-hidden': 'true', style: 'background-image:url(/kudog.webp)' }));
+  if (document.body.dataset.admin !== '1' || document.body.dataset.me === '1') t.prepend(h('i', { class: 'kd-face toast-face', 'aria-hidden': 'true', style: 'background-image:url(/kudog-face.webp)' }));
   document.body.append(t);
   if (!bad) setTimeout(() => t.remove(), 3200);
 }

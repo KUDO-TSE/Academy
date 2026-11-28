@@ -1,24 +1,39 @@
 /* global document, window, ResizeObserver, requestAnimationFrame, cancelAnimationFrame */
-// KUDOG in 3D: a procedural dog (no external file). A tan puppy with a brown saddle and ears, cream muzzle, blaze,
-// chest and paws, long floppy ears, a lime headset with a microphone, and a gold necklace with a medal bearing his name.
-// Bundled with esbuild into public/kudog3d.bundle.js (npm run build:kudog).
+// KUDOG in 3D: a real, rigged dog model (Quaternius "Ultimate Animated Animals", CC0, public/kudog/LICENSE-model.txt)
+// recoloured as KUDOG (tan and cream coat, soft floppy ears), wearing his lime headset with a microphone and his gold
+// KUDOG medal, both attached to his head and neck bones so they follow every move.
+// Bundled with esbuild into public/kudog3d.bundle.js (npm run build:kudog); the model is public/kudog/kudog.glb.
 //
-// He is rigged like a dog: hips, a body that pitches (stand, sit, lie down, play bow), four legs, a head on a neck that
-// stays level, a jaw, ears and a tail on their own pivots. A behaviour engine plays real dog routines when he is left
-// alone (sit and look around, scratch behind the ear, bark, sniff, stretch, walk in a circle and lie down) and answers
-// the moods the app asks for (listening, thinking, happy, excited, concerned, sleepy). Every value is damped towards its
-// target, so poses blend into each other; the loop pauses when he is hidden and stops for good when removed.
+// Motion: the model's own animation clips (idle, look around, sniff, eat, walk, gallop, jump, shake) are blended with
+// cross-fades, and poses the clips do not have are layered on the skeleton: sit, lie down and scratch (found by a search
+// over the leg angles so the paws rest on the ground), plus tail wags, ear expressions, blinks, barks and the head
+// following the pointer. A behaviour engine plays dog routines when he is left alone and answers the app's moods.
 import {
   Scene, PerspectiveCamera, WebGLRenderer, Group, Mesh, SphereGeometry, CapsuleGeometry, TorusGeometry, CylinderGeometry,
-  CircleGeometry, MeshStandardMaterial, MeshBasicMaterial, HemisphereLight, DirectionalLight, AmbientLight,
-  CanvasTexture, SRGBColorSpace, Raycaster, Vector2, Vector3, Quaternion, Sprite, SpriteMaterial, ACESFilmicToneMapping,
+  CircleGeometry, MeshStandardMaterial, MeshBasicMaterial, HemisphereLight, DirectionalLight, AmbientLight, AnimationMixer, LoopOnce, LoopRepeat,
+  CanvasTexture, SRGBColorSpace, Raycaster, Vector2, Vector3, Quaternion, Sprite, SpriteMaterial, ACESFilmicToneMapping, Color,
 } from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
-const C = {
-  fur: 0xd8944c, saddle: 0x8c5530, cream: 0xf6e8d2, earIn: 0xc98a80, nose: 0x1d1a19, mouth: 0x5d2024, tongue: 0xec7f93,
-  lime: 0xa8d82c, limeDark: 0x6f9e14, cushion: 0x3c4a1a, eye: 0xffffff, iris: 0x6b4423, pupil: 0x111111, gold: 0xe7b42c, goldDark: 0xc98b10,
-};
-const std = (color, o = {}) => new MeshStandardMaterial({ color, roughness: 0.66, metalness: 0, ...o });
+const MODEL_URL = '/kudog/kudog.glb';
+const COAT = { Main: 0xc98340, Main_Light: 0xf2e4cc, Black: 0x2b1d16, Eyes_White: 0xffffff, Eyes_Black: 0x140d09, Eyes_Pupil: 0x4a2a12 };
+const LIME = 0xa8d82c, LIME_DARK = 0x6f9e14, CUSHION = 0x34401a, GOLD = 0xe7b42c, GOLD_DARK = 0xc98b10;
+
+// ---- one load and clean-up of the model, shared by every KUDOG on the page
+let modelP = null;
+function loadModel() {
+  return modelP || (modelP = new GLTFLoader().loadAsync(MODEL_URL).then((g) => {
+    g.scene.traverse((o) => {
+      if (!o.isMesh) return;
+      // Soft, rounded shading instead of flat facets: weld the vertices and recompute smooth normals.
+      const geo = o.geometry; geo.deleteAttribute('normal');
+      const welded = mergeVertices(geo, 1e-3); welded.computeVertexNormals(); o.geometry = welded;
+    });
+    return g;
+  }));
+}
 
 function canvasTex(w, hgt, draw) { const cv = document.createElement('canvas'); cv.width = w; cv.height = hgt; draw(cv.getContext('2d')); const t = new CanvasTexture(cv); t.colorSpace = SRGBColorSpace; return t; }
 const medalTexture = () => canvasTex(256, 256, (x) => {
@@ -27,313 +42,272 @@ const medalTexture = () => canvasTex(256, 256, (x) => {
   x.strokeStyle = '#B57A0C'; x.lineWidth = 10; x.beginPath(); x.arc(128, 128, 104, 0, Math.PI * 2); x.stroke();
   x.fillStyle = '#7A4A05'; x.font = 'bold 58px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('KUDOG', 128, 132);
 });
-const wordTexture = (word, color) => canvasTex(256, 128, (x) => {
+const wordTexture = (word) => canvasTex(256, 128, (x) => {
   x.fillStyle = '#ffffff'; x.strokeStyle = '#1B5C84'; x.lineWidth = 6; x.beginPath(); x.roundRect(8, 8, 240, 96, 40); x.fill(); x.stroke();
-  x.fillStyle = color; x.font = 'bold 60px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(word, 128, 58);
+  x.fillStyle = '#1B5C84'; x.font = 'bold 60px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(word, 128, 58);
 });
+const zTexture = () => canvasTex(64, 64, (x) => { x.fillStyle = '#5b6b7a'; x.font = 'bold 48px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('z', 32, 34); });
 
-// ------------------------------------------------------------------ the model
-function build() {
-  const m = { fur: std(C.fur), saddle: std(C.saddle), cream: std(C.cream), earIn: std(C.earIn), nose: std(C.nose, { roughness: 0.25 }),
-    mouth: std(C.mouth), tongue: std(C.tongue, { roughness: 0.4 }), lime: std(C.lime, { roughness: 0.42 }), limeDark: std(C.limeDark, { roughness: 0.45 }),
-    cushion: std(C.cushion, { roughness: 0.8 }), eye: std(C.eye, { roughness: 0.15 }), iris: std(C.iris, { roughness: 0.3 }), pupil: std(C.pupil, { roughness: 0.1 }),
-    shine: new MeshBasicMaterial({ color: 0xffffff }), gold: std(C.gold, { roughness: 0.28, metalness: 0.55 }), goldDark: std(C.goldDark, { roughness: 0.3, metalness: 0.6 }) };
-  const add = (parent, geo, mat, [x, y, z], s = [1, 1, 1], r = [0, 0, 0]) => { const o = new Mesh(geo, mat); o.position.set(x, y, z); o.scale.set(...s); o.rotation.set(...r); parent.add(o); return o; };
-  const sph = (r, w = 28, hh = 20) => new SphereGeometry(r, w, hh);
-  const stick = (parent, a, b, r, mat) => { const A = new Vector3(...a), B = new Vector3(...b), dir = B.clone().sub(A), len = dir.length();
-    const o = new Mesh(new CapsuleGeometry(r, len, 4, 10), mat); o.position.copy(A).add(B).multiplyScalar(0.5); o.quaternion.copy(new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), dir.normalize())); parent.add(o); return o; };
-
-  const root = new Group(); // walks on the ground, turns, jumps
-  const hips = new Group(); root.add(hips); // the body pitches around the hips
-  // Body: tan barrel, brown saddle on the back, cream chest and belly.
-  add(hips, new CapsuleGeometry(0.37, 0.62, 8, 20), m.fur, [0, 0, 0.42], [1, 1, 1], [Math.PI / 2, 0, 0]);
-  add(hips, sph(0.4), m.saddle, [0, 0.17, 0.36], [0.86, 0.55, 1.35]);
-  add(hips, sph(0.36), m.cream, [0, -0.05, 0.98], [0.82, 0.95, 0.62]);
-  add(hips, sph(0.36), m.cream, [0, -0.2, 0.45], [0.7, 0.42, 1.15]);
-  add(hips, sph(0.3), m.fur, [0, 0.02, -0.18], [1.05, 0.95, 0.9]); // rump
-  // Tail: two segments with a cream tip, wagging from its base.
-  const tail = new Group(); tail.position.set(0, 0.2, -0.38); hips.add(tail);
-  const tailMid = new Group(); tailMid.position.set(0, 0.22, -0.14); tail.add(tailMid);
-  stick(tail, [0, 0, 0], [0, 0.22, -0.14], 0.075, m.saddle);
-  stick(tailMid, [0, 0, 0], [0, 0.2, -0.04], 0.065, m.saddle);
-  add(tailMid, sph(0.08), m.cream, [0, 0.25, -0.05]);
-  // Legs: a hip (thigh) or shoulder, a leg whose length and angle the pose sets, and a cream paw.
-  const legs = {};
-  const makeLeg = (key, at, thigh) => {
-    const g = new Group(); g.position.set(...at); hips.add(g);
-    if (thigh) add(hips, sph(0.24), m.fur, [at[0] * 1.02, at[1] + 0.08, at[2] + 0.02], [0.62, 0.95, 1.05]);
-    else add(g, sph(0.13), m.fur, [0, 0, 0]);
-    const shin = add(g, new CylinderGeometry(0.105, 0.095, 1, 16), m.fur, [0, -0.5, 0]);
-    const paw = add(g, sph(0.12), m.cream, [0, -1, 0.04], [1.05, 0.62, 1.3]);
-    legs[key] = { g, shin, paw, len: 0.7, ang: 0 };
-  };
-  makeLeg('fl', [0.2, -0.12, 0.92]); makeLeg('fr', [-0.2, -0.12, 0.92]);
-  makeLeg('hl', [0.27, -0.14, -0.02], true); makeLeg('hr', [-0.27, -0.14, -0.02], true);
-  // Necklace and medal on the chest.
-  stick(hips, [0.3, 0.22, 0.98], [0.14, -0.02, 1.2], 0.022, m.gold); stick(hips, [-0.3, 0.22, 0.98], [-0.14, -0.02, 1.2], 0.022, m.gold);
-  stick(hips, [0.14, -0.02, 1.2], [0, -0.08, 1.24], 0.022, m.gold); stick(hips, [-0.14, -0.02, 1.2], [0, -0.08, 1.24], 0.022, m.gold);
-  const medal = new Group(); medal.position.set(0, -0.2, 1.27); medal.scale.setScalar(0.72); hips.add(medal);
-  add(medal, new CylinderGeometry(0.17, 0.17, 0.04, 36), m.gold, [0, 0, 0], [1, 1, 1], [Math.PI / 2, 0, 0]);
-  add(medal, new TorusGeometry(0.17, 0.02, 8, 36), m.goldDark, [0, 0, 0]);
-  const face = new Mesh(new CircleGeometry(0.16, 36), new MeshBasicMaterial({ map: medalTexture() })); face.position.z = 0.022; medal.add(face);
-  add(medal, new TorusGeometry(0.035, 0.014, 8, 14), m.gold, [0, 0.19, 0]);
-
-  // Head on the neck: it keeps itself level whatever the body does.
-  const head = new Group(); head.position.set(0, 0.3, 1.05); hips.add(head);
-  add(head, new CapsuleGeometry(0.13, 0.2, 6, 12), m.fur, [0, -0.02, -0.05], [1.4, 1, 1.2], [0.5, 0, 0]); // neck
-  const skull = new Group(); skull.position.set(0, 0.3, 0.08); head.add(skull);
-  add(skull, sph(0.42, 36, 28), m.fur, [0, 0, 0], [1, 0.92, 1]);
-  add(skull, sph(0.3), m.saddle, [0, 0.16, -0.12], [1.2, 0.7, 1.05]); // darker crown
-  add(skull, sph(0.1), m.cream, [0, 0.12, 0.37], [0.55, 1.6, 0.4]); // white blaze down the forehead
-  for (const s of [-1, 1]) add(skull, sph(0.07), m.saddle, [0.16 * s, 0.2, 0.33], [1.1, 0.42, 0.5]); // brows
-  // Muzzle: a real dog snout, longer than a bear's, with the nose at its tip.
-  add(skull, new CapsuleGeometry(0.16, 0.22, 8, 16), m.cream, [0, -0.1, 0.4], [1.12, 0.95, 1], [Math.PI / 2, 0, 0]);
-  add(skull, sph(0.15), m.cream, [0, -0.06, 0.3], [1.35, 0.95, 1]); // cheeks
-  add(skull, sph(0.075), m.nose, [0, -0.02, 0.72], [1.35, 0.95, 1]);
-  add(skull, sph(0.022), m.shine, [-0.03, 0.02, 0.78]);
-  // Jaw: opens to bark and to pant.
-  const jaw = new Group(); jaw.position.set(0, -0.2, 0.28); skull.add(jaw);
-  add(jaw, sph(0.13), m.mouth, [0, 0.03, 0.22], [1, 0.4, 1.35]);
-  add(jaw, sph(0.13), m.cream, [0, -0.02, 0.22], [1.02, 0.45, 1.38]);
-  const tongue = new Group(); tongue.position.set(0, 0.03, 0.36); jaw.add(tongue);
-  add(tongue, sph(0.08), m.tongue, [0, -0.04, 0.03], [1, 0.4, 1.4]);
-  // Eyes: big and friendly; each blinks (scale) and looks around (iris).
-  const eyes = [];
-  for (const s of [-1, 1]) {
-    const g = new Group(); g.position.set(0.17 * s, 0.08, 0.33); skull.add(g);
-    add(g, sph(0.105), m.eye, [0, 0, 0], [1, 1.1, 0.7]);
-    const iris = new Group(); g.add(iris);
-    add(iris, new CircleGeometry(0.068, 28), m.iris, [0, -0.005, 0.075]);
-    add(iris, new CircleGeometry(0.042, 24), m.pupil, [0, -0.005, 0.077]);
-    add(iris, new CircleGeometry(0.018, 14), m.shine, [0.022 * -s, 0.022, 0.079]);
-    const shut = add(skull, new TorusGeometry(0.06, 0.012, 8, 20, Math.PI), m.mouth, [0.17 * s, 0.06, 0.41], [1, 0.7, 1], [0, 0, Math.PI]); shut.visible = false;
-    eyes.push({ g, iris, shut });
-  }
-  // Ears: long, soft, hanging down the side of the head (a dog's drop ears), brown with a pink inside.
-  const ears = [];
-  for (const s of [-1, 1]) {
-    const pivot = new Group(); pivot.position.set(0.33 * s, 0.17, -0.02); skull.add(pivot);
-    const ear = new Group(); ear.rotation.set(0, 0.2 * s, 0.25 * s); pivot.add(ear);
-    add(ear, sph(0.2), m.saddle, [0.03 * s, -0.24, 0], [0.55, 1.45, 0.2]);
-    add(ear, sph(0.16), m.earIn, [0.02 * s, -0.22, 0.025], [0.45, 1.3, 0.12]);
-    ears.push({ pivot, s });
-  }
-  // Headset: a full lime band from one ear cup to the other, cushions, and a microphone boom to the mouth.
-  add(skull, new TorusGeometry(0.44, 0.04, 12, 40, Math.PI), m.lime, [0, 0.06, -0.02], [1, 1.02, 1]);
-  for (const s of [-1, 1]) {
-    add(skull, new CylinderGeometry(0.13, 0.13, 0.09, 28), m.lime, [0.45 * s, 0.04, -0.02], [1, 1, 1], [0, 0, Math.PI / 2]);
-    add(skull, new TorusGeometry(0.11, 0.035, 10, 24), m.cushion, [0.4 * s, 0.04, -0.02], [1, 1, 1], [0, Math.PI / 2, 0]);
-    add(skull, new CylinderGeometry(0.06, 0.06, 0.02, 20), m.limeDark, [0.5 * s, 0.04, -0.02], [1, 1, 1], [0, 0, Math.PI / 2]);
-  }
-  stick(skull, [0.5, 0.0, 0.02], [0.42, -0.14, 0.32], 0.018, m.limeDark);
-  stick(skull, [0.42, -0.14, 0.32], [0.24, -0.17, 0.52], 0.018, m.limeDark);
-  add(skull, sph(0.045), m.cushion, [0.22, -0.17, 0.55]);
-
-  // Speech and sleep: "Woof!" and "z" sprites.
-  const woof = new Sprite(new SpriteMaterial({ map: wordTexture('Woof!', '#1B5C84'), transparent: true, opacity: 0, depthWrite: false })); woof.scale.set(0.8, 0.4, 1); root.add(woof);
-  const zz = new Sprite(new SpriteMaterial({ map: canvasTex(64, 64, (x) => { x.fillStyle = '#5b6b7a'; x.font = 'bold 48px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('z', 32, 34); }), transparent: true, opacity: 0, depthWrite: false })); zz.scale.set(0.3, 0.3, 1); root.add(zz);
-  return { root, hips, head, skull, jaw, tongue, eyes, ears, tail, tailMid, legs, medal, woof, zz };
-}
-
-// ------------------------------------------------------------------ poses
-// hipY and pitch place the body; legs: angle from vertical (forward is positive) and an optional fixed length
-// (otherwise the leg reaches the ground); head: pitch (down is positive), tilt; ears: lift; eyes, jaw, tongue.
+// ---- poses layered on top of the clips: bone rotation offsets (radians) and a body drop (dy).
+// Sit, lie down and scratch were solved so the paws rest on the ground (rump down, hocks and paws flat, front paws planted).
+const both = (b, ax, v) => ({ [`${b}L.${ax}`]: v, [`${b}R.${ax}`]: v });
+const AXES = { x: new Vector3(1, 0, 0), y: new Vector3(0, 1, 0), z: new Vector3(0, 0, 1) };
+const _q = new Quaternion();
 const POSES = {
-  stand: { hipY: 0.88, pitch: 0, fA: 0, hA: 0, head: 0.05, tilt: 0, ear: 0, eye: 1, jaw: 0.25, tongue: 0.8, wag: 4, wagAmp: 0.45, tail: 0.2 },
-  sit: { hipY: 0.36, pitch: -0.85, fA: 0.02, hA: 1.38, hLen: 0.42, head: 0.25, tilt: 0, ear: 0, eye: 1, jaw: 0.3, tongue: 1, wag: 2.2, wagAmp: 0.35, tail: -0.6 },
-  lay: { hipY: 0.3, pitch: 0.06, fA: 1.5, fLen: 0.55, hA: 1.35, hLen: 0.42, head: -0.08, tilt: 0.05, ear: -0.1, eye: 0.85, jaw: 0, tongue: 0, wag: 1, wagAmp: 0.15, tail: -0.9 },
-  bow: { hipY: 0.88, pitch: 0.42, fA: 1.15, fLen: 0.55, hA: 0, head: -0.45, tilt: 0, ear: 0.2, eye: 1.05, jaw: 0.6, tongue: 1, wag: 11, wagAmp: 0.6, tail: 0.6 },
+  stand: { dy: 0 },
+  sit: { dy: -1.176, 'Back.x': -0.85, 'Neck1.x': -0.3, 'Head.x': -0.45, ...both('FrontUpperLeg', 'x', 0.98), ...both('BackLeg', 'x', -0.4), ...both('BackUpperLeg', 'x', -0.7), ...both('BackLowerLeg', 'x', -1.1) },
+  lay: { dy: -1.145, 'Back.x': -0.1, 'Neck1.x': 0.2, ...both('FrontUpperLeg', 'x', -0.9), ...both('FrontLowerLeg', 'x', 0.2), ...both('BackLeg', 'x', -0.3), ...both('BackUpperLeg', 'x', 0.9), ...both('BackLowerLeg', 'x', 1.4) },
 };
-POSES.walk = { ...POSES.stand, gait: 1 };
-POSES.sniff = { ...POSES.stand, head: 0.75, jaw: 0, tongue: 0, sniff: 1 };
-POSES.bark = { ...POSES.stand, head: -0.3, tilt: 0, ear: 0.3, bark: 1 };
-POSES.scratch = { ...POSES.sit, head: 0.15, tilt: 0.35, eye: 0.35, scratch: 1, wagAmp: 0.1 };
-POSES.listen = { ...POSES.sit, tilt: -0.28, ear: 0.35, head: 0.1, jaw: 0.15, tongue: 0.3 };
-POSES.think = { ...POSES.scratch, eye: 0.85, tilt: 0.3, lookUp: 1 };
-POSES.happy = { ...POSES.stand, wag: 11, wagAmp: 0.65, jaw: 0.7, tongue: 1, hop: 1, ear: 0.25 };
-POSES.sad = { ...POSES.lay, ear: -0.45, eye: 0.8, lookUp: 1, head: 0.05 };
-POSES.sleep = { ...POSES.lay, eye: 0.02, ear: -0.3, head: 0.12, sleep: 1 };
+POSES.scratch = { ...POSES.sit, 'BackShoulderL.z': -0.2, 'BackLegL.x': -1.9, 'BackUpperLegL.x': -0.4, 'Neck2.y': 0.35, 'Neck1.x': -0.2, 'Head.x': -0.3 };
+POSES.listen = { ...POSES.sit, 'Head.y': -0.32, 'Head.x': -0.3 };
+POSES.think = { ...POSES.sit, 'Head.y': 0.3, 'Head.x': -0.15 };
+POSES.sad = { ...POSES.lay, 'Neck1.x': -0.1, 'Head.x': -0.2 };
+POSES.sleep = { ...POSES.lay, 'Neck1.x': -0.45, 'Neck2.x': -0.2, 'Head.x': -0.25, 'Head.z': 0.25, 'Head.y': 0.15, ...both('Ear1', 'x', 0.6) };
 
-// What he does when left alone, and the routine for each mood.
-const ROUTINES = {
-  look: [['sit', 5]],
-  scratch: [['sit', 0.6], ['scratch', 2.4], ['sit', 1.2]],
-  bark: [['stand', 0.7], ['bark', 1.6], ['sit', 1]],
-  sniff: [['stand', 0.7], ['sniff', 2.4], ['sit', 1]],
-  stretch: [['bow', 1.8], ['sit', 1]],
-  circle: [['stand', 0.6], ['walk', 4.2, 'circle'], ['lay', 5.5], ['sit', 1.2]],
+// ---- routines: steps of { clip, pose, dur, move, fx, speed }
+const R = {
+  look: [{ clip: 'Idle_2', pose: 'stand', dur: 3.33 }],
+  sniff: [{ clip: 'Idle_2_HeadLow', pose: 'stand', dur: 4 }],
+  dig: [{ clip: 'Eating', pose: 'stand', dur: 5.3 }],
+  sit: [{ clip: 'Idle', pose: 'sit', dur: 7 }],
+  sitLook: [{ clip: 'Idle_2', pose: 'sit', dur: 6.6 }],
+  scratch: [{ clip: 'Idle', pose: 'sit', dur: 1.2 }, { clip: 'Idle', pose: 'scratch', dur: 2.4, fx: 'scratch' }, { clip: 'Idle', pose: 'sit', dur: 2.5 }],
+  bark: [{ clip: 'Idle', pose: 'stand', dur: 0.6 }, { clip: 'Idle', pose: 'stand', dur: 1.7, fx: 'bark' }, { clip: 'Idle', pose: 'stand', dur: 1.5 }],
+  shake: [{ clip: 'Idle_HitReact1', pose: 'stand', dur: 0.67 }, { clip: 'Idle_HitReact2', pose: 'stand', dur: 0.67 }, { clip: 'Idle', pose: 'stand', dur: 1 }],
+  circleLay: [{ clip: 'Walk', pose: 'stand', dur: 6.4, move: 'circle' }, { clip: 'Idle', pose: 'stand', dur: 0.6 }, { clip: 'Idle', pose: 'lay', dur: 8 }, { clip: 'Idle', pose: 'sit', dur: 3 }],
 };
-const IDLE = ['look', 'scratch', 'bark', 'sniff', 'stretch', 'circle', 'look'];
-const MOOD_ROUTINE = {
+const IDLE = ['sitLook', 'scratch', 'bark', 'sniff', 'dig', 'circleLay', 'look', 'shake', 'sit'];
+const MOODS = {
   idle: null,
-  listening: [['listen', 99]],
-  thinking: [['think', 99]],
-  happy: [['bow', 1.1], ['happy', 2.2], ['sit', 1]],
-  excited: [['stand', 0.3], ['happy', 1.6, 'spin'], ['bark', 1.4], ['sit', 1]],
-  concerned: [['sad', 6], ['sit', 1]],
-  sleepy: [['sleep', 99]],
+  listening: [{ clip: 'Idle', pose: 'listen', dur: 99, fx: 'wagSoft' }],
+  thinking: [{ clip: 'Idle', pose: 'think', dur: 2.5 }, { clip: 'Idle', pose: 'scratch', dur: 1.8, fx: 'scratch' }, { clip: 'Idle', pose: 'think', dur: 99 }],
+  happy: [{ clip: 'Jump_ToIdle', pose: 'stand', dur: 1.33, fx: 'wagFast' }, { clip: 'Idle', pose: 'stand', dur: 2, fx: 'wagFast' }, { clip: 'Idle', pose: 'sit', dur: 2 }],
+  excited: [{ clip: 'Gallop', pose: 'stand', dur: 2.6, move: 'circleFast', fx: 'wagFast' }, { clip: 'Gallop_Jump', pose: 'stand', dur: 0.93 }, { clip: 'Idle', pose: 'stand', dur: 1.7, fx: 'bark' }, { clip: 'Idle', pose: 'sit', dur: 2 }],
+  concerned: [{ clip: 'Idle', pose: 'sad', dur: 7, fx: 'earsDown' }, { clip: 'Idle', pose: 'sit', dur: 2 }],
+  sleepy: [{ clip: 'Idle', pose: 'lay', dur: 1.5 }, { clip: 'Idle', pose: 'sleep', dur: 99, fx: 'sleep', speed: 0.35 }],
 };
 
 /**
- * Create KUDOG in a container. Returns { el, mood, state, start, stop, dispose }, the same interface as the 2D puppet.
- * Throws when WebGL is not available, so the caller can fall back to the 2D puppet.
+ * Create KUDOG. Returns at once { el, ready, mood, state, start, stop, dispose, hold }; `ready` resolves when the model
+ * is on screen. Throws when WebGL is not available (the caller keeps the 2D puppet).
  */
-export function createKudog3D({ label = 'KUDOG', onPet = null, closeUp = null } = {}) {
+export function createKudog3D({ label = 'KUDOG', onPet = null, closeUp = null, face = -0.35 } = {}) {
   const el = document.createElement('div'); el.className = 'kd3';
   el.setAttribute('role', 'img'); el.setAttribute('aria-label', label);
   const renderer = new WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' });
-  renderer.outputColorSpace = SRGBColorSpace; renderer.toneMapping = ACESFilmicToneMapping; renderer.toneMappingExposure = 1.08;
+  renderer.outputColorSpace = SRGBColorSpace; renderer.toneMapping = ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   el.append(renderer.domElement);
   const scene = new Scene();
-  const camera = new PerspectiveCamera(28, 1, 0.1, 60);
-  scene.add(new HemisphereLight(0xfff6e8, 0xb9cfe0, 1.25)); scene.add(new AmbientLight(0xffffff, 0.25));
-  const key = new DirectionalLight(0xffffff, 1.9); key.position.set(2.5, 4, 5); scene.add(key);
-  const rim = new DirectionalLight(0xbfe3ff, 1.1); rim.position.set(-3, 3, -3); scene.add(rim);
-  const d = build(); scene.add(d.root);
+  const camera = new PerspectiveCamera(30, 1, 0.1, 80);
+  scene.add(new HemisphereLight(0xfff4e6, 0xaec4d6, 1.35)); scene.add(new AmbientLight(0xffffff, 0.2));
+  const key = new DirectionalLight(0xffffff, 2.1); key.position.set(4, 7, 6); scene.add(key);
+  const rim = new DirectionalLight(0xcfe8ff, 1.2); rim.position.set(-5, 4, -4); scene.add(rim);
+  // A soft contact shadow under him.
+  const shadow = new Mesh(new CircleGeometry(1.6, 40), new MeshBasicMaterial({ color: 0x1b3a52, transparent: true, opacity: 0.1, depthWrite: false }));
+  shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.01; shadow.scale.set(1, 1.7, 1); scene.add(shadow);
+  // An invisible floor: it writes depth only, so anything below ground level is hidden as a real floor would hide it.
+  const floor = new Mesh(new CircleGeometry(30, 32), new MeshBasicMaterial({ colorWrite: false }));
+  floor.rotation.x = -Math.PI / 2; floor.renderOrder = -1; scene.add(floor);
+  const root = new Group(); scene.add(root);
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-  // State: the current pose values (damped towards the target pose), the routine being played, the clock.
-  const cur = { ...POSES.sit, fLen: 0.7, hLen: 0.7, gait: 0, sniff: 0, bark: 0, scratch: 0, hop: 0, sleep: 0, lookUp: 0 };
-  let target = POSES.sit, mood = 'idle', queue = [], step = null, stepT = 0, t = 0, close = false;
-  const FACE = 0.12; // he turns a little towards the camera, which sits at three-quarters
-  const pos = { x: 0, z: 0, yaw: FACE, spin: 0 };
-  const look = { x: 0, y: 0, tx: 0, ty: 0 };
-  let blinkAt = 1.5, blinkT = -1, petAt = -10, running = false, raf = 0, last = 0, gone = 0, disposed = false, idleAt = 2;
+  let model = null, mixer = null, curAction = null, fur = null, medal = null;
+  const bones = {}, actions = {}, eyeMats = [];
+  const woof = new Sprite(new SpriteMaterial({ map: wordTexture('Woof!'), transparent: true, opacity: 0, depthWrite: false })); woof.scale.set(1.3, 0.65, 1); scene.add(woof);
+  const zz = new Sprite(new SpriteMaterial({ map: zTexture(), transparent: true, opacity: 0, depthWrite: false })); zz.scale.set(0.45, 0.45, 1); scene.add(zz);
 
-  const play = (routine) => { queue = routine.map(([p, dur, fx]) => ({ p, dur, fx })); next(); };
+  let mood = 'idle', queue = [], step = null, stepT = 0, t = 0, close = false, running = false, raf = 0, last = 0, gone = 0, disposed = false;
+  let idleNext = 4, blinkAt = 2, blinkT = -1, petAt = -10, curDy = 0, applied = [];
+  const cur = {};
+  const look = { x: 0, y: 0, tx: 0, ty: 0 };
+  const pos = { x: 0, z: 0, yaw: face };
+  const FACE = face; // he stands at three-quarters to the camera
+
+  const ONCE = new Set(['Jump_ToIdle', 'Gallop_Jump', 'Idle_HitReact1', 'Idle_HitReact2']);
+  function fade(name, speed = 1) {
+    const a = actions[name] || actions.Idle; if (!a) return;
+    a.timeScale = speed;
+    if (a === curAction) return;
+    a.reset(); a.enabled = true; a.setEffectiveWeight(1);
+    if (ONCE.has(name)) { a.setLoop(LoopOnce, 1); a.clampWhenFinished = true; } else a.setLoop(LoopRepeat, Infinity);
+    a.play(); if (curAction) curAction.crossFadeTo(a, reduce ? 0 : 0.35, false); curAction = a;
+  }
+  const play = (steps) => { queue = steps.map((s) => ({ ...s })); next(); };
   function next() {
     step = queue.shift() || null; stepT = 0;
-    if (!step) { // back to idle life: sit a while, then something else
-      if (mood !== 'idle') { const r = MOOD_ROUTINE[mood]; if (r && r[0][1] >= 99) { play(r); return; } mood = 'idle'; }
-      step = { p: 'sit', dur: 2 + Math.random() * 3 }; idleAt = 0;
+    if (!step) {
+      if (mood !== 'idle') { const r = MOODS[mood]; if (r && r.at(-1).dur >= 99) { play(r.slice(-1)); return; } mood = 'idle'; }
+      step = { clip: 'Idle', pose: 'sit', dur: 1e9 }; idleNext = 3 + Math.random() * 4;
     }
-    if (close && (step.fx === 'circle')) step = { p: 'sit', dur: step.dur }; // too small a stage to walk around
-    target = POSES[step.p] || POSES.sit;
+    if (close && step.move) step = { clip: 'Idle', pose: 'sit', dur: 3 };
+    fade(step.clip, step.speed || 1);
   }
-  next();
 
   const resize = () => {
     const w = Math.max(1, el.clientWidth), hh = Math.max(1, el.clientHeight);
     renderer.setSize(w, hh, false); camera.aspect = w / hh;
-    close = closeUp ?? Math.min(w, hh) < 90; // small: frame the head, large: the whole dog
-    const mid = !close && Math.min(w, hh) < 200; // tour bubbles and pop-ups: a little closer
-    if (close) { camera.position.set(0.9, 1.4, 3.0); camera.lookAt(0, 1.2, 0.6); } else if (mid) { camera.position.set(2.7, 1.7, 5.3); camera.lookAt(0.05, 0.78, 0.35); } else { camera.position.set(3.4, 1.9, 6.6); camera.lookAt(0.05, 0.7, 0.35); }
-    camera.updateProjectionMatrix(); if (!running) frame(0);
+    close = closeUp ?? Math.min(w, hh) < 90; const mid = !close && Math.min(w, hh) < 200;
+    if (close) { camera.position.set(2.6, 2.75, 5.6); camera.lookAt(0.05, 2.25, 1.5); }
+    else if (mid) { camera.position.set(6.8, 3.4, 9.6); camera.lookAt(0, 1.45, 0.2); }
+    else { camera.position.set(8.2, 4.2, 11.8); camera.lookAt(-0.4, 1.35, 0.3); }
+    camera.updateProjectionMatrix(); if (!running && model) frame(0);
   };
   const ro = new ResizeObserver(resize); ro.observe(el);
   const onMove = (e) => { const r = el.getBoundingClientRect(); look.tx = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / 600)); look.ty = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height * 0.3)) / 500)); };
   window.addEventListener('pointermove', onMove, { passive: true });
   const ray = new Raycaster(), p2 = new Vector2();
   el.addEventListener('pointerdown', (e) => {
+    if (!model) return;
     const r = renderer.domElement.getBoundingClientRect(); p2.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-    ray.setFromCamera(p2, camera); if (ray.intersectObject(d.root, true).length) { petAt = t; onPet?.(); if (mood === 'idle' && step?.p !== 'walk') play(ROUTINES.bark.slice(0, 2).concat([['sit', 1]])); }
+    ray.setFromCamera(p2, camera);
+    if (ray.intersectObject(root, true).length) { petAt = t; onPet?.(); if (mood === 'idle' && !step?.move) play(R.shake); }
   });
 
-  const legPose = (leg, angle, fixedLen, attachY, splay = 0) => {
-    // World angle from vertical, minus the body pitch, gives the local rotation; free legs reach the ground.
-    const cos = Math.cos(angle);
-    const len = fixedLen ?? Math.max(0.3, Math.min(1.25, (attachY - 0.07) / Math.max(0.35, cos)));
-    leg.len += (len - leg.len) * 0.25;
-    leg.g.rotation.x = -angle - d.hips.rotation.x; leg.g.rotation.z += (splay - leg.g.rotation.z) * 0.2;
-    leg.shin.scale.y = leg.len; leg.shin.position.y = -leg.len / 2; leg.paw.position.y = -leg.len;
-    leg.paw.rotation.x = angle + d.hips.rotation.x; // paws stay flat
-  };
+  // ---- build: the model, his coat and eyes, the headset and the medal
+  function setup(g) {
+    model = cloneSkinned(g.scene); root.add(model);
+    model.traverse((o) => {
+      if (o.isBone) bones[o.name.replace(/\./g, '')] = o;
+      if (o.isMesh) {
+        o.frustumCulled = false;
+        const name = o.material.name, col = COAT[name] ?? 0xcccccc;
+        const mat = new MeshStandardMaterial({ color: col, roughness: name.startsWith('Eyes') ? 0.25 : 0.82, metalness: 0 });
+        mat.name = name; o.material = mat;
+        if (name === 'Main') fur = mat;
+        if (name.startsWith('Eyes')) eyeMats.push({ mat, col: new Color(col) });
+      }
+    });
+    model.updateMatrixWorld(true);
+    const W = (b) => bones[b].getWorldPosition(new Vector3());
+    const std = (c, o = {}) => new MeshStandardMaterial({ color: c, roughness: 0.45, ...o });
+    const lime = std(LIME), limeDark = std(LIME_DARK), cush = std(CUSHION, { roughness: 0.85 }), gold = std(GOLD, { roughness: 0.3, metalness: 0.55 }), goldDark = std(GOLD_DARK, { roughness: 0.3, metalness: 0.6 });
+    const put = (parentBone, obj) => { scene.add(obj); obj.updateMatrixWorld(true); bones[parentBone].attach(obj); return obj; };
+    const stick = (a, b, r, mat) => { const A = new Vector3(...a), B = new Vector3(...b), dir = B.clone().sub(A), len = dir.length();
+      const o = new Mesh(new CapsuleGeometry(r, len, 4, 10), mat); o.position.copy(A).add(B).multiplyScalar(0.5); o.quaternion.copy(new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), dir.normalize())); return o; };
+    // Headset: built at the rest pose around the head, then attached to the Head bone.
+    const hd = W('Head');
+    const set = new Group(); set.position.set(hd.x, hd.y + 0.02, hd.z - 0.08);
+    const band = new Mesh(new TorusGeometry(0.36, 0.045, 12, 40, Math.PI), lime); band.position.set(0, 0.02, 0); band.scale.set(1, 1.08, 1); set.add(band);
+    for (const s of [-1, 1]) {
+      const cup = new Mesh(new CylinderGeometry(0.14, 0.14, 0.1, 28), lime); cup.rotation.z = Math.PI / 2; cup.position.set(0.37 * s, 0, 0); set.add(cup);
+      const pad = new Mesh(new TorusGeometry(0.12, 0.035, 10, 24), cush); pad.rotation.y = Math.PI / 2; pad.position.set(0.32 * s, 0, 0); set.add(pad);
+      const cap = new Mesh(new CylinderGeometry(0.07, 0.07, 0.02, 20), limeDark); cap.rotation.z = Math.PI / 2; cap.position.set(0.43 * s, 0, 0); set.add(cap);
+    }
+    set.add(stick([0.4, -0.04, 0.05], [0.33, -0.22, 0.38], 0.02, limeDark)); set.add(stick([0.33, -0.22, 0.38], [0.15, -0.3, 0.62], 0.02, limeDark));
+    const mic = new Mesh(new SphereGeometry(0.05, 16, 12), cush); mic.position.set(0.13, -0.3, 0.65); set.add(mic);
+    put('Head', set);
+    // Gold necklace and the KUDOG medal, attached to the lower neck so it sways with him.
+    const n1 = W('Neck1'), n2 = W('Neck2'), up = n2.clone().sub(n1);
+    const neck = new Group(); neck.position.copy(n1);
+    for (const s of [-1, 1]) {
+      neck.add(stick([0.26 * s, up.y * 0.7, up.z * 0.6 - 0.08], [0.14 * s, -0.12, 0.3], 0.022, gold));
+      neck.add(stick([0.14 * s, -0.12, 0.3], [0, -0.2, 0.36], 0.022, gold));
+    }
+    medal = new Group(); medal.position.set(0, -0.36, 0.4); medal.scale.setScalar(1.15);
+    const disc = new Mesh(new CylinderGeometry(0.15, 0.15, 0.035, 36), gold); disc.rotation.x = Math.PI / 2; medal.add(disc);
+    medal.add(new Mesh(new TorusGeometry(0.15, 0.018, 8, 36), goldDark));
+    const face = new Mesh(new CircleGeometry(0.14, 36), new MeshBasicMaterial({ map: medalTexture() })); face.position.z = 0.019; medal.add(face);
+    const ring = new Mesh(new TorusGeometry(0.03, 0.012, 8, 14), gold); ring.position.y = 0.17; medal.add(ring);
+    neck.add(medal);
+    put('Neck1', neck);
+    mixer = new AnimationMixer(model);
+    for (const c of g.animations) actions[c.name] = mixer.clipAction(c);
+    if (mood === 'held' && step) fade(step.clip, step.speed || 1); else next();
+    resize();
+  }
+
+  function applyLayer(dt) {
+    const target = POSES[step?.pose] || POSES.stand;
+    const k = dt ? 1 - Math.exp(-5 * dt) : 1;
+    const keys = new Set([...Object.keys(cur), ...Object.keys(target)]); keys.delete('dy');
+    for (const key2 of keys) cur[key2] = (cur[key2] || 0) + ((target[key2] || 0) - (cur[key2] || 0)) * k;
+    curDy += ((target.dy || 0) - curDy) * k;
+    const add = (key2, v) => { const [bn, ax] = key2.split('.'); const b = bones[bn]; if (!b || !v) return; b.quaternion.multiply(_q.setFromAxisAngle(AXES[ax], v)); applied.push([b, ax, v]); };
+    for (const key2 of keys) add(key2, cur[key2]);
+    const fx = step?.fx || '';
+    // Scratching: fast kicks of the lifted hind leg, the head leaning into it.
+    if (fx === 'scratch' && !reduce) { add('BackLegL.x', Math.sin(t * 22) * 0.22); add('BackUpperLegL.x', Math.sin(t * 22 + 0.5) * 0.3); add('Neck2.y', Math.sin(t * 22) * 0.03); }
+    // Barking: three sharp head snaps up.
+    if (fx === 'bark' && !reduce) { const bp = (stepT % 0.55) / 0.55; const snap = bp < 0.28 ? Math.sin((bp / 0.28) * Math.PI) : 0; add('Neck2.x', snap * 0.35); add('Head.x', snap * 0.25); }
+    // Tail: a wag, faster when happy, low when sad, still when asleep.
+    const wag = fx === 'wagFast' ? [13, 0.55] : fx === 'wagSoft' ? [5, 0.25] : fx === 'sleep' || fx === 'earsDown' ? [1.2, 0.05] : step?.move ? [7, 0.3] : [3.4, 0.2];
+    add('Tail1.z', Math.sin(t * wag[0]) * wag[1]); add('Tail2.z', Math.sin(t * wag[0] - 0.8) * wag[1] * 0.7);
+    // Asleep: slow, deep breathing through the chest.
+    if (fx === 'sleep' && !reduce) { const br = Math.sin(t * 1.5); add('Back.x', br * 0.025); add('Neck1.x', br * 0.02); }
+    if (fx === 'earsDown') { add('Ear1L.x', 0.8); add('Ear1R.x', 0.8); }
+    // Ears: soft and floppy, with a twitch now and then.
+    const tw = Math.max(0, Math.sin(t * 0.9)) ** 30;
+    add('Ear1L.z', 0.55 + tw * 0.25); add('Ear1R.z', -0.55); add('Ear2L.z', 0.45); add('Ear2R.z', -0.45);
+    // Head follows the pointer when he is not busy.
+    if (!step?.move && fx !== 'sleep' && fx !== 'scratch') { add('Head.z', -look.x * 0.45); add('Head.x', -look.y * 0.25); }
+    // Petted: a happy head wiggle.
+    const pet = Math.max(0, 1 - (t - petAt) / 0.9); if (pet) add('Head.y', Math.sin(t * 18) * 0.12 * pet);
+  }
 
   function frame(dt) {
+    if (!model) return;
     t += dt; stepT += dt;
     if (!reduce && step && stepT > step.dur) next();
-    if (mood === 'idle' && !reduce) { idleAt += dt; if (step?.p === 'sit' && !queue.length && idleAt > 3) { idleAt = -999; play(ROUTINES[IDLE[Math.floor(Math.random() * IDLE.length)]]); } }
-    const k = (l) => (dt ? 1 - Math.exp(-l * dt) : 1);
-    for (const key2 of Object.keys(cur)) { const tv = target[key2] ?? (['fLen', 'hLen'].includes(key2) ? null : 0); if (tv == null) continue; cur[key2] += (tv - cur[key2]) * k(key2 === 'eye' ? 10 : 4.5); }
-    look.x += (look.tx - look.x) * k(4); look.y += (look.ty - look.y) * k(4);
-    const pet = Math.max(0, 1 - (t - petAt) / 0.9);
-
-    // Walking in a circle: around the stage, then back to face the trainee.
-    if (step?.fx === 'circle' && !close) {
-      const u = Math.min(1, stepT / step.dur), a = u * Math.PI * 2, R = 0.75;
-      pos.x = Math.sin(a) * R; pos.z = R - Math.cos(a) * R; pos.yaw = a + Math.PI / 2;
-      if (u > 0.92) pos.yaw += (FACE + Math.PI * 2 - pos.yaw) * ((u - 0.92) / 0.08);
-    } else { pos.x += (0 - pos.x) * k(3); pos.z += (0 - pos.z) * k(3); pos.yaw += (FACE - pos.yaw) * k(4); }
-    // Spin jump (excited) and hops (happy).
-    let hopY = 0;
-    if (step?.fx === 'spin' && !reduce) { const u = Math.min(1, stepT / 1.1); pos.spin = u * Math.PI * 2; hopY = Math.sin(u * Math.PI) * 0.45; } else pos.spin = 0;
-    if (cur.hop > 0.3 && !reduce && step?.fx !== 'spin') hopY = Math.abs(Math.sin(stepT * 5.2)) * 0.18 * cur.hop;
-    const gaitOn = step?.p === 'walk' || cur.gait > 0.5;
-    const ph = t * 9;
-    d.root.position.set(pos.x, hopY + (gaitOn ? Math.abs(Math.sin(ph)) * 0.03 : 0), pos.z);
-    d.root.rotation.y = pos.yaw + pos.spin + (gaitOn ? 0 : look.x * 0.22);
-
-    // Body: height and pitch, breathing.
-    const breathe = Math.sin(t * (cur.sleep > 0.5 ? 1.3 : 2.4)) * (cur.sleep > 0.5 ? 0.02 : 0.012);
-    d.hips.position.y = cur.hipY; d.hips.rotation.x = cur.pitch; d.hips.scale.set(1 + breathe, 1 + breathe, 1);
-    // Legs (with a walking gait and the scratching hind leg).
-    const sw = gaitOn ? 0.42 : 0;
-    const hipWorldY = (z, y) => cur.hipY + (y * Math.cos(cur.pitch) - z * Math.sin(cur.pitch));
-    legPose(d.legs.fl, cur.fA + Math.sin(ph) * sw, target.fLen, hipWorldY(0.92, -0.12));
-    legPose(d.legs.fr, cur.fA - Math.sin(ph) * sw, target.fLen, hipWorldY(0.92, -0.12));
-    const scr = cur.scratch > 0.5 && !reduce; // he scratches with the hind leg on the camera's side
-    legPose(d.legs.hl, scr ? 2.55 + Math.sin(t * 26) * 0.25 : cur.hA - Math.sin(ph) * sw, scr ? 0.7 : target.hLen, hipWorldY(-0.02, -0.14), scr ? 0.55 : 0);
-    legPose(d.legs.hr, cur.hA + Math.sin(ph) * sw, target.hLen, hipWorldY(-0.02, -0.14));
-    // Head: keeps level, nods with the pose, follows the pointer, wiggles when petted, sniffs, barks.
-    const sniffBob = cur.sniff > 0.5 ? Math.sin(t * 14) * 0.05 : 0;
-    d.head.rotation.x = cur.head - cur.pitch + look.y * 0.18 + sniffBob + Math.sin(t * 1.6) * 0.015;
-    d.head.rotation.y = gaitOn ? 0 : look.x * 0.5;
-    d.head.rotation.z = (scr ? -cur.tilt : cur.tilt) + (scr ? Math.sin(t * 26) * 0.03 : 0) + Math.sin(t * 18) * 0.1 * pet;
-    // Jaw and tongue: panting, barking (three snaps), sniffing (closed).
-    let jaw = cur.jaw * (0.75 + Math.sin(t * 9) * 0.25);
-    let woofOn = 0;
-    if (cur.bark > 0.5 && step?.p === 'bark') { const bp = (stepT % 0.5) / 0.5; jaw = bp < 0.3 ? Math.sin((bp / 0.3) * Math.PI) * 1.3 : 0.1; woofOn = stepT < 1.5 ? 1 : 0; }
-    d.jaw.rotation.x = jaw * 0.32;
-    d.tongue.visible = cur.tongue > 0.1; d.tongue.scale.set(1, 1, Math.max(0.2, cur.tongue));
-    // Ears: lifted by the mood, flopping with the motion.
-    for (const e of d.ears) {
-      e.pivot.rotation.z = e.s * (cur.ear * 0.9 + Math.sin(t * 3 + e.s) * 0.04 + hopY * 1.2 + (gaitOn ? Math.sin(ph * 2) * 0.08 : 0) + (scr && e.s > 0 ? Math.sin(t * 26) * 0.2 : 0)) + Math.sin(t * 16) * 0.12 * pet;
-      e.pivot.rotation.x = -0.05 + Math.sin(t * 2.2 + e.s) * 0.05 - cur.ear * 0.4;
+    if (mood === 'idle' && !reduce && !queue.length && step?.dur >= 1e9) { idleNext -= dt; if (idleNext < 0) play(R[IDLE[Math.floor(Math.random() * IDLE.length)]]); }
+    const kl = dt ? 1 - Math.exp(-4 * dt) : 1; look.x += (look.tx - look.x) * kl; look.y += (look.ty - look.y) * kl;
+    // Walking routes: a circle that brings him back where he started, at walking or galloping pace.
+    const mv = step?.move && !close ? step.move : null;
+    if (mv) {
+      const u = Math.min(1, stepT / step.dur), rad = mv === 'circleFast' ? 2.0 : 1.7, a = u * Math.PI * 2;
+      pos.x = -rad + rad * Math.cos(a); pos.z = rad * Math.sin(a); pos.yaw = Math.atan2(-Math.sin(a), Math.cos(a));
+    } else { const k = dt ? 1 - Math.exp(-3 * dt) : 1; pos.x += (0 - pos.x) * k; pos.z += (0 - pos.z) * k; pos.yaw += (FACE - pos.yaw) * k; }
+    root.position.set(pos.x, curDy, pos.z); root.rotation.y = pos.yaw;
+    shadow.position.set(pos.x, 0.01, pos.z); shadow.rotation.z = -pos.yaw;
+    // Undo last frame's offsets before the clips pose the skeleton (bones the clips do not animate would otherwise drift).
+    for (let i = applied.length - 1; i >= 0; i--) { const [b, ax, v] = applied[i]; b.quaternion.multiply(_q.setFromAxisAngle(AXES[ax], -v)); }
+    applied = [];
+    if (mixer) mixer.update(reduce ? 0 : dt);
+    applyLayer(dt);
+    // Blink by giving the eyes the coat colour for a moment; closed while asleep.
+    if (blinkT < 0 && t > blinkAt) blinkT = 0;
+    let shut = step?.fx === 'sleep' && stepT > 2.4;
+    if (blinkT >= 0) { blinkT += dt; shut = true; if (blinkT > 0.13) { blinkT = -1; blinkAt = t + 2.5 + Math.random() * 3.5; } }
+    for (const e of eyeMats) e.mat.color.copy(shut ? fur.color : e.col);
+    if (medal) medal.rotation.z = Math.sin(t * 2.1) * 0.06 + (mv ? Math.sin(t * 11) * 0.15 : 0);
+    // "Woof!" while barking and "z" while asleep, above his head.
+    const head = bones.Head?.getWorldPosition(new Vector3());
+    if (head) {
+      const barking = step?.fx === 'bark' && stepT < 1.6;
+      woof.material.opacity += ((barking ? 1 : 0) - woof.material.opacity) * (dt ? 1 - Math.exp(-12 * dt) : 1);
+      woof.position.set(head.x + 0.9, head.y + 1.0 + (barking ? Math.sin(stepT * 7) * 0.05 : 0), head.z);
+      const zp = (t % 2.6) / 2.6; zz.material.opacity = (step?.fx === 'sleep' && stepT > 2.4 ? 1 : 0) * Math.sin(zp * Math.PI) * 0.9;
+      zz.position.set(head.x + 0.4 + zp * 0.4, head.y + 0.5 + zp * 0.7, head.z);
     }
-    // Tail.
-    d.tail.rotation.x = cur.tail; d.tail.rotation.y = Math.sin(t * cur.wag) * cur.wagAmp; d.tailMid.rotation.y = Math.sin(t * cur.wag - 0.7) * cur.wagAmp * 0.8;
-    // Eyes: blink, squint while scratching, look up when thinking or worried, follow the pointer.
-    if (blinkT < 0 && t > blinkAt && cur.eye > 0.3) blinkT = 0;
-    let lid = 1; if (blinkT >= 0) { blinkT += dt; lid = 1 - Math.sin(Math.min(1, blinkT / 0.15) * Math.PI); if (blinkT > 0.15) { blinkT = -1; blinkAt = t + 2.5 + Math.random() * 3.5; } }
-    for (const e of d.eyes) {
-      const open = Math.min(1.1, cur.eye) * lid; e.g.scale.y = Math.max(0.05, open); e.g.visible = open > 0.22; e.shut.visible = open <= 0.22;
-      e.iris.position.set(look.x * 0.025, cur.lookUp * 0.03 - look.y * 0.02, 0);
-    }
-    d.medal.rotation.z = Math.sin(t * 2.2) * 0.05 + (hopY || gaitOn ? Math.sin(t * 12) * 0.12 : 0); d.medal.rotation.x = -cur.pitch * 0.9;
-    // "Woof!" over his head while barking; "z" while asleep.
-    const headWorld = d.skull.getWorldPosition(new Vector3());
-    d.woof.material.opacity += ((woofOn ? 1 : 0) - d.woof.material.opacity) * k(12);
-    d.woof.position.set(headWorld.x - pos.x + 0.55, headWorld.y + 0.55 + (woofOn ? Math.sin(stepT * 6) * 0.03 : 0), headWorld.z - pos.z);
-    const zp = (t % 2.6) / 2.6; d.zz.material.opacity = (cur.sleep > 0.5 ? 1 : 0) * Math.sin(zp * Math.PI) * 0.9;
-    d.zz.position.set(headWorld.x - pos.x + 0.35 + zp * 0.25, headWorld.y + 0.35 + zp * 0.5, headWorld.z - pos.z);
     renderer.render(scene, camera);
   }
-  const loop = (now) => {
+  const loopFn = (now) => {
     if (!running) return;
     const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016; last = now;
     if (el.isConnected) { gone = 0; if (!document.hidden && el.offsetParent !== null) frame(reduce ? 0 : dt); }
     else if (++gone > 180) { api.dispose(); return; } // removed from the page for good: free the GPU
-    raf = requestAnimationFrame(loop);
+    raf = requestAnimationFrame(loopFn);
   };
   const api = {
     el,
     mood(m2) {
-      if (!(m2 in MOOD_ROUTINE)) m2 = m2 === 'wake' ? 'idle' : 'happy';
-      mood = m2; const r = MOOD_ROUTINE[m2];
+      if (!(m2 in MOODS)) m2 = m2 === 'wake' ? 'idle' : 'happy';
+      mood = m2; if (!model) return;
+      const r = MOODS[m2];
       if (!r) { queue = []; next(); } else play(r);
-      if (reduce || !running) { Object.assign(cur, target); frame(0); }
+      if (reduce || !running) frame(0);
     },
     state: () => mood,
-    /** Holds one pose (for checks and screenshots). */
-    hold(p, fx) { mood = 'held'; queue = []; step = { p, dur: 1e9, fx }; stepT = 0; target = POSES[p] || POSES.sit; },
-    start() { if (running || disposed) return; running = true; last = 0; raf = requestAnimationFrame(loop); },
+    /** Holds one routine step (for checks and screenshots). */
+    hold(s) { mood = 'held'; queue = []; step = { dur: 1e9, clip: 'Idle', pose: 'stand', ...s }; stepT = 0; if (model) fade(step.clip, step.speed || 1); },
+    start() { if (running || disposed) return; running = true; last = 0; raf = requestAnimationFrame(loopFn); },
     stop() { running = false; cancelAnimationFrame(raf); },
     dispose() {
       if (disposed) return; disposed = true; api.stop(); ro.disconnect(); window.removeEventListener('pointermove', onMove);
-      scene.traverse((o) => { o.geometry?.dispose?.(); const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : []; mats.forEach((mm) => { mm.map?.dispose?.(); mm.dispose(); }); });
+      scene.traverse((o) => { if (o.isSkinnedMesh) return; o.geometry?.dispose?.(); const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : []; mats.forEach((mm) => { mm.map?.dispose?.(); mm.dispose(); }); });
       renderer.dispose(); renderer.forceContextLoss?.();
     },
   };
+  api.ready = loadModel().then((g) => { if (disposed) return; setup(g); if (mood !== 'idle' && mood !== 'held') api.mood(mood); });
   return api;
 }

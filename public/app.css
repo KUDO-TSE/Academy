@@ -1242,12 +1242,10 @@ a,button,label,summary,select,input,[role="button"]{touch-action:manipulation}
 .rar-unclaimed{background:transparent;border:1px dashed var(--ink-400);color:var(--ink-500)}
 /* KUDOG, the virtual coach */
 .kd{position:relative;display:block;padding:0;border:0;background:none;cursor:pointer;flex:none;border-radius:16px}
-.kd-whole,.kd-head,.kd-l{position:absolute;inset:0;display:block}
+.kd-whole,.kd-l{position:absolute;inset:0;display:block}
 .kd-l{background-size:100% 100%;background-repeat:no-repeat}
-.kd-whole,.kd-head,.kd-l,.kd-lid i{will-change:transform}
-.kd-lid{position:absolute;display:block;border-radius:50%;overflow:hidden;pointer-events:none}
-.kd-lid i{position:absolute;inset:0;display:block;transform:scaleY(0);transform-origin:50% 0;background:linear-gradient(180deg,var(--c-b8732f) 0%,var(--c-c98a4b) 78%,var(--c-6e3f1a) 100%)}
-.kd-face{display:block;width:34px;height:34px;border-radius:50%;background-color:var(--white);background-size:165% 165%;background-position:21% 36%;flex:none;box-shadow:0 0 0 2px color-mix(in srgb,var(--white) 70%,transparent)}
+.kd-whole{will-change:transform}
+.kd-face{display:block;width:34px;height:34px;border-radius:50%;background-color:var(--white);background-size:cover;background-position:50% 30%;flex:none;box-shadow:0 0 0 2px color-mix(in srgb,var(--white) 70%,transparent)}
 .co-fab{padding:6px 16px 6px 6px}
 .co-fab.kd-hop{animation:kdHop .72s both}
 @keyframes kdHop{0%{transform:translateY(0) scale(1,1)}18%{transform:translateY(3px) scale(1.03,.95)}45%{transform:translateY(-14px) rotate(-3deg) scale(.98,1.04)}70%{transform:translateY(0) rotate(1deg) scale(1.04,.95)}84%{transform:translateY(-2px) rotate(-.5deg) scale(.99,1.01)}100%{transform:translateY(0) scale(1,1)}}

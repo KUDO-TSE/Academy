@@ -75,7 +75,7 @@ export function recapBanner(key) {
   api('GET', `/api/me/modules/${encodeURIComponent(key)}/recap`).then(({ recap: r }) => {
     if (!r?.complete) return;
     box.replaceChildren(h('div', { class: `recap-banner ${r.verdict}` },
-      h('span', { class: 'kd-face', 'aria-hidden': 'true', style: 'background-image:url(/kudog.webp)' }),
+      h('span', { class: 'kd-face', 'aria-hidden': 'true', style: 'background-image:url(/kudog-face.webp)' }),
       h('div', null, h('b', null, 'Module complete'), r.overall != null ? h('span', null, ` Module score ${r.overall}%${r.verdict === 'support' ? '. KUDOG has a plan to train on it.' : '.'}`) : null),
       h('button', { type: 'button', class: 'btn sm', on: { click: () => showRecap(r, { markSeen: false }) } }, 'See my recap')));
   }).catch(() => {});
