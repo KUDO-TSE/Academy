@@ -47,7 +47,13 @@ export function homeView(data, ctx = {}) {
   );
 }
 
-const minibar = (v, kind) => v == null ? h('span', { class: 'muted' }, 'None') : h('span', { class: 'mini-bar' }, h('i', { class: kind, style: `width:${Math.max(2, Math.round(v * 0.9))}px` }), h('b', null, pct(v)));
+/** The score ring used on My results: course tiles, the average and the starting point. */
+function scoreRing(v, cls, { size = 56, label = '' } = {}) {
+  const sw = size > 80 ? 10 : 6, r = (size - sw) / 2 - 1, c = 2 * Math.PI * r, f = v == null ? 0 : Math.max(0, Math.min(100, v)) / 100, m = size / 2;
+  return h('div', { class: `ct-ring ${cls} ${size > 80 ? 'big' : ''}`, style: `width:${size}px;height:${size}px;flex-basis:${size}px`, role: 'img', 'aria-label': label },
+    svg(`<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><circle cx="${m}" cy="${m}" r="${r}" fill="none" stroke="var(--n-100)" stroke-width="${sw}"/><circle cx="${m}" cy="${m}" r="${r}" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${m} ${m})"/></svg>`),
+    h('b', null, v == null ? '–' : `${v}`, v == null ? null : h('small', null, '%')));
+}
 const legend = () => h('div', { class: 'legend' }, h('span', null, h('i', { style: `background:${COLORS.self}` }), 'Self rating'), h('span', null, h('i', { style: `background:${COLORS.live}` }), 'Knowledge test'));
 
 export function resultsView(data, live = null) {
@@ -68,13 +74,19 @@ export function resultsView(data, live = null) {
   drawQ();
   const lo = live?.map.overall;
   return h('div', { class: 'page' },
-    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My results'), h('p', null, showLive ? 'Your scores, course by course: each course test, decision walkthrough, explain-it recording and sandbox exercise, then your October starting point. How they move your level is on My progress. Every attempt, with its date and time, is on My Activities.' : live ? `${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}` : 'Your test results will show here once they are in.'))),
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My results'), h('p', null, showLive ? 'Your completed courses with every score, then your starting point: your Self Assessment and knowledge test. How results move your level is on My progress; every attempt, with its date and time, is on My Activities.' : live ? `${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}` : 'Your test results will show here once they are in.'))),
     showLive ? academyResults() : null,
-    showLive ? h('div', { class: 'section-h' }, h('h2', null, 'My starting point: October'), h('p', null, live ? `Self Assessment and ${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}. These stay as your baseline record.` : 'Self Assessment and live test, your baseline record.')) : null,
+    showLive ? h('div', { class: 'section-h' }, h('h2', null, 'My Starting Point: Self-assessment and Test Results'), h('p', null, live ? `Self Assessment and ${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}. These stay as your baseline record.` : 'Self Assessment and live test, your baseline record.')) : null,
     !self && !live ? empty('No results yet', 'Your Self Assessment and knowledge test results will appear here.') : h('div', { class: 'stack' },
-      h('div', { class: 'card' }, h('h2', null, 'Self rating against test, by scenario'), h('p', { class: 'sub keep' }, 'Self ratings are your 1 to 5 answers shown as a percentage, so they sit next to your test score.'), legend(),
-        h('div', { class: 'tbl-wrap', style: 'margin-top:12px' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Scenario', 'Self rating', 'Test', 'Correct', 'Reading'].map((x, i) => h('th', { class: i > 0 && i < 4 ? 'num' : '' }, x)))),
-          h('tbody', null, rows.map((r) => { const rd = reading(r.self, r.live); return h('tr', null, h('td', null, h('b', null, r.label)), h('td', { class: 'num' }, minibar(r.self, 'self')), h('td', { class: 'num' }, minibar(r.live, 'live')), h('td', { class: 'num' }, r.c?.total ? `${r.c.correct}/${r.c.total}` : 'None'), h('td', null, rd ? h('span', { class: `chip ${rd.cls}` }, rd.label) : h('span', { class: 'muted' }, 'None'))); })))),
+      h('div', { class: 'card sp-card' }, h('h2', null, 'Self rating and test, scenario by scenario'),
+        h('p', { class: 'sub keep' }, 'The ring is your knowledge test score. The bar under it is your Self Assessment (your 1 to 5 answers as a percentage). The label compares the two.'),
+        h('div', { class: 'ct-legend' }, h('span', null, h('i', { class: 'pass' }), '80% or more'), h('span', null, h('i', { class: 'below' }), 'Below 80%'), h('span', null, h('i', { class: 'self' }), 'Self rating')),
+        h('div', { class: 'sp-grid' }, rows.map((r) => { const rd = reading(r.self, r.live), cls = r.live == null ? 'todo' : r.live >= 80 ? 'pass' : 'below';
+          return h('div', { class: `sp-tile ${rd ? `rd-${rd.cls}` : ''}` },
+            h('div', { class: 'ct-head' }, scoreRing(r.live == null ? null : Math.round(r.live), cls, { label: r.live == null ? `${r.label}: no test score` : `${r.label}: test ${Math.round(r.live)}%` }),
+              h('div', { class: 'ct-t' }, h('b', null, r.label), h('div', { class: 'ct-sub' }, r.c?.total ? h('span', { class: 'muted small' }, `${r.c.correct} of ${r.c.total} correct`) : null, rd ? h('span', { class: `chip ${rd.cls}` }, rd.label) : null))),
+            h('div', { class: 'sp-self' }, h('span', null, 'Self rating'), h('span', { class: 'sp-bar' }, h('i', { style: `width:${r.self ?? 0}%` })), h('b', null, pct(r.self))));
+        })),
         h('p', { class: 'muted small', style: 'margin:12px 0 0' }, 'Under-rated: you scored at least 8 points above your rating. Over-confident: you scored at least 5 points below it.')),
       h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'Questions to review'), h('p', { class: 'sub' }, 'The questions you missed, with the correct answer')),
         liveRounds.length > 1 ? h('select', { style: 'width:auto', 'aria-label': 'Test', on: { change: (e) => { qRound = Number(e.target.value); drawQ(); } } }, liveRounds.map((r) => h('option', { value: r.id, selected: r.id === qRound }, r.label))) : null), qBox)));
@@ -149,14 +161,6 @@ const failed = (e) => h('div', { class: 'card empty' }, h('b', null, 'This part 
 function academyResults() {
   const box = h('div', { class: 'stack lp-live' }, loading('your Academy results'));
   Promise.all([loadLive(), api('GET', '/api/me/programme').catch(() => null), api('GET', '/api/me/sandbox').catch(() => ({ scenarios: [] }))]).then(([d, prog, sbxRes]) => {
-    const taken = d.modules.filter((m) => m.check), passed = taken.filter((m) => m.check.passed);
-    const avg = taken.length ? Math.round(taken.reduce((t, m) => t + m.check.pct, 0) / taken.length) : null;
-    const ex = d.modules.filter((m) => m.explain);
-    const head = h('div', { class: 'jm-head' },
-      fact('Course tests taken', `${taken.length} of ${d.modules.length}`, 'Your first attempt is the result of record'),
-      fact('Passed', taken.length ? `${passed.length} of ${taken.length}` : 'None', `Pass mark ${Math.round(d.pass * 100)}%`, taken.length && passed.length === taken.length ? 'good' : ''),
-      fact('Average score', avg != null ? `${avg}%` : 'None', 'Across your course tests of record'),
-      fact('Explain-it recordings', String(ex.length), ex.length ? `${ex.filter((m) => m.explain.reviewed).length} reviewed by your KUDO Trainer` : 'None sent yet'));
     // My results per course: one visual tile per course, grouped by month like My courses.
     const passPct = Math.round(d.pass * 100);
     const plan = prog?.state?.items || [], phases = prog?.phases || [];
@@ -164,10 +168,7 @@ function academyResults() {
     const COURSE = new Set(STEPS.map((x) => x[0]));
     const meOf = () => (document.body.dataset.me === '1' ? 'me-' : '');
     const goCourse = (key, inPlan) => { if (!inPlan) { location.hash = `#${meOf()}module-${key}`; return; } try { sessionStorage.setItem('academy.course', key); } catch { /* storage off */ } location.hash = `#${meOf()}training`; };
-    const ring = (v, cls) => { const r = 22, c = 2 * Math.PI * r, f = v == null ? 0 : Math.max(0, Math.min(100, v)) / 100;
-      return h('div', { class: `ct-ring ${cls}`, role: 'img', 'aria-label': v == null ? 'Course test not taken' : `Course test ${v}%` },
-        svg(`<svg viewBox="0 0 56 56" width="56" height="56"><circle cx="28" cy="28" r="${r}" fill="none" stroke="var(--n-100)" stroke-width="6"/><circle cx="28" cy="28" r="${r}" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 28 28)"/></svg>`),
-        h('b', null, v == null ? '–' : `${v}`, v == null ? null : h('small', null, '%'))); };
+    const ring = (v, cls) => scoreRing(v, cls, { label: v == null ? 'Course test not taken' : `Course test ${v}%` });
     const tile = (m) => {
       const its = plan.filter((i) => i.module === m.key && COURSE.has(i.kind) && (i.owner || 'you') === 'you');
       const inPlan = its.length > 0, first = its.filter((i) => i.week).sort((a, b) => a.week - b.week)[0];
@@ -191,13 +192,30 @@ function academyResults() {
           h('button', { type: 'button', class: `btn sm ${started ? 'continue' : ''}`, on: { click: () => goCourse(m.key, inPlan) } }, started ? 'Continue the course' : 'Go to course')));
     };
     const weekOf = (m) => plan.filter((i) => i.module === m.key && COURSE.has(i.kind) && i.week).reduce((w, i) => Math.min(w, i.week), 99);
-    const ordered = [...d.modules].sort((a, b) => weekOf(a) - weekOf(b));
+    // Only completed courses: every step of the course in the plan is done (outside the plan: its course test is taken).
+    const completed = (m) => { const its = plan.filter((i) => i.module === m.key && COURSE.has(i.kind) && (i.owner || 'you') === 'you'); return its.length ? its.every((i) => i.done) && !!m.check : !!m.check; };
+    const doneMods = d.modules.filter(completed);
+    const inPlanN = d.modules.filter((m) => plan.some((i) => i.module === m.key && COURSE.has(i.kind))).length || d.modules.length;
+    const scored = doneMods.filter((m) => m.check), passedN = scored.filter((m) => m.check.passed).length;
+    const avg = scored.length ? Math.round(scored.reduce((t, m) => t + m.check.pct, 0) / scored.length) : null;
+    const ordered = doneMods.sort((a, b) => weekOf(a) - weekOf(b));
     const groups = [...phases.map((p) => ({ n: p.n, name: p.name, sub: `Weeks ${p.weeks[0]} to ${p.weeks[1]}`, ms: ordered.filter((m) => { const w = weekOf(m); return w >= p.weeks[0] && w <= p.weeks[1]; }) })),
       { n: 0, name: 'Not in your plan', sub: 'Optional: open any of them when you like', ms: ordered.filter((m) => weekOf(m) === 99) }].filter((g) => g.ms.length);
-    const legendRow = h('div', { class: 'ct-legend' }, h('span', null, h('i', { class: 'pass' }), `Passed (${passPct}% or more)`), h('span', null, h('i', { class: 'below' }), `Below ${passPct}%`), h('span', null, h('i', { class: 'todo' }), 'Not taken yet'));
-    const table = h('section', { class: 'card ct-card' }, h('div', null, h('h2', null, 'My results per course'), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, `The ring is your course test (Prove it): your first attempt is the result of record. Underneath, every step of the course with its score; Practise shows your sandbox exercise when the course has one. Pass mark ${passPct}%.`)), legendRow,
-      groups.map((g) => h('div', { class: `ct-group m${g.n}` }, h('div', { class: 'ct-gh' }, h('h3', null, g.name), h('span', { class: 'muted small' }, g.sub)), h('div', { class: 'ctiles' }, g.ms.map(tile)))));
-    box.replaceChildren(head, table);
+    const legendRow = h('div', { class: 'ct-legend' }, h('span', null, h('i', { class: 'pass' }), `Passed (${passPct}% or more)`), h('span', null, h('i', { class: 'below' }), `Below ${passPct}%`));
+    const summary = h('div', { class: 'ct-summary' },
+      scoreRing(avg, avg == null ? 'todo' : avg >= passPct ? 'pass' : 'below', { size: 132, label: avg == null ? 'No average yet' : `Average score ${avg}%` }),
+      h('div', { class: 'ct-sum-t' },
+        h('span', { class: 'ct-sum-k' }, 'Average score'),
+        h('p', { class: 'muted small' }, avg == null ? 'Shown once you complete your first course.' : `Across the course tests of your completed courses. Pass mark ${passPct}%.`),
+        h('div', { class: 'ct-sum-figs' },
+          h('div', null, h('b', null, `${doneMods.length}`, h('small', null, ` of ${inPlanN}`)), h('span', null, 'courses taken')),
+          h('div', null, h('b', null, scored.length ? `${passedN}` : '–', scored.length ? h('small', null, ` of ${scored.length}`) : null), h('span', null, 'passed')))));
+    const table = h('section', { class: 'card ct-card' },
+      h('div', null, h('h2', null, 'My results per course'), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, 'Your completed courses. The ring is the course test (Prove it): your first attempt is the result of record. Underneath, every step with its score; Practise shows the sandbox exercise when the course has one. Courses in progress are on My courses.')),
+      summary,
+      doneMods.length ? [legendRow, groups.map((g) => h('div', { class: `ct-group m${g.n}` }, h('div', { class: 'ct-gh' }, h('h3', null, g.name), h('span', { class: 'muted small' }, g.sub)), h('div', { class: 'ctiles' }, g.ms.map(tile))))]
+        : h('div', { class: 'empty-note row spread' }, h('span', null, h('b', null, 'No course completed yet.'), ' Each course shows here with its results once all its steps are done.'), h('a', { class: 'btn primary sm', href: `#${meOf()}training` }, 'Go to My courses')));
+    box.replaceChildren(table);
   }).catch((e) => box.replaceChildren(failed(e)));
   return box;
 }
