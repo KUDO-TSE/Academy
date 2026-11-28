@@ -936,3 +936,7 @@ td.nowrap{white-space:nowrap;font-variant-numeric:tabular-nums}
 .sp-self b{font-size:12.5px;color:var(--ink-900);font-variant-numeric:tabular-nums}
 @media (max-width:640px){.ct-summary{flex-direction:column;align-items:flex-start;padding:var(--s-4)}}
 @media (prefers-reduced-motion:reduce){.sp-tile{transition:none}.sp-tile:hover{transform:none}}
+/* My Starting Point, as the last section of My results per course */
+.sp-section{margin-top:var(--s-6);padding-top:var(--s-5);border-top:1px solid var(--border-soft)}
+.sp-section>h2{font-size:17px;margin:0}
+.sp-section>.sub{margin:2px 0 0}

@@ -73,12 +73,8 @@ export function resultsView(data, live = null) {
   };
   drawQ();
   const lo = live?.map.overall;
-  return h('div', { class: 'page' },
-    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My results'), h('p', null, showLive ? 'Your completed courses with every score, then your starting point: your Self Assessment and knowledge test. How results move your level is on My progress; every attempt, with its date and time, is on My Activities.' : live ? `${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}` : 'Your test results will show here once they are in.'))),
-    showLive ? academyResults() : null,
-    showLive ? h('div', { class: 'section-h' }, h('h2', null, 'My Starting Point: Self-assessment and Test Results'), h('p', null, live ? `Self Assessment and ${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}. These stay as your baseline record.` : 'Self Assessment and live test, your baseline record.')) : null,
-    !self && !live ? empty('No results yet', 'Your Self Assessment and knowledge test results will appear here.') : h('div', { class: 'stack' },
-      h('div', { class: 'card sp-card' }, h('h2', null, 'Self rating and test, scenario by scenario'),
+  const spCard = (inCard) => (!self && !live ? (inCard ? null : empty('No results yet', 'Your Self Assessment and knowledge test results will appear here.')) :
+h(inCard ? 'section' : 'div', { class: inCard ? 'sp-section' : 'card sp-card' }, inCard ? h('h2', null, 'My Starting Point: Self-assessment and Test Results') : h('h2', null, 'Self rating and test, scenario by scenario'), inCard ? h('p', { class: 'sub keep' }, live ? `Self Assessment and ${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}. These stay as your baseline record.` : 'Self Assessment and live test, your baseline record.') : null,
         h('p', { class: 'sub keep' }, 'The ring is your knowledge test score. The bar under it is your Self Assessment (your 1 to 5 answers as a percentage). The label compares the two.'),
         h('div', { class: 'ct-legend' }, h('span', null, h('i', { class: 'pass' }), '80% or more'), h('span', null, h('i', { class: 'below' }), 'Below 80%'), h('span', null, h('i', { class: 'self' }), 'Self rating')),
         h('div', { class: 'sp-grid' }, rows.map((r) => { const rd = reading(r.self, r.live), cls = r.live == null ? 'todo' : r.live >= 80 ? 'pass' : 'below';
@@ -87,7 +83,12 @@ export function resultsView(data, live = null) {
               h('div', { class: 'ct-t' }, h('b', null, r.label), h('div', { class: 'ct-sub' }, r.c?.total ? h('span', { class: 'muted small' }, `${r.c.correct} of ${r.c.total} correct`) : null, rd ? h('span', { class: `chip ${rd.cls}` }, rd.label) : null))),
             h('div', { class: 'sp-self' }, h('span', null, 'Self rating'), h('span', { class: 'sp-bar' }, h('i', { style: `width:${r.self ?? 0}%` })), h('b', null, pct(r.self))));
         })),
-        h('p', { class: 'muted small', style: 'margin:12px 0 0' }, 'Under-rated: you scored at least 8 points above your rating. Over-confident: you scored at least 5 points below it.')),
+        h('p', { class: 'muted small', style: 'margin:12px 0 0' }, 'Under-rated: you scored at least 8 points above your rating. Over-confident: you scored at least 5 points below it.')));
+  return h('div', { class: 'page' },
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My results'), h('p', null, showLive ? 'Your completed courses with every score, then your starting point: your Self Assessment and knowledge test. How results move your level is on My progress; every attempt, with its date and time, is on My Activities.' : live ? `${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}` : 'Your test results will show here once they are in.'))),
+    showLive ? academyResults(spCard(true)) : null,
+    h('div', { class: 'stack' },
+      showLive ? null : spCard(false),
       h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'Questions to review'), h('p', { class: 'sub' }, 'The questions you missed, with the correct answer')),
         liveRounds.length > 1 ? h('select', { style: 'width:auto', 'aria-label': 'Test', on: { change: (e) => { qRound = Number(e.target.value); drawQ(); } } }, liveRounds.map((r) => h('option', { value: r.id, selected: r.id === qRound }, r.label))) : null), qBox)));
 }
@@ -158,7 +159,7 @@ const loading = (what) => h('div', { class: 'card muted' }, `Loading ${what}…`
 const failed = (e) => h('div', { class: 'card empty' }, h('b', null, 'This part could not load'), e.message);
 
 /** My results: the scores themselves, test by test. No level changes here: those are on My progress. */
-function academyResults() {
+function academyResults(startingPoint = null) {
   const box = h('div', { class: 'stack lp-live' }, loading('your Academy results'));
   Promise.all([loadLive(), api('GET', '/api/me/programme').catch(() => null), api('GET', '/api/me/sandbox').catch(() => ({ scenarios: [] }))]).then(([d, prog, sbxRes]) => {
     // My results per course: one visual tile per course, grouped by month like My courses.
@@ -214,7 +215,8 @@ function academyResults() {
       h('div', null, h('h2', null, 'My results per course'), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, 'Your completed courses. The ring is the course test (Prove it): your first attempt is the result of record. Underneath, every step with its score; Practise shows the sandbox exercise when the course has one. Courses in progress are on My courses.')),
       summary,
       doneMods.length ? [legendRow, groups.map((g) => h('div', { class: `ct-group m${g.n}` }, h('div', { class: 'ct-gh' }, h('h3', null, g.name), h('span', { class: 'muted small' }, g.sub)), h('div', { class: 'ctiles' }, g.ms.map(tile))))]
-        : h('div', { class: 'empty-note row spread' }, h('span', null, h('b', null, 'No course completed yet.'), ' Each course shows here with its results once all its steps are done.'), h('a', { class: 'btn primary sm', href: `#${meOf()}training` }, 'Go to My courses')));
+        : h('div', { class: 'empty-note row spread' }, h('span', null, h('b', null, 'No course completed yet.'), ' Each course shows here with its results once all its steps are done.'), h('a', { class: 'btn primary sm', href: `#${meOf()}training` }, 'Go to My courses')),
+      startingPoint);
     box.replaceChildren(table);
   }).catch((e) => box.replaceChildren(failed(e)));
   return box;
