@@ -68,7 +68,7 @@ export function resultsView(data, live = null) {
   drawQ();
   const lo = live?.map.overall;
   return h('div', { class: 'page' },
-    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My results'), h('p', null, showLive ? 'Your scores, course by course: each course test, decision walkthrough and explain-it recording, your sandbox exercises, then your October starting point. How they move your level is on My progress.' : live ? `${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}` : 'Your test results will show here once they are in.'))),
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My results'), h('p', null, showLive ? 'Your scores, course by course: each course test, decision walkthrough, explain-it recording and sandbox exercise, then your October starting point. How they move your level is on My progress. Every attempt, with its date and time, is on My Activities.' : live ? `${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}` : 'Your test results will show here once they are in.'))),
     showLive ? academyResults() : null,
     showLive ? h('div', { class: 'section-h' }, h('h2', null, 'My starting point: October'), h('p', null, live ? `Self Assessment and ${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}. These stay as your baseline record.` : 'Self Assessment and live test, your baseline record.')) : null,
     !self && !live ? empty('No results yet', 'Your Self Assessment and knowledge test results will appear here.') : h('div', { class: 'stack' },
@@ -148,7 +148,7 @@ const failed = (e) => h('div', { class: 'card empty' }, h('b', null, 'This part 
 /** My results: the scores themselves, test by test. No level changes here: those are on My progress. */
 function academyResults() {
   const box = h('div', { class: 'stack lp-live' }, loading('your Academy results'));
-  Promise.all([loadLive(), api('GET', '/api/me/programme').catch(() => null)]).then(([d, prog]) => {
+  Promise.all([loadLive(), api('GET', '/api/me/programme').catch(() => null), api('GET', '/api/me/sandbox').catch(() => ({ scenarios: [] }))]).then(([d, prog, sbxRes]) => {
     const taken = d.modules.filter((m) => m.check), passed = taken.filter((m) => m.check.passed);
     const avg = taken.length ? Math.round(taken.reduce((t, m) => t + m.check.pct, 0) / taken.length) : null;
     const ex = d.modules.filter((m) => m.explain);
@@ -173,8 +173,10 @@ function academyResults() {
       const inPlan = its.length > 0, first = its.filter((i) => i.week).sort((a, b) => a.week - b.week)[0];
       const mo = first ? (phases.find((p) => first.week >= p.weeks[0] && first.week <= p.weeks[1])?.n || first.phase) : null;
       const c = m.check, sc = c ? c.pct : null, state = c ? (c.passed ? 'pass' : 'below') : 'todo';
-      const score = { lesson: null, practice: null, scenario: m.walk?.pct ?? null, explain: m.explain?.pct ?? null, check: sc };
-      const did = { lesson: false, practice: false, scenario: !!m.walk, explain: !!m.explain, check: !!c };
+      const runs = (sbxRes.scenarios || []).filter((x) => SANDBOXES[x.key]?.module === m.key && x.record);
+      const sbxScore = runs.length ? Math.round(runs.reduce((t, x) => t + x.record.score, 0) / runs.length) : null;
+      const score = { lesson: null, practice: sbxScore, scenario: m.walk?.pct ?? null, explain: m.explain?.pct ?? null, check: sc };
+      const did = { lesson: false, practice: sbxScore != null, scenario: !!m.walk, explain: !!m.explain, check: !!c };
       const steps = STEPS.filter(([k]) => (inPlan ? its.some((i) => i.kind === k) : k === 'lesson' || k === 'check' || did[k]));
       const done = (k) => its.find((i) => i.kind === k)?.done || did[k];
       const nDone = steps.filter(([k]) => done(k)).length, started = nDone > 0 && nDone < steps.length;
@@ -193,24 +195,9 @@ function academyResults() {
     const groups = [...phases.map((p) => ({ n: p.n, name: p.name, sub: `Weeks ${p.weeks[0]} to ${p.weeks[1]}`, ms: ordered.filter((m) => { const w = weekOf(m); return w >= p.weeks[0] && w <= p.weeks[1]; }) })),
       { n: 0, name: 'Not in your plan', sub: 'Optional: open any of them when you like', ms: ordered.filter((m) => weekOf(m) === 99) }].filter((g) => g.ms.length);
     const legendRow = h('div', { class: 'ct-legend' }, h('span', null, h('i', { class: 'pass' }), `Passed (${passPct}% or more)`), h('span', null, h('i', { class: 'below' }), `Below ${passPct}%`), h('span', null, h('i', { class: 'todo' }), 'Not taken yet'));
-    const table = h('section', { class: 'card ct-card' }, h('div', null, h('h2', null, 'My results per course'), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, `The ring is your course test (Prove it): your first attempt is the result of record. Underneath, every step of the course with its score. Pass mark ${passPct}%.`)), legendRow,
+    const table = h('section', { class: 'card ct-card' }, h('div', null, h('h2', null, 'My results per course'), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, `The ring is your course test (Prove it): your first attempt is the result of record. Underneath, every step of the course with its score; Practise shows your sandbox exercise when the course has one. Pass mark ${passPct}%.`)), legendRow,
       groups.map((g) => h('div', { class: `ct-group m${g.n}` }, h('div', { class: 'ct-gh' }, h('h3', null, g.name), h('span', { class: 'muted small' }, g.sub)), h('div', { class: 'ctiles' }, g.ms.map(tile)))));
-    const list = d.attempts.length ? h('div', { class: 'card' }, h('h2', null, 'My attempts'), h('p', { class: 'sub' }, 'Newest first. Results of record and practice'),
-      d.attempts.length ? h('ul', { class: 'lp-feed' }, d.attempts.slice(0, 40).map((a) => h('li', null,
-        h('span', { class: 'muted small lp-when' }, ago(a.at)),
-        h('div', { class: 'lp-what' }, h('a', { href: `#module-${a.module}` }, a.moduleTitle), h('span', { class: 'muted small sep-l' }, `${KIND_LABEL[a.kind] || 'Test'}${a.kind === 'explain' ? (a.reviewed ? ', reviewed by your KUDO Trainer' : ', automatic review') : ''}`)),
-        h('div', { class: 'lp-eff' }, h('span', { class: `chip ${a.record ? 'blue' : 'grey'}` }, a.record ? 'Result of record' : 'Practice'), h('b', null, a.pct != null ? `${a.pct}%` : 'None'))))) : null) : null;
-    const sbx = h('section', { class: 'card' }, h('h2', null, 'Sandbox exercises'), h('p', { class: 'sub keep' }, 'Hands-on tasks on replicas of the KUDO screens and the client\'s tools, inside your courses. Your first run is the result of record; pass mark 80%.'), h('div', { class: 'muted' }, 'Loading…'));
-    api('GET', '/api/me/sandbox').then(({ scenarios }) => {
-      sbx.lastChild.replaceWith(h('div', { class: 'stiles' }, [...scenarios].sort((a2, b2) => (SANDBOXES[a2.key]?.num || 99) - (SANDBOXES[b2.key]?.num || 99)).map((x) => {
-        const r = x.record, ok = r && r.score >= 80;
-        return h('a', { class: `stile ${r ? (ok ? 'pass' : 'below') : 'todo'}`, href: `#sandbox-${x.key}` },
-          h('span', { class: 'st-n' }, String(SANDBOXES[x.key]?.num ?? '')),
-          h('div', { class: 'st-main' }, h('b', null, SANDBOXES[x.key]?.title || x.key), h('small', null, r ? `${x.runs} run${x.runs > 1 ? 's' : ''}, best ${x.best}%` : 'Not tried yet')),
-          h('span', { class: 'st-score' }, r ? `${r.score}%` : 'Not taken'));
-      })));
-    }).catch(() => sbx.lastChild.replaceWith(h('div', { class: 'muted' }, 'Could not load the sandbox results.')));
-    box.replaceChildren(...[head, table, sbx, list].filter(Boolean));
+    box.replaceChildren(head, table);
   }).catch((e) => box.replaceChildren(failed(e)));
   return box;
 }

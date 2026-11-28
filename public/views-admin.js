@@ -1,4 +1,5 @@
 import * as P from './views-admin-programme.js';
+import { activityPanel } from './views-activity.js';
 import { h, api, toast, modal, pct, fmtDate, dateOnly, KIND, DELIVERY, reading, initials, importsHead, tipI, metaRow } from './ui.js';
 import { pairedBars, COLORS } from './charts.js';
 import { homeView, resultsView, progressView, planView, latest, scoresFor } from './views-trainee.js';
@@ -79,11 +80,11 @@ export async function personView(id) {
   const body = h('div');
   const reload = () => { location.hash = `person-${id}`; window.dispatchEvent(new HashChangeEvent('hashchange')); };
   const tabs = h('div', { class: 'tabs', role: 'tablist' });
-  const TAB = [['programme', 'Programme'], ['inputs', 'Inputs & 1:1s'], ['results', 'Results'], ['coaching', 'Notes'], ['profile', 'Profile & access']];
+  const TAB = [['programme', 'Programme'], ['inputs', 'Inputs & 1:1s'], ['results', 'Results'], ['activity', 'Activity'], ['coaching', 'Notes'], ['profile', 'Profile & access']];
   const draw = () => {
     tabs.replaceChildren(...TAB.map(([k, l]) => h('button', { role: 'tab', class: tab === k ? 'on' : '', 'aria-selected': String(tab === k), on: { click: () => { tab = k; draw(); } } }, l)));
     const reloadTab = () => { sessionStorage.setItem('personTab', tab); reload(); };
-    body.replaceChildren(tab === 'programme' ? P.tabProgramme(id, reloadTab) : tab === 'inputs' ? P.tabInputs(id, reloadTab) : ({ results: tabResults, plan: tabPlan, targets: tabTargets, coaching: tabCoaching, profile: tabProfile })[tab](d, reload));
+    body.replaceChildren(tab === 'programme' ? P.tabProgramme(id, reloadTab) : tab === 'inputs' ? P.tabInputs(id, reloadTab) : tab === 'activity' ? activityPanel(() => api('GET', `/api/admin/trainees/${id}/activity`), { admin: true }) : ({ results: tabResults, plan: tabPlan, targets: tabTargets, coaching: tabCoaching, profile: tabProfile })[tab](d, reload));
   };
   draw();
   return h('div', { class: 'page' },

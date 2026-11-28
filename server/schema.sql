@@ -388,3 +388,13 @@ ALTER TABLE releases ADD COLUMN IF NOT EXISTS summary TEXT;
 ALTER TABLE releases ADD COLUMN IF NOT EXISTS summary_by TEXT;
 -- A release can be shown in KUDO News before its lesson changes are applied (the release history loads this way).
 ALTER TABLE releases ADD COLUMN IF NOT EXISTS in_news BOOLEAN NOT NULL DEFAULT false;
+-- My Activities: visits (a connection and how long it lasted). No IP address is kept, only the kind of device.
+CREATE TABLE IF NOT EXISTS user_visits (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  device TEXT,
+  requests INT NOT NULL DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS user_visits_user ON user_visits (user_id, last_seen_at DESC);

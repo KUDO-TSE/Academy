@@ -13,12 +13,13 @@ import { coachWidget } from './coach.js';
 import { startTour, tourFor } from './tour.js';
 import { sandboxView, SCENARIOS as SANDBOXES } from './sandbox.js';
 import { newsView } from './views-news.js';
+import { activityView } from './views-activity.js';
 
 const root = document.getElementById('app');
 let me = null;
 
-const NAV_TRAINEE = [['programme', 'Home', 'home'], ['training', 'My courses', 'plan'], ['results', 'My results', 'chart'], ['progress', 'My progress', 'trend'], ['collection', 'My collection', 'star'], ['news', 'KUDO News', 'news']];
-const NAV_ME = [['me-programme', 'Home', 'home'], ['me-training', 'My courses', 'plan'], ['me-results', 'My results', 'chart'], ['me-progress', 'My progress', 'trend'], ['me-collection', 'My collection', 'star']];
+const NAV_TRAINEE = [['programme', 'Home', 'home'], ['training', 'My courses', 'plan'], ['results', 'My results', 'chart'], ['progress', 'My progress', 'trend'], ['collection', 'My collection', 'star'], ['activity', 'My Activities', 'log'], ['news', 'KUDO News', 'news']];
+const NAV_ME = [['me-programme', 'Home', 'home'], ['me-training', 'My courses', 'plan'], ['me-results', 'My results', 'chart'], ['me-progress', 'My progress', 'trend'], ['me-collection', 'My collection', 'star'], ['me-activity', 'My Activities', 'log']];
 const NAV_ADMIN = [['board', 'My board', 'board'], ['overview', 'Overview', 'home'], ['team', 'Team', 'team'], ['priorities', 'Priorities', 'target'], ['programme', 'Programme', 'plan'], ['reviews', 'Reviews', 'inbox'], ['feedback', 'Feedback', 'msg'], ['curriculum', 'Curriculum', 'book'], ['news', 'KUDO News', 'news'], ['try', 'Try as a trainee', 'user'], ['SEP', 'Admin'], ['imports', 'Imports', 'upload'], ['users', 'Users & access', 'key'], ['audit', 'Activity log', 'log'], ['logic', 'Logic notes', 'info']];
 
 async function boot() {
@@ -129,14 +130,14 @@ function shell() {
   // Phones: the menu folds into a drawer behind a button; trainees also get a tab bar at the bottom.
   const toggle = h('button', { class: 'nav-toggle', type: 'button', 'aria-label': 'Menu', 'aria-expanded': 'false', on: { click: (e) => { e.stopPropagation(); const open = !document.body.classList.contains('nav-open'); document.body.classList.toggle('nav-open', open); toggle.setAttribute('aria-expanded', String(open)); } } },
     h('span'), h('span'), h('span'));
-  const traineeTabs = me.role !== 'admin' ? h('nav', { class: 'tabbar', 'aria-label': 'Main' }, NAV_TRAINEE.filter(([k]) => k !== 'news').map(([k, l, ic]) => h('a', { href: `#${k}`, 'data-r': k }, icon(ic), h('span', null, l.replace(/^My (.)/, (_m, c) => c.toUpperCase()))))) : null;
+  const traineeTabs = me.role !== 'admin' ? h('nav', { class: 'tabbar', 'aria-label': 'Main' }, NAV_TRAINEE.filter(([k]) => k !== 'news' && k !== 'activity').map(([k, l, ic]) => h('a', { href: `#${k}`, 'data-r': k }, icon(ic), h('span', null, l.replace(/^My (.)/, (_m, c) => c.toUpperCase()))))) : null;
   document.body.dataset.admin = me.role === 'admin' ? '1' : '';
   return h('div', { class: `shell ${me.actingAs ? 'testing' : ''} ${traineeTabs ? 'has-tabbar' : ''}` }, h('a', { class: 'skip-link', href: '#main', on: { click: (e) => { e.preventDefault(); const t = document.querySelector('#main h1') || document.getElementById('main'); if (t.tagName === 'H1') t.setAttribute('tabindex', '-1'); t.focus(); } } }, 'Skip to main content'), testBar, h('aside', { class: 'sidebar' }, h('div', { class: 'brand' }, h('img', { src: '/kudo-logo-navy.png', alt: 'KUDO' }), h('span', { class: 'tag' }, 'Academy')), list, acct, toggle), h('main', { class: 'main', id: 'main', tabindex: 0, 'aria-label': 'Page content' }), traineeTabs, (me.role !== 'admin' || me.isTrainee) && !me.mustChange ? coachWidget() : null);
 }
 
 // ------------------------------------------------------------ Router
-const TRAINEE_ROUTES = { programme: null, training: null, collection: null, results: resultsView, progress: progressView, news: () => newsView() };
-const ADMIN_ROUTES = { try: () => P.tryView(me), board: boardView, overview: A.overviewView, team: A.teamView, priorities: A.prioritiesView, programme: P.programmeOverview, reviews: P.reviewsView, sessions: sessionsView, releases: releasesView, feedback: P.feedbackView, curriculum: () => P.curriculumView(), imports: A.importView, users: A.usersView, audit: A.auditView, logic: A.logicView, news: () => newsView() };
+const TRAINEE_ROUTES = { programme: null, training: null, collection: null, results: resultsView, progress: progressView, news: () => newsView(), activity: () => activityView() };
+const ADMIN_ROUTES = { try: () => P.tryView(me), board: boardView, overview: A.overviewView, team: A.teamView, priorities: A.prioritiesView, programme: P.programmeOverview, reviews: P.reviewsView, sessions: sessionsView, releases: releasesView, feedback: P.feedbackView, curriculum: () => P.curriculumView(), imports: A.importView, users: A.usersView, audit: A.auditView, logic: A.logicView, news: () => newsView(), activity: () => activityView() };
 const isTraineeDyn = (r) => r.startsWith('module-') || r.startsWith('sandbox-') || r === 'missed' || r === 'survey';
 const isAdminDyn = (r) => r.startsWith('session-') || r.startsWith('release-') || r.startsWith('person-') || r.startsWith('preview') || r.startsWith('pview-') || r.startsWith('curriculum-');
 

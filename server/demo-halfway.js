@@ -50,7 +50,9 @@ export async function createHalfway(email = HALFWAY_EMAIL, name = 'Test Trainee 
   // between the day after the test and yesterday.
   const tests = done.filter((i) => ['check', 'scenario', 'explain'].includes(i.kind) && !String(i.key).startsWith('review.')).map((i) => natural.get(i.key).getTime());
   const t0 = Math.min(...tests), t1 = Math.max(...tests), lo = Math.max(floor, t0), hi = Math.min(now - DAY, Math.max(t1, lo + DAY));
-  const testAt = (t) => new Date(t0 >= floor || t1 === t0 ? Math.min(t, now - 3600e3) : lo + ((t - t0) / (t1 - t0)) * (hi - lo));
+  let tn = 0;
+  const daytime = (ms) => { const d = new Date(ms), hr = d.getUTCHours(); if (hr < 8 || hr > 17) { d.setUTCHours(9 + (tn % 8), (tn * 17) % 60, 0, 0); } tn++; return Math.min(d.getTime(), now - 3600e3); };
+  const testAt = (t) => new Date(daytime(t0 >= floor || t1 === t0 ? Math.min(t, now - 3600e3) : lo + ((t - t0) / (t1 - t0)) * (hi - lo)));
   let ti = 0, wi = 0, ri = 0;
   const finished = new Map(); // module -> test pct, for the course recaps
   for (const it of done) {
@@ -107,15 +109,49 @@ export async function createHalfway(email = HALFWAY_EMAIL, name = 'Test Trainee 
   try {
     const { syncCollection } = await import('./collectibles.js');
     await syncCollection(id);
-    await q('UPDATE collectibles SET seen_at=now(), earned_at=CASE WHEN key=$2 THEN $3::timestamptz ELSE LEAST(now(), $3::timestamptz + (random() * ($4::int - 1) * 7) * interval \'1 day\' + interval \'1 day\') END WHERE user_id=$1', [id, 'first-step', start, CURRENT_WEEK]);
+    // Each card is dated from the work that earned it: First step at the start, Off the blocks at the first lesson,
+    // Month 1 cleared at its last step, the others spread over the activity in order.
+    const evs = (await q(`SELECT t FROM (SELECT completed_at AS t FROM plan_progress WHERE user_id=$1 UNION ALL SELECT created_at FROM quiz_attempts WHERE user_id=$1
+                          UNION ALL SELECT created_at FROM sandbox_runs WHERE user_id=$1) x ORDER BY t`, [id])).rows.map((r) => new Date(r.t));
+    const firstLesson = (await q("SELECT min(completed_at) AS t FROM plan_progress WHERE user_id=$1 AND item_key LIKE '%.lesson'", [id])).rows[0]?.t;
+    const m1 = fin.filter((i) => i.week && i.week <= 4).map((i) => i.key);
+    const m1end = (await q('SELECT max(completed_at) AS t FROM plan_progress WHERE user_id=$1 AND item_key = ANY($2)', [id, m1])).rows[0]?.t;
+    const cards = (await q("SELECT key FROM collectibles WHERE user_id=$1 AND key NOT IN ('first-step','first-lesson','phase-1') AND key NOT LIKE 'rules%' ORDER BY key", [id])).rows.map((r) => r.key);
+    const fixed = { 'first-step': start, 'first-lesson': firstLesson || start, 'phase-1': m1end || start };
+    cards.forEach((k, i) => { fixed[k] = evs.length ? evs[Math.min(evs.length - 1, Math.round(((i + 1) / (cards.length + 1)) * (evs.length - 1)))] : new Date(); });
+    for (const [k, t] of Object.entries(fixed)) await q('UPDATE collectibles SET earned_at=$3 WHERE user_id=$1 AND key=$2', [id, k, t]);
+    await q('UPDATE collectibles SET seen_at=now() WHERE user_id=$1', [id]);
   } catch (e) { console.warn('Halfway test trainee: cards not synced', e.message); }
+  await seedVisits(id);
   console.log(`Halfway test trainee created: ${email}`);
   return id;
 }
 
+/** Its connections for My Activities: one visit on each day it did something, from a little before the first
+ * activity of the day to a little after the last, on a computer (on a phone now and then). */
+export async function seedVisits(id) {
+  if ((await q('SELECT 1 FROM user_visits WHERE user_id=$1', [id])).rowCount) return;
+  const ev = (await q(`SELECT completed_at AS t FROM plan_progress WHERE user_id=$1 UNION ALL SELECT created_at FROM quiz_attempts WHERE user_id=$1
+                       UNION ALL SELECT created_at FROM submissions WHERE user_id=$1 UNION ALL SELECT created_at FROM sandbox_runs WHERE user_id=$1`, [id])).rows.map((r) => new Date(r.t));
+  // Events less than 90 minutes apart belong to the same connection.
+  const clusters = [];
+  for (const t of ev.sort((x, y) => x - y)) { const c = clusters.at(-1); if (c && t - c[1] < 90 * 60e3) c[1] = t; else clusters.push([t, t]); }
+  let n = 0;
+  for (const [a, b] of clusters) {
+    const start = new Date(a.getTime() - (8 + (n % 4) * 3) * 60e3), end = new Date(Math.min(Date.now() - 60e3, Math.max(b.getTime(), a.getTime() + (18 + (n % 4) * 6) * 60e3) + (5 + (n % 5) * 2) * 60e3));
+    await q('INSERT INTO user_visits (user_id,started_at,last_seen_at,device,requests) VALUES ($1,$2,$3,$4,$5)', [id, start, end, n % 5 === 3 ? 'Phone' : 'Computer', 20 + (n % 7) * 6]);
+    n++;
+  }
+}
+
 /** Create it once on start-up, so it exists in every environment without anyone typing a password. */
 export async function ensureHalfway() {
-  if ((await q("SELECT 1 FROM app_settings WHERE key='demo_halfway_2026'")).rowCount) return;
+  if ((await q("SELECT 1 FROM app_settings WHERE key='demo_halfway_2026'")).rowCount) {
+    // Created before My Activities existed: give it its connections once.
+    const u = (await q('SELECT id FROM users WHERE lower(email)=$1 AND is_demo', [HALFWAY_EMAIL])).rows[0];
+    if (u) await seedVisits(u.id);
+    return;
+  }
   if (!(await q('SELECT 1 FROM users WHERE lower(email)=$1', [HALFWAY_EMAIL])).rowCount) await createHalfway();
   await q("INSERT INTO app_settings (key,value) VALUES ('demo_halfway_2026',$1) ON CONFLICT (key) DO NOTHING", [{ at: new Date().toISOString() }]);
 }

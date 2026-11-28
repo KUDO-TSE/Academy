@@ -13,6 +13,7 @@ import { adminRouter } from './routes-admin.js';
 import { meProgramme, adminProgramme, applyDefaultVideos } from './programme.js';
 import { ensureDemo } from './demo.js';
 import { ensureHalfway } from './demo-halfway.js';
+import { trackVisit, meActivity, adminActivity } from './activity.js';
 import { boardRouter } from './board.js';
 import { warmUp, resumePending } from './autoreview.js';
 import { sessionsRouter, loadFieldItems, failInterrupted } from './sessions.js';
@@ -70,6 +71,7 @@ export async function createApp() {
     cookie: { httpOnly: true, sameSite: 'lax', secure: prod, maxAge: 1000 * 60 * 60 * 8 },
   }));
   app.use(loadUser);
+  app.use(trackVisit);
   app.use('/api', csrfGuard);
 
   app.get('/healthz', async (_req, res) => { try { await q('SELECT 1'); res.json({ ok: true }); } catch { res.status(503).json({ ok: false }); } });
@@ -158,12 +160,14 @@ export async function createApp() {
   app.use('/api/me', requireAuth, recapRouter);
   app.use('/api/me', requireAuth, whatsNewRouter);
   app.use('/api/me', requireAuth, coachRouter);
+  app.use('/api/me', requireAuth, meActivity);
   app.use('/api/admin', requireAdmin, adminRouter);
   app.use('/api/admin', requireAdmin, adminProgramme);
   app.use('/api/admin', requireAdmin, boardRouter);
   app.use('/api/admin', requireAdmin, sessionsRouter);
   app.use('/api/admin', requireAdmin, releasesRouter);
   app.use('/api/admin', requireAdmin, groupAdminRouter);
+  app.use('/api/admin', requireAdmin, adminActivity);
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found.' }));
 
   // Browsers revalidate the app files on every visit (cheap 304s via ETag), so a new version shows up straight away.
