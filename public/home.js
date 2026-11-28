@@ -6,10 +6,10 @@ import { small } from './charts.js';
 const tick = (s = 14) => svg(`<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`);
 export const weeksLabel = (p) => (p.weeks[0] === p.weeks[1] ? `Week ${p.weeks[0]}` : `Weeks ${p.weeks[0]} to ${p.weeks[1]}`);
 export const mins = (m) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60}` : ''}`);
-const KIND = { scenario: 'Decide', explain: 'Explain it', survey: 'Survey', lesson: 'Lesson', practice: 'Practice', check: 'Check', review: 'Review', baseline: 'Baseline', missed: 'Revisit', teach: 'Teach-back', pair: 'Pairing', one_to_one: 'With your KUDO Trainer', milestone: 'Milestone' };
+const KIND = { scenario: 'Decide', explain: 'Explain it', survey: 'Survey', lesson: 'Lesson', practice: 'Practice', check: 'Prove it', review: 'Review', baseline: 'Baseline', missed: 'Revisit', teach: 'Teach-back', pair: 'Pairing', one_to_one: 'With your KUDO Trainer', milestone: 'Milestone' };
 const KIND_CHIP = { lesson: 'blue', practice: 'amber', check: 'green', review: 'green', scenario: 'grey', explain: 'grey', baseline: 'green' };
 const mine = (i) => (i.owner || 'you') === 'you';
-const STEP = { lesson: 'Learn', practice: 'Practise', scenario: 'Decide', explain: 'Explain it', check: 'Check' };
+const STEP = { lesson: 'Learn', practice: 'Practise', scenario: 'Decide', explain: 'Explain it', check: 'Prove it' };
 export const COURSE_KINDS = new Set(['lesson', 'practice', 'scenario', 'explain', 'check']);
 /** A week's steps as courses: the steps of one module make one all-in-one course; anything else stands alone. */
 function courseGroups(its) {
@@ -264,19 +264,33 @@ function courseBtn(g, { href, onClick, strong, size = 'sm' }) {
   return h('a', { class: `btn ${size} ${started ? 'continue' : strong ? 'primary' : ''}`, href, on: { click: onClick } }, courseLabel(started));
 }
 
-/** One week's courses: the steps of a module make one all-in-one course, with one Take the course button. */
+/** One week's courses, made for reading at a glance. Each course is one row: where it stands (icon), its name, its steps
+ * in order as a small track (done, next, to do, with scores), what is next and roughly how long it takes, and one button. */
+const SICON = {
+  done: '<svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="11" fill="#2E9E6B"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  started: '<svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="10" fill="#fff" stroke="#E2AE2C" stroke-width="2"/><path d="M12 2a10 10 0 0 1 0 20z" fill="#F8C63F"/></svg>',
+  todo: '<svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="10" fill="#fff" stroke="#A9B6C1" stroke-width="2" stroke-dasharray="3 3"/></svg>',
+};
+const STATE_TXT = { done: 'Done', started: 'In progress', todo: 'Not started' };
 export function courseList(its, { hrefFor = () => null, onStep = () => {}, strong = false } = {}) {
-  return h('ul', { class: 'wk-steps' }, courseGroups(its).map((g) => {
+  return h('ul', { class: 'cl-list' }, courseGroups(its).map((g) => {
     const left = g.items.filter((i) => !i.done), done = !left.length, nextIt = left[0] || g.items[0], href = hrefFor(nextIt);
-    return h('li', { class: `wk-course ${done ? 'done' : ''}`, 'data-mod': g.items[0].module && COURSE_KINDS.has(g.items[0].kind) ? g.items[0].module : null },
-      h('span', { class: `wk-tk ${done ? 'on' : ''}`, 'aria-label': done ? 'Done' : 'Not done yet' }, done ? tick(12) : null),
-      h('div', { class: 'wk-st' },
-        h('div', { class: 'wk-stt' }, href ? h('a', { href, on: { click: () => onStep(nextIt) } }, g.title) : g.title),
-        h('div', { class: 'wk-stm' },
-          g.items.length > 1 ? g.items.map((i) => h('span', { class: `wk-step ${i.done ? 'on' : ''}` }, i.done ? tick(10) : null, STEP[i.kind] || KIND[i.kind] || 'Step')) : h('span', { class: `chip ${KIND_CHIP[g.items[0].kind] || 'grey'}` }, KIND[g.items[0].kind] || 'Step'),
-          h('span', null, mins(g.items.reduce((t, i) => t + (i.minutes || 0), 0))),
-          g.items.filter((i) => i.recorded != null).map((i) => h('span', { class: `chip ${i.below ? 'amber' : 'green'}` }, `${STEP[i.kind] || 'Score'} ${i.recorded}%`)))),
-      href && !done ? courseBtn(g, { href, onClick: () => onStep(nextIt), strong }) : null);
+    const state = done ? 'done' : isStarted(g.items) ? 'started' : 'todo';
+    const isCourse = !!g.items[0].module && COURSE_KINDS.has(g.items[0].kind);
+    const minsLeft = left.reduce((t, i) => t + (i.minutes || 0), 0);
+    const meta = done ? null : !isCourse ? `About ${mins(minsLeft)}` : `${state === 'started' ? 'Next' : 'Starts with'}: ${STEP[nextIt.kind] || 'Learn'}. About ${mins(minsLeft)}${state === 'started' ? ' left' : ''}`;
+    return h('li', { class: `cl-course is-${state}`, 'data-mod': isCourse ? g.items[0].module : null },
+      h('span', { class: 'cl-ic', role: 'img', 'aria-label': STATE_TXT[state] }, svg(SICON[state])),
+      h('div', { class: 'cl-main' },
+        h('div', { class: 'cl-title' }, href ? h('a', { href, on: { click: () => onStep(nextIt) } }, g.title) : g.title, isCourse ? null : h('span', { class: `chip ${KIND_CHIP[g.items[0].kind] || 'grey'}` }, KIND[g.items[0].kind] || 'Step')),
+        g.items.length > 1 ? h('ol', { class: 'cl-track', 'aria-label': 'Steps of this course' }, g.items.map((i) => {
+          const st = i.done ? 'on' : i === nextIt ? 'next' : '';
+          return h('li', { class: `cl-s ${st} ${i.recorded != null ? (i.below ? 'below' : 'pass') : ''}` },
+            h('span', { class: 'cl-bar', 'aria-hidden': 'true' }),
+            h('span', { class: 'cl-l' }, STEP[i.kind] || KIND[i.kind] || 'Step', i.recorded != null ? h('b', { class: 'cl-sc' }, ` ${i.recorded}%`) : null, h('span', { class: 'sr' }, i.done ? ', done' : i === nextIt ? ', next' : ', to do')));
+        })) : null,
+        meta ? h('div', { class: 'cl-meta' }, meta) : null),
+      h('div', { class: 'cl-act' }, done ? h('span', { class: 'chip green' }, 'Done') : href ? courseBtn(g, { href, onClick: () => onStep(nextIt), strong }) : null));
   }));
 }
 
@@ -309,8 +323,9 @@ export function monthPlan({ items, week, phases, levels = [], modules = [], href
         const w = p.weeks[0] + k, wi = its.filter((i) => i.week === w), mi = wi.filter(mine), jk = wi.filter((i) => i.owner === 'jack'), d = mi.filter((i) => i.done).length;
         const state = w === week ? 'now' : w < week ? (d === mi.length ? 'done' : 'late') : 'next';
         const chip = { now: ['amber', 'This week'], done: ['green', 'Done'], late: ['coral', `${mi.length - d} to catch up`], next: ['grey', w === week + 1 ? 'Next week' : `In ${w - week} weeks`] }[state];
-        return h('section', { class: `mp-week is-${state}` },
-          h('div', { class: 'mp-wh' }, h('div', null, h('h3', null, `Week ${w}`), h('span', { class: 'muted small' }, mi.length ? `${d} of ${mi.length} steps done, about ${mins(mi.filter((i) => !i.done).reduce((t, i) => t + (i.minutes || 0), 0))} left` : 'No steps of yours: catch up or get ahead')), h('span', { class: `chip ${chip[0]}` }, chip[1])),
+        return h('section', { class: `mp-week is-${state}`, 'aria-current': state === 'now' ? 'step' : null },
+          h('span', { class: 'mp-node', 'aria-hidden': 'true' }, state === 'now' ? 'Now' : state === 'done' ? svg('<svg viewBox="0 0 24 24" width="14" height="14"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>') : String(w)),
+          h('div', { class: 'mp-wh' }, h('div', null, h('h3', null, `Week ${w}`, state === 'now' ? h('span', { class: 'mp-here' }, 'You are here') : null), h('span', { class: 'mp-wsub' }, mi.length ? `${d} of ${mi.length} steps done${d < mi.length ? `, about ${mins(mi.filter((i) => !i.done).reduce((t, i) => t + (i.minutes || 0), 0))} left` : ''}` : 'No steps of yours: catch up or get ahead')), state === 'now' ? null : h('span', { class: `chip ${chip[0]}` }, chip[1])),
           jk.length ? h('ul', { class: 'wk-trainer' }, jk.map((it) => { const e = event(it, shortOf); return h('li', { class: it.done ? 'done' : '' }, h('span', { class: 'wk-ti' }, icon(e.ic)), h('div', null, h('b', null, e.label), h('span', null, it.done ? 'Done' : `With your KUDO Trainer${it.minutes ? `, ${mins(it.minutes)}` : ''}. They book it with you.`))); })) : null,
           mi.length ? courseList(mi, { hrefFor, onStep, strong: state === 'now' || state === 'late' }) : null);
       }));
