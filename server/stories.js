@@ -104,7 +104,7 @@ export const STORIES = {
         say: 'Three decisions, and one of them cannot change once the meeting starts.' },
       { kind: 'show', step: 1, title: 'Two ways to deliver languages',
         mock: { crumb: 'How KUDO delivers languages', items: [{ t: 'row', label: 'Human Interpretation', value: 'professional interpreters on language channels' }, { t: 'row', label: 'AI Translation', value: 'speech, captions and transcripts, live', hi: true }] },
-        say: 'With Human Interpretation, interpreters work on dedicated language channels. With AI Translation, KUDO listens to the speaker and translates live. KUDO for Zoom and the external platforms (Google Meet, Webex, ON24) work with AI only.' },
+        say: 'With Human Interpretation, interpreters work on dedicated language channels. With AI Translation, KUDO listens to the speaker and translates live. On Zoom and the external platforms (Google Meet, Webex, ON24) a KUDO bot joins the meeting: AI Translation everywhere, and Human Interpretation on Zoom, Teams and Webex too.' },
       { kind: 'decide', tag: 'Choosing the AI type', quote: 'Our staff want to hear the CEO in their own language.',
         question: 'Which AI type do you recommend for the keynote?',
         options: [
@@ -267,7 +267,7 @@ export const STORIES = {
       { kind: 'scene', tag: 'Ten days before', who: 'The client\'s marketing manager (fictional)',
         quote: 'We run our partner webinar on Zoom, every month, from my Personal Meeting Room. Can KUDO translate it?',
         say: 'Yes: a KUDO bot joins the Zoom meeting and listens, and attendees follow the translation on the KUDO Mobile Link. But this set-up, as described, will not work.' },
-      { kind: 'stakes', title: 'What has to be true', points: [['Zoom lets the bot in', 'and lets it hear'], ['KUDO matches Zoom', 'same title, date, time and link'], ['The host approves it', 'on the day']], say: 'AI Translation only: KUDO for Zoom does not do Human Interpretation.' },
+      { kind: 'stakes', title: 'What has to be true', points: [['Zoom lets the bot in', 'and lets it hear'], ['KUDO matches Zoom', 'same title, date, time and link'], ['The host approves it', 'on the day']], say: 'AI Translation, and since May 2026 Human Interpretation too: check it is switched on for the client.' },
       { kind: 'decide', tag: 'First call', quote: 'So we keep our usual webinar room?',
         question: 'What does the Zoom side need?',
         options: [
@@ -304,7 +304,7 @@ export const STORIES = {
     slides: [
       { kind: 'scene', tag: 'Two weeks before', who: 'The client\'s webcast producer (fictional)',
         quote: 'Our quarterly webcast runs on ON24. We want it in three languages.',
-        say: 'Google Meet, Webex and ON24 all use the same model as Zoom: a KUDO bot joins as an external guest, listens and translates. AI Translation only.' },
+        say: 'Google Meet, Webex and ON24 all use the same model as Zoom: a KUDO bot joins as an external guest and captures the meeting. Webex takes Human Interpretation and AI meetings; ON24 interpreted meetings are a beta KUDO switches on by request.' },
       { kind: 'stakes', title: 'What has to be true', points: [['The platform lets the bot in', 'guest settings belong to the client\'s admin'], ['KUDO matches the event', 'same title, time and link'], ['One audio source', 'attendees must not hear two voices']], say: 'The same platform rules apply: a standard meeting, a new ID, not recurring.' },
       { kind: 'show', step: 1, title: 'Check before you build',
         mock: { crumb: 'ON24 · before you start', items: [{ t: 'row', label: 'The webcast exists', value: '✓' }, { t: 'row', label: 'You have its attendee link', value: '✓', hi: true }, { t: 'row', label: 'External Meeting enabled on the KUDO account', value: '✓' }, { t: 'row', label: 'Who hosts', value: 'coordinate with them' }] },
@@ -329,7 +329,7 @@ export const STORIES = {
         mock: { crumb: 'Webex · what can block the bot', items: [{ t: 'row', label: 'Blocked email domains', value: 'Control Hub › Services › Meeting › Settings' }, { t: 'row', label: 'Guest rule', value: '"Guests can\'t join"' }, { t: 'row', label: 'Lobby', value: 'check it first', hi: true }, { t: 'row', label: 'Auto-lock', value: '' }] },
         say: 'These four settings belong to the client\'s Webex admin. If the bot is missing, check the lobby list first. On any platform, attendees use the Mobile Link, ideally on a second device; on the same computer, mute the meeting tab.' },
       { kind: 'traps', title: 'Where people slip', points: ['Publishing before the Preview test, with the language list cut off.', 'Leaving the ON24 player unmuted: attendees hear two voices.', 'Asking for the client\'s ON24 admin password.', 'Pasting a link other than the attendee link.'] },
-      { kind: 'recap', title: 'Remember these four', points: ['Same bot model as Zoom: AI only, standard meeting, new ID', 'ON24: attendee link in KUDO, Mobile Link as a URL tool', 'Preview before publishing; the player stays muted', 'Webex: the client\'s admin owns the guest settings; check the lobby first'], next: 'Now practise it in Step 2. The step tracker at the top of the page shows what is left.' },
+      { kind: 'recap', title: 'Remember these four', points: ['Same bot model as Zoom: standard meeting, new ID; Webex also takes interpreters', 'ON24: attendee link in KUDO, Mobile Link as a URL tool', 'Preview before publishing; the player stays muted', 'Webex: the client\'s admin owns the guest settings; check the lobby first'], next: 'Now practise it in Step 2. The step tracker at the top of the page shows what is left.' },
     ],
   },
 

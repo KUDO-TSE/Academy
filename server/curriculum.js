@@ -31,7 +31,7 @@ export const MODULES = [
       { title: 'Two ways to deliver languages', points: [
         'Human Interpretation (HI): professional interpreters work on dedicated language channels.',
         'AI Translation: KUDO listens to the speaker and translates live into speech, captions and transcripts.',
-        'Some scenarios are AI only: KUDO for Zoom and the external meeting platforms (Google Meet, Webex, ON24) work with AI Translation only.',
+        'On Zoom and the external meeting platforms, a KUDO bot joins the meeting. AI Translation works on all of them. Human Interpretation works on Zoom and Microsoft Teams (since May 2026, switched on account by account) and on Webex (all clients since November 2026); on ON24 it is a beta KUDO switches on by request.',
       ] },
       { title: 'The two AI types', points: [
         'AI Speech & Captions: one speaker, many listeners (keynotes, webinars, town halls). AI voice, captions, multilingual recordings and the AI customisation tools. About 90% of clients use it.',
@@ -294,7 +294,7 @@ export const MODULES = [
     ],
   },
   {
-    key: 'zoom', title: 'KUDO for Zoom', scenario: 'zoom', track: 'scenario', depth: 'setup', minutes: 75, delivery: 'ai',
+    key: 'zoom', title: 'KUDO for Zoom', scenario: 'zoom', track: 'scenario', depth: 'setup', minutes: 75, delivery: 'both',
     summary: 'AI translation next to a Zoom meeting: a bot listens in Zoom, attendees follow on the Mobile Link.',
     objectives: [
       'Explain the two-platform model: Zoom stays Zoom, attendees use the Mobile Link.',
@@ -305,7 +305,7 @@ export const MODULES = [
     sections: [
       { title: 'How it works', points: [
         'A KUDO bot joins the Zoom meeting as an external participant and listens. Attendees open translation in the KUDO Mobile Link, on a phone or a second tab.',
-        'KUDO for Zoom works with AI Translation only.',
+        'KUDO for Zoom works with AI Translation and, since May 2026 (KUDO 67.6), with Human Interpretation too, through the same bot with video and screen sharing. It is switched on account by account: check it is on for the client before you promise interpreters.',
       ] },
       { title: 'In Zoom', points: [
         'Three rules: a standard Meeting (not a Webinar), a new Meeting ID (not the Personal Meeting Room), not recurring.',
@@ -344,7 +344,7 @@ export const MODULES = [
     ],
   },
   {
-    key: 'external', title: 'External meeting platforms: Google Meet, Webex and ON24', scenario: 'external', track: 'scenario', depth: 'setup', minutes: 75, delivery: 'ai',
+    key: 'external', title: 'External meeting platforms: Google Meet, Webex and ON24', scenario: 'external', track: 'scenario', depth: 'setup', minutes: 75, delivery: 'both',
     summary: 'The same bot model on other platforms, with the settings each one uses to keep guests out.',
     objectives: [
       'Link a Google Meet, Webex or ON24 event to KUDO with External Meeting.',
@@ -354,7 +354,7 @@ export const MODULES = [
     ],
     sections: [
       { title: 'The shared model', points: [
-        'The bot rule is the same on every platform: the KUDO AI Translator bot joins the platform meeting by itself as an external, non-registered user (a guest), captures the audio and video and sends them to the matching KUDO meeting. Google Meet and Webex work exactly like Zoom. AI Translation only.',
+        'The bot rule is the same on every platform: the KUDO AI Translator bot joins the platform meeting by itself as an external, non-registered user (a guest), captures the audio and video and sends them to the matching KUDO meeting. Google Meet and Webex work exactly like Zoom. Webex takes both Human Interpretation and AI meetings, for all clients since November 2026 (KUDO 69.5); Google Meet takes AI Translation.',
         'What changes is each platform\'s own way to keep guests, bots or third-party recording out: Zoom end-to-end encryption, the waiting room and the recording request; Meet\'s access type and "ask to join"; Webex\'s guest rule, lobby and automatic lock; Teams\' lobby. Your job is to find the setting that blocks it.',
         'Platform rules: a standard meeting (not a webinar, seminar or live stream), a new meeting ID, not recurring.',
         'In KUDO: New meeting, AI speech translation meeting, same name, date and time; tick Force close meeting; turn on "External meeting: Using KUDO on another platform?", choose the Meeting platform (Microsoft Teams, Google Meet, Zoom or Webex) and paste the full join link. No option: ask the Client Manager. Detect language automatically and "Automatically record this meeting when it starts" on, same time zone.',
@@ -377,6 +377,7 @@ export const MODULES = [
         'Paste the attendee link in KUDO, then copy the KUDO Mobile Link.',
         'In ON24 Console Builder, Tools Manager, add the URL tool, paste the Mobile Link in Configuration and save. Resize so the full language list shows, test in Preview, then publish.',
         'The host must approve the bot. The ON24 webcast player must stay muted: KUDO is now the audio source. Two voices means the player is still on.',
+        'ON24 for interpreted meetings: a bot integration exists as a beta (KUDO 69.2). It is switched on by KUDO from the back end, on request, and does not appear in the Meeting platform list.',
         'Bot disconnected: Restart bot service in the KUDO dashboard.',
       ] },
     ],
@@ -733,6 +734,9 @@ export const MODULE_FOR_SCENARIO = Object.fromEntries(MODULES.filter((m) => m.sc
 
 // Decisions where sources disagree (shown in the admin Curriculum page).
 export const SOURCE_DECISIONS = [
+  { topic: 'Bot join time in AI meetings (all platforms)', decision: 'Confirmed by the Academy owner in November 2026: the bot joins 1 minute before the start of an AI meeting. The KUDO 69.4 release note says "a couple of minutes"; the confirmed rule is the one taught.' },
+  { topic: 'External meeting switch and platforms', decision: 'Confirmed by the Academy owner in November 2026 (screenshot of the scheduling page): the switch reads "External meeting: Using KUDO on another platform?" and the Meeting platform list is Microsoft Teams, Google Meet, Zoom and Webex. The KUDO 69.1 release note calls it "Meeting Integration"; the page label is the one taught. ON24 is not in the list: it is switched on from the back end on request.' },
+  { topic: 'Human Interpretation on bot platforms', decision: 'From the KUDO release notes, confirmed by the Academy owner: Human Interpretation works through the bot on Zoom and Microsoft Teams since KUDO 67.6 (May 2026, account by account), on Webex for all clients since KUDO 69.5 (26 November 2026), and on ON24 as a beta since KUDO 69.2. Google Meet: AI Translation.' },
   { topic: 'Bot join time', decision: 'AI meetings: 1 minute before the start. Human Interpretation meetings: 15 minutes before. The Guide says 15 minutes for Zoom and external platforms, which are AI meetings.' },
   { topic: 'Glossary limits', decision: 'Glossary video and Help Center: unlimited glossaries, one per meeting; Recognize and Do-not-translate 1,000, Replace and Block 500, Translate as 2,000 entries. The Guide figures (5 glossaries, 500 terms) are outdated.' },
   { topic: 'Venue Audio IN', decision: 'Human Interpretation only (confirmed by Nils). Venue Audio OUT works for both.' },
