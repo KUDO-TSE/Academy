@@ -254,7 +254,7 @@ function courseBtn(g, { href, onClick, strong, size = 'sm' }) {
 export function courseList(its, { hrefFor = () => null, onStep = () => {}, strong = false } = {}) {
   return h('ul', { class: 'wk-steps' }, courseGroups(its).map((g) => {
     const left = g.items.filter((i) => !i.done), done = !left.length, nextIt = left[0] || g.items[0], href = hrefFor(nextIt);
-    return h('li', { class: `wk-course ${done ? 'done' : ''}` },
+    return h('li', { class: `wk-course ${done ? 'done' : ''}`, 'data-mod': g.items[0].module && COURSE_KINDS.has(g.items[0].kind) ? g.items[0].module : null },
       h('span', { class: `wk-tk ${done ? 'on' : ''}`, 'aria-label': done ? 'Done' : 'Not done yet' }, done ? tick(12) : null),
       h('div', { class: 'wk-st' },
         h('div', { class: 'wk-stt' }, href ? h('a', { href, on: { click: () => onStep(nextIt) } }, g.title) : g.title),
@@ -269,7 +269,14 @@ export function courseList(its, { hrefFor = () => null, onStep = () => {}, stron
 /** My courses: the three months as tabs, and the selected month week by week. */
 export function monthPlan({ items, week, phases, levels = [], modules = [], hrefFor = () => null, onStep = () => {} }) {
   const cur = monthOfWeek(phases, week);
-  let sel = cur.n; try { const s = Number(sessionStorage.getItem('academy.month')); if (phases.some((p) => p.n === s)) sel = s; sessionStorage.removeItem('academy.month'); } catch { /* storage off */ }
+  let sel = cur.n, focus = null;
+  try {
+    const s = Number(sessionStorage.getItem('academy.month')); if (phases.some((p) => p.n === s)) sel = s; sessionStorage.removeItem('academy.month');
+    // "Go to course" from My results: open the course's month and point at it.
+    focus = sessionStorage.getItem('academy.course'); sessionStorage.removeItem('academy.course');
+    const fi = focus && items.filter((i) => i.module === focus && COURSE_KINDS.has(i.kind) && i.week).sort((x, y) => x.week - y.week)[0];
+    if (fi) sel = (phases.find((p) => fi.week >= p.weeks[0] && fi.week <= p.weeks[1]) || cur).n; else focus = null;
+  } catch { /* storage off */ }
   const body = h('div', { class: 'mp-body', 'aria-live': 'polite' });
   const tabs = h('div', { class: 'mp-tabs', role: 'tablist', 'aria-label': 'The three months' });
   const shortOf = (s) => levels.find((l) => l.scenario === s)?.short || null;
@@ -295,5 +302,6 @@ export function monthPlan({ items, week, phases, levels = [], modules = [], href
       }));
   };
   draw();
+  if (focus) setTimeout(() => { const row = body.querySelector(`[data-mod="${CSS.escape(focus)}"]`); if (!row) return; row.scrollIntoView({ behavior: 'smooth', block: 'center' }); row.classList.add('ct-flash'); setTimeout(() => row.classList.remove('ct-flash'), 3400); }, 350);
   return h('section', { class: 'card month-plan plan-weeks' }, h('div', { class: 'sec-head' }, h('h2', null, "My Quarter's Program, month by month"), h('p', { class: 'muted small' }, 'Pick a month to see it week by week. Each course is all-in-one: learn, practise, decide, explain and check.')), tabs, body);
 }
