@@ -87,7 +87,8 @@ const MOODS = {
   idle: null,
   listening: [{ clip: 'Idle', pose: 'listen', dur: 99, fx: 'wagSoft' }],
   thinking: [{ clip: 'Idle', pose: 'think', dur: 2.5 }, { clip: 'Idle', pose: 'scratch', dur: 1.8, fx: 'scratch' }, { clip: 'Idle', pose: 'think', dur: 99 }],
-  bark: [...R.bark, { clip: 'Idle', pose: 'sit', dur: 2, fx: 'wagSoft' }],
+  // Barking for the speech bubbles: the bubble says Woof!, so no Woof! sprite here (fx 'yap' = the same head snaps).
+  bark: [{ clip: 'Idle', pose: 'stand', dur: 0.3 }, { clip: 'Idle', pose: 'stand', dur: 1.7, fx: 'yap' }, { clip: 'Idle', pose: 'stand', dur: 1.2 }, { clip: 'Idle', pose: 'sit', dur: 2, fx: 'wagSoft' }],
   happy: [{ clip: 'Jump_ToIdle', pose: 'stand', dur: 1.33, fx: 'wagFast' }, { clip: 'Idle', pose: 'stand', dur: 2, fx: 'wagFast' }, { clip: 'Idle', pose: 'sit', dur: 2 }],
   excited: [{ clip: 'Gallop', pose: 'stand', dur: 2.6, move: 'circleFast', fx: 'wagFast' }, { clip: 'Gallop_Jump', pose: 'stand', dur: 0.93 }, { clip: 'Idle', pose: 'stand', dur: 1.7, fx: 'bark' }, { clip: 'Idle', pose: 'sit', dur: 2 }],
   concerned: [{ clip: 'Idle', pose: 'sad', dur: 7, fx: 'earsDown' }, { clip: 'Idle', pose: 'sit', dur: 2 }],
@@ -259,7 +260,7 @@ export function createKudog3D({ label = 'KUDOG', onPet = null, closeUp = null, f
     // Scratching: fast kicks of the lifted hind leg, the head leaning into it.
     if (fx === 'scratch' && !reduce) { add('BackLegL.x', Math.sin(t * 22) * 0.22); add('BackUpperLegL.x', Math.sin(t * 22 + 0.5) * 0.3); add('Neck2.y', Math.sin(t * 22) * 0.03); }
     // Barking: three sharp head snaps up.
-    if (fx === 'bark' && !reduce) { const bp = (stepT % 0.55) / 0.55; const snap = bp < 0.28 ? Math.sin((bp / 0.28) * Math.PI) : 0; add('Neck2.x', snap * 0.35); add('Head.x', snap * 0.25); }
+    if ((fx === 'bark' || fx === 'yap') && !reduce) { const bp = (stepT % 0.55) / 0.55; const snap = bp < 0.28 ? Math.sin((bp / 0.28) * Math.PI) : 0; add('Neck2.x', snap * 0.35); add('Head.x', snap * 0.25); }
     // Tail: a wag, faster when happy, low when sad, still when asleep.
     const wag = fx === 'wagFast' ? [13, 0.55] : fx === 'wagSoft' ? [5, 0.25] : fx === 'sleep' || fx === 'earsDown' ? [1.2, 0.05] : step?.move ? [7, 0.3] : [3.4, 0.2];
     add('Tail1.z', Math.sin(t * wag[0]) * wag[1]); add('Tail2.z', Math.sin(t * wag[0] - 0.8) * wag[1] * 0.7);
