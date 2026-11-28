@@ -1,5 +1,5 @@
 import { h, api, toast, fmtDate, svg, tipI, metaRow, mark } from './ui.js';
-import { weeksCard, readinessCard, levelsCard, weeksLabel } from './home.js';
+import { monthsCard, monthPlan, courseList, readinessCard, levelsCard } from './home.js';
 import { SCENARIOS as SANDBOXES } from './sandbox.js';
 import { storyPlayer } from './story.js';
 import { revealNew } from './collectibles.js';
@@ -10,7 +10,6 @@ const mine = (i) => (i.owner || 'you') === 'you';
 
 // ------------------------------------------------------------------ shared bits
 export const KIND_LABEL = { scenario: 'Decision walkthrough', explain: 'Explain it', survey: 'Survey', lesson: 'Lesson', practice: 'Practice', check: 'Check', review: 'Spaced review', baseline: 'Baseline check', one_to_one: 'With your KUDO Trainer', milestone: 'Milestone', missed: 'Review', teach: 'Teach-back' };
-const KIND_CHIP = { scenario: 'amber', explain: 'coral', survey: 'grey', lesson: 'blue', practice: 'amber', check: 'green', review: 'green', baseline: 'green', one_to_one: 'coral', milestone: 'coral', missed: 'blue', teach: 'amber' };
 export const DEPTH_LABEL = { know: 'Know', setup: 'Set up', handover: 'Hand over' };
 const check = () => svg('<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>');
 const first = (n) => { const m = String(n || '').match(/\(([^)]+)\)/); return m ? `${m[1]} (test)` : String(n || '').split(' ')[0]; };
@@ -24,20 +23,7 @@ function itemHref(it) {
 }
 /** Remember which step of a module to open on: the module page scrolls to it once drawn. */
 export const focusStep = (kind) => { try { if (['lesson', 'practice', 'scenario', 'explain', 'check'].includes(kind)) sessionStorage.setItem('academy.focusStep', kind); } catch { /* not kept */ } };
-const ACTION = new Proxy({}, { get: () => 'Take the course' }); // every step opens its course: one wording everywhere
 
-function itemRow(it, { readOnly, compact } = {}) {
-  const href = itemHref(it);
-  const status = it.done ? h('span', { class: 'tick done', 'aria-label': 'Done' }, check()) : h('span', { class: 'tick', 'aria-label': 'Not done yet' });
-  return h('div', { class: `pi ${it.done ? 'done' : ''}` }, status,
-    h('div', { class: 'pi-main' },
-      h('div', { class: 'pi-t' }, href && !readOnly ? h('a', { href, on: { click: () => focusStep(it.kind) } }, it.title) : it.title),
-      h('div', { class: 'pi-meta' }, h('span', { class: `chip ${KIND_CHIP[it.kind] || 'grey'}` }, KIND_LABEL[it.kind] || it.kind), h('span', { class: 'muted small' }, `${it.minutes} min`),
-        it.owner === 'jack' ? h('span', { class: 'muted small' }, 'Your KUDO Trainer books this') : null, it.mandatory ? h('span', { class: 'muted small' }, 'Core') : null, !compact && it.why ? tipI(it.why) : null,
-        it.recorded != null ? h('span', { class: `chip ${it.below ? 'amber' : 'green'}` }, `Recorded ${it.recorded}%`) : null, it.signoff && it.done && it.signed_off ? h('span', { class: 'chip green' }, 'Signed off') : null, it.how ? h('span', { class: 'muted small' }, it.how) : null),
-      null),
-    href && !readOnly && !it.done && !compact ? h('a', { class: 'btn sm', href, on: { click: () => focusStep(it.kind) } }, ACTION[it.kind] || 'Open') : null);
-}
 
 
 
@@ -58,9 +44,9 @@ function videoBlock(m, admin) {
 // Warm-up before a recorded check: the formats on neutral content, marked in the browser, never stored.
 function warmUp() {
   const items = [
-    { t: 'mcq', q: 'How long is the Academy programme?', o: ['6 weeks', '12 weeks', '6 months', 'One year'], a: 1, why: 'Twelve weeks in four sections of three weeks' },
-    { t: 'multi', q: 'Which of these are sections of your 12 weeks?', pick: 2, o: ['Start with the essentials', 'Expand and get certified', 'Holiday', 'Onboarding'], a: [0, 1], why: 'Start with the essentials, Master your priority scenarios, Cover every scenario, Expand and get certified' },
-    { t: 'order', q: 'Put the four sections in order', steps: ['Start with the essentials', 'Master your priority scenarios', 'Cover every scenario', 'Expand and get certified'], why: 'From the basics to the retest, three weeks each' },
+    { t: 'mcq', q: 'How long is the Academy programme?', o: ['6 weeks', '12 weeks', '6 months', 'One year'], a: 1, why: 'Twelve weeks, in three months of four weeks' },
+    { t: 'multi', q: 'Which of these are in every course?', pick: 2, o: ['Learn', 'Practise', 'A holiday week', 'An exam board'], a: [0, 1], why: 'Every course is all-in-one: learn, practise, decide, explain and check' },
+    { t: 'order', q: 'Put the steps of a course in order', steps: ['Learn', 'Practise', 'Explain it', 'Check'], why: 'Learn it, practise it, explain it, then prove it with the check' },
   ];
   const shuffle = (a) => a.map((x) => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map((p) => p[1]);
   const box = h('div');
@@ -109,7 +95,6 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
   }
   const { plan, state: st, settings } = data;
   const paceChip = { on: ['green', 'On pace'], close: ['amber', 'Slightly behind pace'], behind: ['coral', 'Behind pace'] }[st.progress.pace];
-  const byPhase = data.phases.map((p) => ({ ...p, items: st.items.filter((i) => i.phase === p.n) }));
   // This week = what is due by now and not done yet, on the trainee's side, oldest first.
   const thisWeek = st.items.filter((i) => !i.done && (i.owner || 'you') === 'you' && i.week <= st.week).sort((a, b) => a.week - b.week).slice(0, 6);
   const fmtMin = (m) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? `${m % 60} min` : ''}`.trim() : `${m} min`);
@@ -138,38 +123,19 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
           h('div', null, h('div', { class: 'pt-big' }, `${myDone} of ${mySteps.length}`), h('div', { class: 'muted small' }, 'steps done'))),
         h('div', { class: 'muted small' }, `${data.phases.find((p) => st.week >= p.weeks[0] && st.week <= p.weeks[1])?.name || ''}, weeks ${(data.phases.find((p) => st.week >= p.weeks[0] && st.week <= p.weeks[1]) || { weeks: [1, 3] }).weeks.join(' to ')}`)),
       readinessCard({ progression: st.progression || [], start: st.readiness.start, now: st.readiness.now, compact: true, cls: 'span-4', firstCheck: st.items.find((i) => mine(i) && !i.done && ['check', 'baseline', 'review'].includes(i.kind))?.title || null })),
-    weeksCard({ title: 'My 12-weeks program', items: st.items, week: st.week, weeks: st.weeks, phases: data.phases, levels: st.levels, modules: data.modules, hrefFor: readOnly ? () => null : itemHref, onStep: (it) => focusStep(it.kind), pace: paceChip }),
+    monthsCard({ items: st.items, week: st.week, phases: data.phases, levels: st.levels, modules: data.modules, pace: paceChip, onOpen: readOnly ? () => {} : null }),
     levelsCard(st.levels),
     data.shared?.length ? h('div', { class: 'card' }, h('h2', null, 'Notes from your KUDO Trainer sessions'), data.shared.map((n) => h('div', { class: 'note-box' }, h('b', null, n.title), h('div', null, n.text), h('div', { class: 'when' }, fmtDate(n.on))))) : null,
   ];
 
-  // ---- My courses: the work on the left (this week, then the plan week by week), support on the right.
-  const phaseBar = h('nav', { class: 'phasebar', 'aria-label': 'The four phases' }, byPhase.map((p) => {
-    const mine = p.items.filter((i) => (i.owner || 'you') === 'you'), done = mine.filter((i) => i.done).length;
-    const isNow = st.week >= p.weeks[0] && st.week <= p.weeks[1], past = st.week > p.weeks[1];
-    return h('div', { class: `pb-ph ${isNow ? 'now' : past ? 'past' : ''}` },
-      h('div', { class: 'pb-top' }, h('b', null, p.name), h('span', null, `${done}/${mine.length}`)),
-      h('div', { class: 'bar' }, h('i', { style: `width:${mine.length ? Math.round((done / mine.length) * 100) : 0}%` })),
-      h('small', null, isNow ? `${weeksLabel(p)}, you are here` : weeksLabel(p)));
-  }));
+  // ---- My courses: the work on the left (this week, then the plan month by month, week by week), support on the right.
   const training = [
-    phaseBar,
     h('div', { class: 'bento training-grid' },
       h('div', { class: 'span-8 stack' },
         h('section', { class: 'card this-week' }, h('div', { class: 'row spread' }, h('h2', null, thisWeek.length ? 'This week' : 'My next courses'),
             h('span', { class: 'chip blue' }, thisWeek.length ? `${thisWeek.length} step${thisWeek.length > 1 ? 's' : ''}, about ${fmtMin(minWeek)}` : 'You are ahead of your plan')),
-          thisWeek.length ? thisWeek.map((it) => itemRow(it, { readOnly })) : st.next.length ? st.next.map((it) => itemRow(it, { readOnly })) : h('div', { class: 'ok', style: 'margin-top:10px' }, 'Everything on your side is done. Well done.')),
-        h('section', { class: 'plan-weeks' },
-          h('div', { class: 'sec-head' }, h('h2', null, 'Your plan, week by week'), h('p', { class: 'muted small' }, 'The phase you are in is open. Open the others to look back or ahead.')),
-          h('div', { class: 'phases' }, byPhase.map((p) => {
-            const done = p.items.filter((i) => i.done).length;
-            const weeks = [...new Set(p.items.map((i) => i.week))].sort((x, y) => x - y);
-            const isNow = st.week >= p.weeks[0] && st.week <= p.weeks[1];
-            return h('details', { class: `card phase ${isNow ? 'now' : ''}`, open: isNow },
-              h('summary', { class: 'row spread' }, h('div', null, h('h2', null, p.name), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, p.aim), h('div', { class: 'phase-meta' }, metaRow([`Phase ${p.n}`, weeksLabel(p).toLowerCase(), isNow ? 'you are here' : null]))), h('span', { class: 'chip grey' }, `${done}/${p.items.length}`)),
-              weeks.map((w) => { const wi = p.items.filter((i) => i.week === w); const wd = wi.filter((i) => i.done).length;
-                return h('div', { class: 'wk' }, h('div', { class: `wk-h ${w === st.week ? 'now' : ''}` }, h('span', null, `Week ${w}${w === st.week ? ', this week' : ''}`), h('span', { class: 'wk-n' }, `${wd}/${wi.length}`)), wi.map((it) => itemRow(it, { readOnly, compact: false }))); }));
-          })))),
+          thisWeek.length ? courseList(thisWeek, { hrefFor: readOnly ? () => null : itemHref, onStep: (it) => focusStep(it.kind), strong: true }) : st.next.length ? courseList(st.next, { hrefFor: readOnly ? () => null : itemHref, onStep: (it) => focusStep(it.kind), strong: true }) : h('div', { class: 'ok', style: 'margin-top:10px' }, 'Everything on your side is done. Well done.')),
+        monthPlan({ items: st.items, week: st.week, phases: data.phases, levels: st.levels, modules: data.modules, hrefFor: readOnly ? () => null : itemHref, onStep: (it) => focusStep(it.kind) })),
       h('aside', { class: 'span-4 stack' },
         h('section', { class: 'card focus-card' }, h('h2', null, 'Your three focus areas'), h('p', { class: 'sub keep' }, plan.focusPinned ? 'Chosen with your KUDO Trainer' : 'Picked from your results, your clients and the team priorities'),
           plan.focus.length ? plan.focus.map((s2) => { const l = st.levels.find((x) => x.scenario === s2); const pct = Math.min(100, Math.round((l.now / Math.max(1, l.target)) * 100));

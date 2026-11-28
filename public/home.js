@@ -196,3 +196,96 @@ export function levelsCard(levels) {
         h('div', { class: 'lvl-nums' }, h('b', null, `${l.now}%`), h('span', null, `started at ${l.baseline}%, target ${l.target}%`), dv ? h('span', { class: dv > 0 ? 'up' : 'down' }, `${dv > 0 ? '+' : ''}${dv}`) : null));
     })));
 }
+
+// ------------------------------------------------------------------ Months (Home: My 12-weeks program; My courses)
+// Three months of four weeks, each with a light colour of its own (sky, sand, mint) so a trainee sees where they are.
+const monthOfWeek = (phases, w) => phases.find((p) => w >= p.weeks[0] && w <= p.weeks[1]) || phases.at(-1);
+const SHORT_MOD = { foundations: 'Foundations', glossary: 'Glossary', network: 'IT and networks', marketplace: 'Marketplace', ringcentral: 'RingCentral' };
+const nameFor = (it, levels, modules) => (SHORT_MOD[it.module] || levels.find((l) => l.scenario === it.scenario)?.short || modules.find((m) => m.key === it.module)?.title || '').split(':')[0].replace(/\.+$/, '').trim();
+const joinAnd = (a) => (a.length < 2 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a.at(-1)}`);
+
+/** In a few words, what a month teaches: its courses (full ones first), then the sessions with the KUDO Trainer. */
+export function monthRecap(its, { levels = [], modules = [] } = {}) {
+  const mineIts = its.filter(mine);
+  const full = [...new Set(mineIts.filter((i) => i.kind === 'lesson').map((i) => nameFor(i, levels, modules)).filter(Boolean))];
+  const parts = [];
+  if (mineIts.some((i) => i.kind === 'baseline')) parts.push('A short baseline check to start.');
+  if (full.length) parts.push(`You learn ${joinAnd(full.length > 3 ? [...full.slice(0, 3), `${full.length - 3} more`] : full)}.`);
+  const extra = [mineIts.some((i) => i.kind === 'review') && 'spaced reviews', mineIts.some((i) => /^Quick check/.test(i.title)) && 'quick checks'].filter(Boolean);
+  if (extra.length) parts.push(`${full.length ? 'Plus' : 'Mostly'} ${joinAnd(extra)}.`);
+  const tr = [...new Set(its.filter((i) => i.owner === 'jack').map((i) => (i.key === 'kickoff' ? 'your kick-off' : i.key === 'midpoint' ? 'a mid-point check-in' : i.key === 'mock' ? 'a mock client call' : i.kind === 'milestone' ? 'the retest' : 'coaching')))];
+  if (tr.length) parts.push(`With your KUDO Trainer: ${joinAnd(tr)}.`);
+  return parts.join(' ') || 'A lighter month: catch up or get ahead.';
+}
+
+/** Home: three month cards. Each opens My courses on that month. */
+export function monthsCard({ items, week, phases, levels = [], modules = [], title = 'My 12-weeks program', pace = null, onOpen = null }) {
+  const cur = monthOfWeek(phases, week);
+  const all = items.filter(mine), allDone = all.filter((i) => i.done).length;
+  return h('section', { class: 'card roadmap-card months' },
+    h('div', { class: 'wk-head' },
+      h('div', null, h('h2', null, title), h('p', { class: 'sub' }, `Week ${week} of 12, ${cur.name}. ${allDone} of ${all.length} steps done.`)),
+      pace ? h('span', { class: `chip ${pace[0]}` }, pace[1]) : null),
+    h('div', { class: 'mo-grid' }, phases.map((p) => {
+      const its = items.filter((i) => i.week >= p.weeks[0] && i.week <= p.weeks[1]), mi = its.filter(mine), d = mi.filter((i) => i.done).length;
+      const pct = mi.length ? Math.round((d / mi.length) * 100) : 0;
+      const state = p.n === cur.n ? 'now' : week > p.weeks[1] ? 'past' : 'next';
+      const status = state === 'now' ? `You are here: week ${week}` : state === 'past' ? (d === mi.length ? 'Done' : `${mi.length - d} step${mi.length - d > 1 ? 's' : ''} to catch up`) : `Starts week ${p.weeks[0]}`;
+      const open = () => { try { sessionStorage.setItem('academy.month', String(p.n)); } catch { /* storage off */ } if (onOpen) onOpen(p.n); else location.hash = '#training'; };
+      return h('button', { type: 'button', class: `mo-card m${p.n} is-${state}`, on: { click: open }, 'aria-label': `${p.name}, weeks ${p.weeks[0]} to ${p.weeks[1]}. ${status}. Open in My courses` },
+        h('div', { class: 'mo-top' }, h('span', { class: 'mo-name' }, p.name), h('span', { class: 'mo-weeks' }, `Weeks ${p.weeks[0]} to ${p.weeks[1]}`)),
+        h('p', { class: 'mo-recap' }, monthRecap(its, { levels, modules })),
+        h('div', { class: 'mo-foot' },
+          h('div', { class: 'mo-bar', role: 'img', 'aria-label': `${d} of ${mi.length} steps done` }, h('i', { style: `--w:${pct}%` })),
+          h('div', { class: 'mo-meta' }, h('span', { class: `mo-status ${state}` }, status), h('span', null, `${d} of ${mi.length}`)),
+          h('span', { class: 'mo-open' }, 'Open the month')));
+    })));
+}
+
+/** One week's courses: the steps of a module make one all-in-one course, with one Take the course button. */
+export function courseList(its, { hrefFor = () => null, onStep = () => {}, strong = false } = {}) {
+  return h('ul', { class: 'wk-steps' }, courseGroups(its).map((g) => {
+    const left = g.items.filter((i) => !i.done), done = !left.length, nextIt = left[0] || g.items[0], href = hrefFor(nextIt);
+    return h('li', { class: `wk-course ${done ? 'done' : ''}` },
+      h('span', { class: `wk-tk ${done ? 'on' : ''}`, 'aria-label': done ? 'Done' : 'Not done yet' }, done ? tick(12) : null),
+      h('div', { class: 'wk-st' },
+        h('div', { class: 'wk-stt' }, href ? h('a', { href, on: { click: () => onStep(nextIt) } }, g.title) : g.title),
+        h('div', { class: 'wk-stm' },
+          g.items.length > 1 ? g.items.map((i) => h('span', { class: `wk-step ${i.done ? 'on' : ''}` }, i.done ? tick(10) : null, STEP[i.kind] || KIND[i.kind] || 'Step')) : h('span', { class: `chip ${KIND_CHIP[g.items[0].kind] || 'grey'}` }, KIND[g.items[0].kind] || 'Step'),
+          h('span', null, mins(g.items.reduce((t, i) => t + (i.minutes || 0), 0))),
+          g.items.filter((i) => i.recorded != null).map((i) => h('span', { class: `chip ${i.below ? 'amber' : 'green'}` }, `${STEP[i.kind] || 'Score'} ${i.recorded}%`)))),
+      href && !done ? h('a', { class: `btn sm ${strong ? 'primary' : ''}`, href, on: { click: () => onStep(nextIt) } }, 'Take the course') : null);
+  }));
+}
+
+/** My courses: the three months as tabs, and the selected month week by week. */
+export function monthPlan({ items, week, phases, levels = [], modules = [], hrefFor = () => null, onStep = () => {} }) {
+  const cur = monthOfWeek(phases, week);
+  let sel = cur.n; try { const s = Number(sessionStorage.getItem('academy.month')); if (phases.some((p) => p.n === s)) sel = s; sessionStorage.removeItem('academy.month'); } catch { /* storage off */ }
+  const body = h('div', { class: 'mp-body', 'aria-live': 'polite' });
+  const tabs = h('div', { class: 'mp-tabs', role: 'tablist', 'aria-label': 'The three months' });
+  const shortOf = (s) => levels.find((l) => l.scenario === s)?.short || null;
+  const draw = () => {
+    tabs.replaceChildren(...phases.map((p) => {
+      const mi = items.filter((i) => mine(i) && i.week >= p.weeks[0] && i.week <= p.weeks[1]), d = mi.filter((i) => i.done).length;
+      return h('button', { type: 'button', role: 'tab', 'aria-selected': String(p.n === sel), class: `mp-tab m${p.n} ${p.n === sel ? 'is-sel' : ''} ${p.n === cur.n ? 'is-now' : ''}`, on: { click: () => { sel = p.n; draw(); } } },
+        h('b', null, p.name), h('span', null, `Weeks ${p.weeks[0]} to ${p.weeks[1]}${p.n === cur.n ? ', you are here' : ''}`),
+        h('i', { class: 'mo-bar' }, h('i', { style: `--w:${mi.length ? Math.round((d / mi.length) * 100) : 0}%` })));
+    }));
+    const p = phases.find((x) => x.n === sel), its = items.filter((i) => i.week >= p.weeks[0] && i.week <= p.weeks[1]);
+    body.className = `mp-body m${p.n}`;
+    body.replaceChildren(
+      h('p', { class: 'mp-recap' }, monthRecap(its, { levels, modules })),
+      ...Array.from({ length: p.weeks[1] - p.weeks[0] + 1 }, (_, k) => {
+        const w = p.weeks[0] + k, wi = its.filter((i) => i.week === w), mi = wi.filter(mine), jk = wi.filter((i) => i.owner === 'jack'), d = mi.filter((i) => i.done).length;
+        const state = w === week ? 'now' : w < week ? (d === mi.length ? 'done' : 'late') : 'next';
+        const chip = { now: ['amber', 'This week'], done: ['green', 'Done'], late: ['coral', `${mi.length - d} to catch up`], next: ['grey', w === week + 1 ? 'Next week' : `In ${w - week} weeks`] }[state];
+        return h('section', { class: `mp-week is-${state}` },
+          h('div', { class: 'mp-wh' }, h('div', null, h('h3', null, `Week ${w}`), h('span', { class: 'muted small' }, mi.length ? `${d} of ${mi.length} steps done, about ${mins(mi.filter((i) => !i.done).reduce((t, i) => t + (i.minutes || 0), 0))} left` : 'No steps of yours: catch up or get ahead')), h('span', { class: `chip ${chip[0]}` }, chip[1])),
+          jk.length ? h('ul', { class: 'wk-trainer' }, jk.map((it) => { const e = event(it, shortOf); return h('li', { class: it.done ? 'done' : '' }, h('span', { class: 'wk-ti' }, icon(e.ic)), h('div', null, h('b', null, e.label), h('span', null, it.done ? 'Done' : `With your KUDO Trainer${it.minutes ? `, ${mins(it.minutes)}` : ''}. They book it with you.`))); })) : null,
+          mi.length ? courseList(mi, { hrefFor, onStep, strong: state === 'now' || state === 'late' }) : null);
+      }));
+  };
+  draw();
+  return h('section', { class: 'card month-plan plan-weeks' }, h('div', { class: 'sec-head' }, h('h2', null, 'My 12-weeks program, month by month'), h('p', { class: 'muted small' }, 'Pick a month to see it week by week. Each course is all-in-one: learn, practise, decide, explain and check.')), tabs, body);
+}

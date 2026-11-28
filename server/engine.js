@@ -1,7 +1,7 @@
 // The programme engine. It turns the inputs we hold about a trainee (Self Assessment, knowledge test, missed questions,
 // profile, in-app checks, practice sign-offs and the Academy team's inputs such as 1:1 notes or call reviews) into:
 //   1. a level estimate per scenario (where you are now),
-//   2. a 12-week personal plan in four phases (what the next three months look like),
+//   2. a 12-week personal plan in three months (what the next three months look like),
 //   3. a projection (where you will be at the end).
 // Plans are versioned. A new structure is saved as a draft and only reaches the trainee once the Academy owner approves it.
 // Progress (ticks, check scores, levels) is live and never needs approval.
@@ -21,10 +21,9 @@ export const DEFAULT_SETTINGS = {
   target: 80,
 };
 export const PHASES = [
-  { n: 1, name: 'Start with the essentials', short: 'Essentials', weeks: [1, 3], aim: 'The KUDO basics and the platform, your kick-off, then your first priority course.' },
-  { n: 2, name: 'Master your priority scenarios', short: 'Priority scenarios', weeks: [4, 6], aim: 'Your focus scenarios, one all-in-one course at a time: learn, practise, decide, explain and check.' },
-  { n: 3, name: 'Cover every scenario', short: 'Every scenario', weeks: [7, 9], aim: 'The other scenarios your role covers, by priority, with spaced reviews of your focus scenarios.' },
-  { n: 4, name: 'Expand and get certified', short: 'Certification', weeks: [10, 12], aim: 'The cross-cutting topics, a mock client call, final reviews and the retest.' },
+  { n: 1, name: 'Month 1', short: 'Month 1', weeks: [1, 4], aim: 'The KUDO basics, the platform and your priority scenarios first.' },
+  { n: 2, name: 'Month 2', short: 'Month 2', weeks: [5, 8], aim: 'Your priority scenarios, then the other scenarios your role covers, with spaced reviews.' },
+  { n: 3, name: 'Month 3', short: 'Month 3', weeks: [9, 12], aim: 'The remaining scenarios and topics, a mock client call, final reviews and the retest.' },
 ];
 const clamp = (n, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
 const round = (n) => Math.round(n);
@@ -222,7 +221,7 @@ export function buildPlan(u, ctx, { keepFocus = null } = {}) {
     add({ key: `${mkey}.check`, kind: 'check', module: mkey, scenario: s, phase, week, title: `Check: ${m.title}`, why: `Your first attempt is the score we keep (aim for ${Math.round(PASS * 100)}%). Retake it afterwards as often as you like to practise.`, minutes: 10, mandatory: focusItem });
   };
 
-  // Section 1 (Start with the essentials): the kick-off, the baseline, the foundations, the platform, the October questions
+  // The essentials: the kick-off, the baseline, the foundations, the platform, the October questions
   add({ key: 'kickoff', kind: 'one_to_one', phase: 1, week: 1, title: 'Kick-off with your KUDO Trainer', why: 'Agree your goal and walk through this plan together.', owner: 'jack', minutes: 30, mandatory: true });
   const estimatedFocus = focus.some((s) => ['self', 'estimated', 'none'].includes(levels.per[s].source));
   if (!levels.hasPerScenarioTest || estimatedFocus) block(1, () => add({ key: 'baseline', kind: 'baseline', phase: 1, title: 'Baseline check: one question per scenario', why: 'You have no per-scenario test result yet, so this short check replaces the estimate and sharpens your plan.', minutes: 15, mandatory: true }));
@@ -232,7 +231,7 @@ export function buildPlan(u, ctx, { keepFocus = null } = {}) {
   if (!focus.includes('platform')) block(1, () => moduleItems('platform', { phase: 1, full: levels.per.platform.est < tgt('platform'), s: 'platform' }));
   if (missed.length) block(1, () => add({ key: 'missed', kind: 'missed', phase: 1, title: `Revisit the ${missed.length} question${missed.length > 1 ? 's' : ''} you missed in October`, why: 'Answer each one out loud before revealing the answer: retrieval makes it stick.', minutes: 20, mandatory: true }));
 
-  // Section 2 (Master your priority scenarios): the focus scenarios, each an all-in-one course, with its coaching session
+  // Your priority scenarios: the focus scenarios, each an all-in-one course, with its coaching session
   const coachMax = pref === '1:1 Coaching' ? 2 : 1;
   const coachOn = new Set(focus.filter((s) => levels.per[s].est < 50 || pref === '1:1 Coaching').sort((a, b) => levels.per[a].est - levels.per[b].est).slice(0, coachMax));
   focus.forEach((s) => {
@@ -244,7 +243,7 @@ export function buildPlan(u, ctx, { keepFocus = null } = {}) {
   });
   if (focus.includes('ai') || levels.per.ai.est < tgt('ai')) block(2, () => moduleItems('glossary', { phase: 2, full: true }));
 
-  // Sections 3 and 4 (Cover every scenario, Expand and get certified): the other scenarios and the cross-cutting topics, by personal priority
+  // Every other scenario and topic: the other scenarios and the cross-cutting topics, by personal priority
   const rest = pri.filter((p) => !focus.includes(p.scenario) && !placed.has(p.module));
   const restCross = ['glossary', 'network', 'marketplace', 'ringcentral'].filter((k) => !placed.has(k));
   // A scenario already at target only needs a quick check: those confirm what you know, so they go to the certification week (week 12).
@@ -253,7 +252,7 @@ export function buildPlan(u, ctx, { keepFocus = null } = {}) {
     .forEach((x) => { if (x.full) block(3, () => moduleItems(x.mk, { phase: 3, full: true, s: x.s })); else quick.push(x); });
   pri.filter((p) => p.under && levels.per[p.scenario].est >= tgt(p.scenario)).slice(0, 1).forEach((p) => block(3, () => add({ key: `teach.${p.module}`, kind: 'teach', module: p.module, scenario: p.scenario, phase: 3, title: `Teach ${short(p.scenario)} to a colleague`, why: `You scored ${levels.per[p.scenario].live}%, well above your own rating. You know more than you think: explaining it locks it in.`, minutes: 30 })));
 
-  // ---- Weeks. Four sections of three weeks. Weeks 1 to 11 carry the courses, in teaching order (the essentials, your
+  // ---- Weeks. Three months of four weeks. Weeks 1 to 11 carry the courses, in teaching order (the essentials, your
   // priority scenarios, then every other scenario and topic), spread so that no week is much heavier than another.
   // A course is all-in-one: learn, practise, decide, explain and check sit in the same week. Week 12 is for the final
   // reviews, the quick checks that confirm what you know, and the retest.
@@ -271,16 +270,14 @@ export function buildPlan(u, ctx, { keepFocus = null } = {}) {
     for (let j = k; j >= 1; j--) { const x = cut[j][i]; for (let y = x; y < i; y++) at[y] = j - 1; i = x; }
     return at;
   };
-  const sectionOf = (w) => PHASES.find((p) => w >= p.weeks[0] && w <= p.weeks[1])?.n || 4;
-  // The essentials and the priority courses fill sections 1 and 2 (weeks 1 to 6); every other scenario and topic fills
-  // weeks 7 to 11, so each section's title stays true. Within each part, the weeks are balanced. With fewer courses
-  // than weeks, they are spread out evenly instead of bunched at the start.
+  const sectionOf = (w) => PHASES.find((p) => w >= p.weeks[0] && w <= p.weeks[1])?.n || PHASES.length;
+  // In teaching order (the essentials, your priority scenarios, then every other scenario and topic), weeks 1 to 11 are
+  // balanced so the heaviest week is as light as possible. With fewer courses than weeks, they are spread out evenly.
   const place = (list, from, k) => {
     const at = list.length >= k ? partition(list.map(mineMin), k) : list.map((_, i) => Math.floor((i * k) / Math.max(1, list.length)));
     list.forEach((b, i) => b.items.forEach((it) => { const week = from + at[i]; items.push({ ...it, week, phase: sectionOf(week) }); }));
   };
-  place(courses.filter((b) => b.phase <= 2), 1, 6);
-  place(courses.filter((b) => b.phase === 3), 7, CONTENT_WEEKS - 6);
+  place(courses, 1, CONTENT_WEEKS);
   const phaseOfWeek = sectionOf;
   const weekOf = (key) => items.find((i) => i.key === key)?.week;
 
@@ -290,13 +287,13 @@ export function buildPlan(u, ctx, { keepFocus = null } = {}) {
   focus.forEach((s) => {
     const mk = MODULE_FOR_SCENARIO[s], wk = Math.min(CONTENT_WEEKS, (weekOf(`${mk}.check`) || weekOf(`${mk}.lesson`) || 5) + 3);
     add({ key: `review.${mk}`, kind: 'review', module: mk, scenario: s, phase: phaseOfWeek(wk), week: wk, title: `Spaced review: ${short(s)}`, why: 'Weeks after learning it, retrieve it again. This is what makes it last.', minutes: 10, mandatory: true });
-    add({ key: `review.final.${mk}`, kind: 'review', module: mk, scenario: s, phase: 4, week: 12, title: `Final review: ${short(s)}`, why: 'One last retrieval before the mock call and the retest.', minutes: 10, mandatory: true });
+    add({ key: `review.final.${mk}`, kind: 'review', module: mk, scenario: s, phase: 3, week: 12, title: `Final review: ${short(s)}`, why: 'One last retrieval before the mock call and the retest.', minutes: 10, mandatory: true });
   });
-  quick.forEach((x) => moduleItems(x.mk, { phase: 4, week: 12, full: false, s: x.s }));
+  quick.forEach((x) => moduleItems(x.mk, { phase: 3, week: 12, full: false, s: x.s }));
   const lead = focus[0];
-  add({ key: 'mock', kind: 'one_to_one', phase: 4, week: 11, title: `Mock client call with your KUDO Trainer${lead ? `: ${short(lead)}` : ''}`, why: 'Your KUDO Trainer plays the client. You set up the scenario, answer the hard questions and say when you would hand over.', owner: 'jack', minutes: 30, mandatory: true });
-  add({ key: 'survey', kind: 'survey', phase: 4, week: 12, title: 'Tell us how the programme worked for you', why: 'Ten questions. Your answers shape the next round of the Academy.', minutes: 5 });
-  add({ key: 'retest', kind: 'milestone', phase: 4, week: 12, title: 'Retest: the January knowledge test', why: 'Same format as October, so your progress is measured like for like.', owner: 'jack', minutes: 45, mandatory: true });
+  add({ key: 'mock', kind: 'one_to_one', phase: 3, week: 11, title: `Mock client call with your KUDO Trainer${lead ? `: ${short(lead)}` : ''}`, why: 'Your KUDO Trainer plays the client. You set up the scenario, answer the hard questions and say when you would hand over.', owner: 'jack', minutes: 30, mandatory: true });
+  add({ key: 'survey', kind: 'survey', phase: 3, week: 12, title: 'Tell us how the programme worked for you', why: 'Ten questions. Your answers shape the next round of the Academy.', minutes: 5 });
+  add({ key: 'retest', kind: 'milestone', phase: 3, week: 12, title: 'Retest: the January knowledge test', why: 'Same format as October, so your progress is measured like for like.', owner: 'jack', minutes: 45, mandatory: true });
   const phases = PHASES;
 
   const skip = new Set(Array.isArray(ov.skip) ? ov.skip : []);

@@ -23,7 +23,7 @@ export const CATALOG = [
   // Journey: milestones of the 12 weeks
   { key: 'first-step', set: 'Journey', tier: 'bronze', title: 'First step', earn: 'Log in to the KUDO Academy for the first time.', glyph: 'step' },
   { key: 'first-lesson', set: 'Journey', tier: 'bronze', title: 'Off the blocks', earn: 'Complete your first lesson.', glyph: 'flag' },
-  ...PHASES.map((p, i) => ({ key: `phase-${p.n}`, set: 'Journey', tier: i === 3 ? 'gold' : 'silver', title: `${p.short} cleared`, earn: `Finish every step of weeks ${p.weeks[0]} to ${p.weeks[1]} (${p.name}) that is yours to do.`, glyph: ['spark', 'build', 'broaden', 'trophy'][i] })),
+  ...PHASES.map((p, i) => ({ key: `phase-${p.n}`, set: 'Journey', tier: i === PHASES.length - 1 ? 'gold' : 'silver', title: `${p.name} cleared`, earn: `Finish every step of ${p.name} (weeks ${p.weeks[0]} to ${p.weeks[1]}) that is yours to do.`, glyph: ['spark', 'build', 'trophy'][i] })),
   { key: 'client-ready', set: 'Journey', tier: 'gold', title: 'Client-ready', earn: 'Complete your mock client call with your KUDO Trainer.', glyph: 'handshake' },
   { key: 'graduate', set: 'Journey', tier: 'gold', title: 'Graduate', earn: 'Take the 3-month retest.', glyph: 'cap' },
   // Scenarios: the 12 client scenarios

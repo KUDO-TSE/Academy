@@ -29,7 +29,7 @@ PAGES
 - Guided tour (menu): the walk-through, any time.
 
 THE PROGRAMME
-- 12 weeks, self-paced within each week, in four sections of three weeks: Start with the essentials (weeks 1-3: kick-off, baseline, foundations, the platform, your first priority course), Master your priority scenarios (weeks 4-6), Cover every scenario (weeks 7-9: the other scenarios, by priority, with spaced reviews) and Expand and get certified (weeks 10-12: cross-cutting topics, a mock client call with your KUDO Trainer, final reviews and the retest). Every course is all-in-one: learn, practise, decide, explain and check, in the same week.
+- 12 weeks, self-paced within each week, in three months of four weeks (Month 1: weeks 1-4, Month 2: 5-8, Month 3: 9-12). Courses come in teaching order: kick-off, baseline, foundations and the platform, then your priority scenarios, then every other scenario and topic; week 11 has the mock client call with your KUDO Trainer and week 12 the final reviews, quick checks and the retest. Every course is all-in-one: learn, practise, decide, explain and check, in the same week. On Home, each month card opens My courses on that month, week by week.
 - Three focus areas are picked from your results, your clients and the team priorities. You can ask to swap the third one; your KUDO Trainer approves the change.
 - Sessions with your KUDO Trainer (kick-off, coaching 1:1 on your biggest gap, mid-point check-in, mock client call) are planned for a given week. Your KUDO Trainer books the exact time with you in that week. If several kick-offs or check-ins fall due together, your KUDO Trainer may run one group session instead.
 - Group sessions, when your KUDO Trainer schedules them, appear with their date, time and topic.

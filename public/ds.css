@@ -656,3 +656,75 @@ td.nowrap{white-space:nowrap;font-variant-numeric:tabular-nums}
 .wk-gh-top{align-items:flex-start}
 .wk-gh-top span{white-space:nowrap;padding-top:2px}
 .wk-gh-top b{line-height:1.3}
+
+/* ======================================================================== Months (Home and My courses) */
+.m1{--mo-bg:#F1F8FD;--mo-bd:#D3E7F5;--mo-ac:#48A1D8;--mo-ink:#1B5C84;--mo-soft:#E1F0FA}
+.m2{--mo-bg:#FFF9EC;--mo-bd:#F2E0B1;--mo-ac:#E2AE2C;--mo-ink:#7A5A00;--mo-soft:#FDF0CC}
+.m3{--mo-bg:#EFF8F3;--mo-bd:#CDE9D9;--mo-ac:#2E9E6B;--mo-ink:#1E6B48;--mo-soft:#DCF1E5}
+.mo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s-4);margin-top:var(--s-5)}
+.mo-card{position:relative;display:flex;flex-direction:column;gap:var(--s-3);text-align:left;font:inherit;color:var(--ink-900);background:var(--mo-bg);border:1px solid var(--mo-bd);border-radius:var(--radius-lg);padding:var(--s-5) var(--s-5) var(--s-4);cursor:pointer;overflow:hidden;
+  transition:transform .22s var(--ease),box-shadow .22s var(--ease),border-color .22s var(--ease)}
+.mo-card::before{content:'';position:absolute;left:0;top:0;right:0;height:4px;background:var(--mo-ac);transform-origin:left;transform:scaleX(.18);transition:transform .35s var(--ease)}
+.mo-card.is-now::before,.mo-card:hover::before,.mo-card:focus-visible::before{transform:scaleX(1)}
+.mo-card:hover{transform:translateY(-4px);box-shadow:0 14px 30px -14px rgba(17,55,79,.28);border-color:var(--mo-ac)}
+.mo-card:active{transform:translateY(-1px)}
+.mo-card.is-now{border-color:var(--mo-ac);box-shadow:0 0 0 1px var(--mo-ac) inset}
+.mo-top{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s-2)}
+.mo-name{font-family:var(--font-head);font-size:20px;font-weight:700;letter-spacing:-.015em;color:var(--mo-ink)}
+.mo-weeks{font-size:12.5px;color:var(--ink-500);font-weight:600}
+.mo-recap{margin:0;font-size:14px;line-height:1.55;color:var(--ink-700);flex:1}
+.mo-foot{display:grid;gap:8px}
+.mo-bar{display:block;height:7px;border-radius:99px;background:var(--mo-soft);overflow:hidden}
+.mo-bar>i{display:block;height:100%;width:var(--w);background:var(--mo-ac);border-radius:inherit;animation:mo-fill .9s var(--ease) both}
+@keyframes mo-fill{from{width:0}}
+.mo-meta{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-500);font-variant-numeric:tabular-nums}
+.mo-status.now{color:var(--mo-ink);font-weight:700}
+.mo-open{font-size:13px;font-weight:650;color:var(--mo-ink);display:inline-flex;align-items:center;gap:6px;transition:gap .2s var(--ease)}
+.mo-open::after{content:'';width:7px;height:7px;border-right:2px solid currentColor;border-top:2px solid currentColor;transform:rotate(45deg);transition:transform .2s var(--ease)}
+.mo-card:hover .mo-open{gap:10px}
+@media (max-width:900px){.mo-grid{grid-template-columns:minmax(0,1fr)}}
+
+/* My courses: month tabs and the weeks of the month */
+.mp-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s-2);margin:var(--s-4) 0 0}
+.mp-tab{display:grid;gap:4px;text-align:left;font:inherit;color:var(--ink-700);background:var(--white);border:1px solid var(--border);border-radius:var(--radius-md) var(--radius-md) 0 0;padding:var(--s-3) var(--s-4);cursor:pointer;border-bottom-width:3px;border-bottom-color:transparent;transition:background .2s var(--ease),border-color .2s var(--ease),transform .2s var(--ease)}
+.mp-tab b{font-family:var(--font-head);font-size:15px;color:var(--mo-ink)}
+.mp-tab span{font-size:12.5px;color:var(--ink-500)}
+.mp-tab:hover{background:var(--mo-bg);transform:translateY(-2px)}
+.mp-tab.is-sel{background:var(--mo-bg);border-color:var(--mo-bd);border-bottom-color:var(--mo-ac)}
+.mp-tab.is-now span{color:var(--mo-ink);font-weight:600}
+.mp-body{background:var(--mo-bg);border:1px solid var(--mo-bd);border-top:0;border-radius:0 0 var(--radius-lg) var(--radius-lg);padding:var(--s-4);display:grid;gap:var(--s-3)}
+.mp-recap{margin:0 0 var(--s-1);font-size:14px;line-height:1.55;color:var(--ink-700);max-width:80ch}
+.mp-week{background:var(--white);border:1px solid var(--border-soft);border-radius:var(--radius-md);padding:var(--s-4);transition:box-shadow .2s var(--ease),transform .2s var(--ease)}
+.mp-week:hover{box-shadow:0 8px 22px -14px rgba(17,55,79,.3);transform:translateY(-1px)}
+.mp-week.is-now{border-color:var(--mo-ac);box-shadow:inset 3px 0 0 var(--mo-ac)}
+.mp-wh{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--s-3);margin-bottom:var(--s-2)}
+.mp-wh h3{font-family:var(--font-head);font-size:16px;margin:0 0 2px}
+.month-plan .wk-steps{display:block}
+@media (max-width:640px){.mp-tabs{grid-template-columns:minmax(0,1fr)}.mp-tab{border-radius:var(--radius-md)}}
+
+/* ======================================================================== Hover and motion, app-wide */
+.btn{transition:transform .16s var(--ease),box-shadow .16s var(--ease),background .16s var(--ease),border-color .16s var(--ease)}
+.btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 14px -8px rgba(17,55,79,.45)}
+.btn:active:not(:disabled){transform:translateY(0);box-shadow:none}
+.nav a svg{transition:transform .18s var(--ease)}
+.nav a:hover svg{transform:translateX(2px) scale(1.06)}
+.card.readiness-card,.prog-tile,.levels-card,.coll-card,.mtile,.stile,.news-rel,.lvl-row{transition:transform .2s var(--ease),box-shadow .2s var(--ease),background .2s var(--ease)}
+.prog-tile:hover,.card.readiness-card:hover{transform:translateY(-2px);box-shadow:0 12px 26px -16px rgba(17,55,79,.3)}
+.lvl-row{border-radius:var(--radius-sm);padding-left:var(--s-2);padding-right:var(--s-2);margin:0 calc(var(--s-2) * -1)}
+.lvl-row:hover{background:var(--bg-sunken)}
+.lvl-fill{transform-origin:left;animation:lvl-grow .9s var(--ease) both}
+@keyframes lvl-grow{from{transform:scaleX(0)}}
+.mtile:hover,.stile:hover{transform:translateY(-3px);box-shadow:0 12px 24px -16px rgba(17,55,79,.35)}
+.coll-card.earned:hover{transform:translateY(-4px) rotate(-1deg)}
+.tbl tbody tr{transition:background .15s var(--ease)}
+.tbl tbody tr:hover{background:var(--primary-50)}
+.wk-course{transition:background .15s var(--ease)}
+.wk-course:hover{background:var(--bg-sunken);border-radius:var(--radius-sm)}
+.rd-pt{transition:r .15s var(--ease)}
+.rd-pt:hover{r:7}
+.hero-cta .btn.primary:hover{box-shadow:0 10px 22px -10px rgba(27,92,132,.6)}
+@media (prefers-reduced-motion:reduce){
+  .mo-card,.mo-card::before,.mp-tab,.mp-week,.btn,.nav a svg,.prog-tile,.card.readiness-card,.mtile,.stile,.coll-card,.lvl-row{transition:none!important}
+  .mo-card:hover,.mp-tab:hover,.mp-week:hover,.btn:hover,.prog-tile:hover,.card.readiness-card:hover,.mtile:hover,.stile:hover,.coll-card.earned:hover{transform:none!important}
+  .mo-bar>i,.lvl-fill{animation:none}
+}

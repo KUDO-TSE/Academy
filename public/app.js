@@ -59,9 +59,9 @@ function brandHero(title, text, { preview = true } = {}) {
   const card = { key: 'first-step', set: 'Journey', tier: 'bronze', title: 'First step', glyph: 'step', earned: true };
   const win = preview ? h('div', { class: 'lp-preview', 'aria-hidden': 'true' },
     h('div', { class: 'lp-win' },
-      h('div', { class: 'lp-win-h' }, h('b', null, 'Your 12 weeks'), h('span', null, 'Week 4 of 12: Priority scenarios')),
+      h('div', { class: 'lp-win-h' }, h('b', null, 'Your 12 weeks'), h('span', null, 'Week 4 of 12: Month 1')),
       route,
-      h('div', { class: 'lp-phases' }, h('span', { style: 'grid-column:span 3' }, 'Essentials'), h('span', { style: 'grid-column:span 3' }, 'Priority scenarios'), h('span', { style: 'grid-column:span 3' }, 'Every scenario'), h('span', { style: 'grid-column:span 3' }, 'Certification')),
+      h('div', { class: 'lp-phases' }, h('span', { style: 'grid-column:span 4' }, 'Month 1'), h('span', { style: 'grid-column:span 4' }, 'Month 2'), h('span', { style: 'grid-column:span 4' }, 'Month 3')),
       h('div', { class: 'lp-stats' },
         h('div', null, h('span', null, 'Readiness'), h('b', null, '58%', h('em', null, ' → 80% target')), h('i', { class: 'lp-bar' }, h('i', { style: 'width:58%' }), h('u', { style: 'left:80%' }))),
         h('div', null, h('span', null, 'This week'), h('b', null, '3 steps', h('em', null, ', about 55 min')), h('span', { class: 'lp-next' }, 'Next: Practise a Teams setup')))),
