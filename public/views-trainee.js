@@ -47,6 +47,7 @@ export function homeView(data, ctx = {}) {
   );
 }
 
+const minibar = (v, kind) => v == null ? h('span', { class: 'muted' }, 'None') : h('span', { class: 'mini-bar' }, h('i', { class: kind, style: `width:${Math.max(2, Math.round(v * 0.9))}px` }), h('b', null, pct(v)));
 const legend = () => h('div', { class: 'legend' }, h('span', null, h('i', { style: `background:${COLORS.self}` }), 'Self rating'), h('span', null, h('i', { style: `background:${COLORS.live}` }), 'Knowledge test'));
 
 export function resultsView(data, live = null) {
@@ -67,14 +68,13 @@ export function resultsView(data, live = null) {
   drawQ();
   const lo = live?.map.overall;
   return h('div', { class: 'page' },
-    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My results'), h('p', null, showLive ? 'Your scores on every test: the Academy\'s module tests, decision walkthroughs and explain-it recordings, then your October Self Assessment and knowledge test. How they move your level is on My progress.' : live ? `${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}` : 'Your test results will show here once they are in.'))),
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My results'), h('p', null, showLive ? 'Your scores, course by course: each course test, decision walkthrough and explain-it recording, your sandbox exercises, then your October starting point. How they move your level is on My progress.' : live ? `${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}` : 'Your test results will show here once they are in.'))),
     showLive ? academyResults() : null,
-    showLive ? h('div', { class: 'section-h' }, h('h2', null, 'Where you started: October'), h('p', null, live ? `Self Assessment and ${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}. These stay as your baseline record.` : 'Self Assessment and live test, your baseline record.')) : null,
+    showLive ? h('div', { class: 'section-h' }, h('h2', null, 'My starting point: October'), h('p', null, live ? `Self Assessment and ${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}. These stay as your baseline record.` : 'Self Assessment and live test, your baseline record.')) : null,
     !self && !live ? empty('No results yet', 'Your Self Assessment and knowledge test results will appear here.') : h('div', { class: 'stack' },
-      h('div', { class: 'card' }, h('h2', null, 'By scenario'), h('p', { class: 'sub' }, 'Self ratings are your 1 to 5 answers shown as a percentage, so they sit next to your test score.'), legend(), pairedBars(rows.map((r) => ({ ...r, label: r.short })))),
-      h('div', { class: 'card' }, h('h2', null, 'Reading your results'),
+      h('div', { class: 'card' }, h('h2', null, 'Self rating against test, by scenario'), h('p', { class: 'sub keep' }, 'Self ratings are your 1 to 5 answers shown as a percentage, so they sit next to your test score.'), legend(),
         h('div', { class: 'tbl-wrap', style: 'margin-top:12px' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Scenario', 'Self rating', 'Test', 'Correct', 'Reading'].map((x, i) => h('th', { class: i > 0 && i < 4 ? 'num' : '' }, x)))),
-          h('tbody', null, rows.map((r) => { const rd = reading(r.self, r.live); return h('tr', null, h('td', null, h('b', null, r.label)), h('td', { class: 'num' }, pct(r.self)), h('td', { class: 'num' }, pct(r.live)), h('td', { class: 'num' }, r.c?.total ? `${r.c.correct}/${r.c.total}` : 'None'), h('td', null, rd ? h('span', { class: `chip ${rd.cls}` }, rd.label) : h('span', { class: 'muted' }, 'None'))); })))),
+          h('tbody', null, rows.map((r) => { const rd = reading(r.self, r.live); return h('tr', null, h('td', null, h('b', null, r.label)), h('td', { class: 'num' }, minibar(r.self, 'self')), h('td', { class: 'num' }, minibar(r.live, 'live')), h('td', { class: 'num' }, r.c?.total ? `${r.c.correct}/${r.c.total}` : 'None'), h('td', null, rd ? h('span', { class: `chip ${rd.cls}` }, rd.label) : h('span', { class: 'muted' }, 'None'))); })))),
         h('p', { class: 'muted small', style: 'margin:12px 0 0' }, 'Under-rated: you scored at least 8 points above your rating. Over-confident: you scored at least 5 points below it.')),
       h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'Questions to review'), h('p', { class: 'sub' }, 'The questions you missed, with the correct answer')),
         liveRounds.length > 1 ? h('select', { style: 'width:auto', 'aria-label': 'Test', on: { change: (e) => { qRound = Number(e.target.value); drawQ(); } } }, liveRounds.map((r) => h('option', { value: r.id, selected: r.id === qRound }, r.label))) : null), qBox)));
@@ -98,7 +98,7 @@ export function progressView(data, live = null) {
   sel.addEventListener('change', draw);
   const lat = latest(data, 'live') || latest(data, 'self');
   tgtBox.append(data.targets.length ? h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' }, h('thead', null, h('tr', null, ['Scenario', 'Latest', 'Target', 'By', 'Status'].map((x, i) => h('th', { class: i === 1 || i === 2 ? 'num' : '' }, x)))),
-    h('tbody', null, data.targets.map((t) => { const cur = lat?.map[t.scenario]?.pct ?? null; const met = cur != null && cur >= t.target_pct; return h('tr', null, h('td', null, h('b', null, label(data, t.scenario))), h('td', { class: 'num' }, pct(cur)), h('td', { class: 'num' }, pct(t.target_pct)), h('td', null, fmtDate(t.due_date)), h('td', null, cur == null ? h('span', { class: 'muted' }, 'None') : h('span', { class: `chip ${met ? 'green' : 'amber'}` }, met ? 'On target' : `${Math.round(t.target_pct - cur)} pts to go`))); })))) : h('div', { class: 'muted' }, 'Your personal targets will be set with your coach.'));
+    h('tbody', null, data.targets.map((t) => { const cur = lat?.map[t.scenario]?.pct ?? null; const met = cur != null && cur >= t.target_pct; return h('tr', null, h('td', null, h('b', null, label(data, t.scenario))), h('td', { class: 'num' }, pct(cur)), h('td', { class: 'num' }, pct(t.target_pct)), h('td', null, fmtDate(t.due_date)), h('td', null, cur == null ? h('span', { class: 'muted' }, 'None') : h('span', { class: `chip ${met ? 'green' : 'amber'}` }, met ? 'On target' : `${Math.round(t.target_pct - cur)} pts to go`))); })))) : h('div', { class: 'muted' }, 'Your personal targets will be set with your KUDO Trainer.'));
   draw();
   return h('div', { class: 'page' },
     h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My progress'), h('p', null, showLive ? 'How your level in each scenario moves with every test you take, measured against where you started in October.' : 'How your results move at each checkpoint: Self Assessment and a fresh knowledge test every quarter.'))),
@@ -106,7 +106,7 @@ export function progressView(data, live = null) {
     showLive ? h('div', { class: 'section-h' }, h('h2', null, 'Quarterly checkpoints'), h('p', null, 'Your Self Assessment and knowledge test, every three months. Each new test becomes your new starting point.')) : null,
     all.length ? h('div', { class: 'stack' }, h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('h2', null, 'Over time'), sel), chartBox,
       all.length < 3 ? h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'More points will appear after the next quarterly checkpoint.') : null),
-      h('div', { class: 'card' }, h('h2', null, 'My targets'), h('p', { class: 'sub' }, 'Set with your coach. Latest uses your most recent test, or Self Assessment if no test yet.'), tgtBox)) : empty('Nothing to chart yet', 'Your progress appears after your first results are loaded.'));
+      data.targets.length || !showLive ? h('div', { class: 'card' }, h('h2', null, 'My targets'), h('p', { class: 'sub' }, 'Set with your KUDO Trainer. Latest uses your most recent test, or Self Assessment if no test yet.'), tgtBox) : null) : empty('Nothing to chart yet', 'Your progress appears after your first results are loaded.'));
 }
 
 export function planView(data, { readOnly = false, onChange } = {}) {
@@ -139,7 +139,7 @@ void dateOnly;
 // ------------------------------------------------------------------ live progress from the Academy's tests
 const ago = (d) => { const days = Math.round((Date.now() - new Date(d)) / 864e5); return days <= 0 ? 'Today' : days === 1 ? 'Yesterday' : days < 7 ? `${days} days ago` : fmtDate(d); };
 const signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '±0');
-const KIND_LABEL = { check: 'Module test', scenario: 'Decision walkthrough', baseline: 'Baseline check', explain: 'Explain it' };
+const KIND_LABEL = { check: 'Course test', scenario: 'Decision walkthrough', baseline: 'Baseline check', explain: 'Explain it' };
 const loadLive = () => api('GET', '/api/me/progress-live');
 const fact = (k, v, sub, cls = '') => h('div', { class: `jm-fact ${cls}` }, h('span', { class: 'jm-fk' }, k), h('b', null, v), sub ? h('span', { class: 'jm-fs' }, sub) : null);
 const loading = (what) => h('div', { class: 'card muted' }, `Loading ${what}…`);
@@ -153,9 +153,9 @@ function academyResults() {
     const avg = taken.length ? Math.round(taken.reduce((t, m) => t + m.check.pct, 0) / taken.length) : null;
     const ex = d.modules.filter((m) => m.explain);
     const head = h('div', { class: 'jm-head' },
-      fact('Module tests taken', `${taken.length} of ${d.modules.length}`, 'Your first attempt is the result of record'),
+      fact('Course tests taken', `${taken.length} of ${d.modules.length}`, 'Your first attempt is the result of record'),
       fact('Passed', taken.length ? `${passed.length} of ${taken.length}` : 'None', `Pass mark ${Math.round(d.pass * 100)}%`, taken.length && passed.length === taken.length ? 'good' : ''),
-      fact('Average score', avg != null ? `${avg}%` : 'None', 'Across your module tests of record'),
+      fact('Average score', avg != null ? `${avg}%` : 'None', 'Across your course tests of record'),
       fact('Explain-it recordings', String(ex.length), ex.length ? `${ex.filter((m) => m.explain.reviewed).length} reviewed by your KUDO Trainer` : 'None sent yet'));
     // Module tiles: the test score against the pass mark, then the other ways the module was worked on.
     const passPct = Math.round(d.pass * 100);
@@ -169,18 +169,18 @@ function academyResults() {
           h('span', null, 'Walkthrough ', h('b', null, m.walk ? `${m.walk.pct}%` : 'None')),
           h('span', null, 'Explain it ', h('b', null, m.explain ? `${m.explain.pct}%` : 'None')),
           h('span', null, 'Retakes ', h('b', null, m.practice ? String(m.practice.n) : '0'))),
-        c ? h('span', { class: `chip ${c.passed ? 'green' : 'amber'}` }, c.passed ? `Passed, ${fmtDate(c.at)}` : `Below ${passPct}%, ${fmtDate(c.at)}`) : h('span', { class: 'chip grey' }, 'Take the module test'));
+        c ? h('span', { class: `chip ${c.passed ? 'green' : 'amber'}` }, c.passed ? `Passed, ${fmtDate(c.at)}` : `Below ${passPct}%, ${fmtDate(c.at)}`) : h('span', { class: 'chip grey' }, 'Take the course'));
     };
     const worked = d.modules.filter((m) => m.check || m.walk || m.explain || m.practice), rest = d.modules.filter((m) => !worked.includes(m));
-    const table = h('section', { class: 'card' }, h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'Your modules'), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, `Your first attempt is the result of record; the bar shows it against the ${passPct}% pass mark.`))),
-      worked.length ? h('div', { class: 'mtiles' }, worked.map(tile)) : h('div', { class: 'empty-note' }, h('b', null, 'No module test yet.'), ' Your scores appear here as soon as you take your first module test.'),
-      rest.length ? h('details', { class: 'not-taken' }, h('summary', null, `${rest.length} module${rest.length > 1 ? 's' : ''} not started`), h('div', { class: 'mtiles compact' }, rest.map(tile))) : null);
-    const list = h('div', { class: 'card' }, h('h2', null, 'Every attempt'), h('p', { class: 'sub' }, 'Newest first. Results of record and practice'),
+    const table = h('section', { class: 'card' }, h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'My course tests'), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, `The Prove it step of each course. Your first attempt is the result of record; the bar shows it against the ${passPct}% pass mark.`))),
+      worked.length ? h('div', { class: 'mtiles' }, worked.map(tile)) : h('div', { class: 'empty-note row spread' }, h('span', null, h('b', null, 'No course test yet.'), ' Your scores appear here after the Prove it step of your first course.'), h('a', { class: 'btn primary sm', href: '#training' }, 'Go to My courses')),
+      rest.length ? h('details', { class: 'not-taken' }, h('summary', null, `${rest.length} course${rest.length > 1 ? 's' : ''} not started`), h('div', { class: 'mtiles compact' }, rest.map(tile))) : null);
+    const list = d.attempts.length ? h('div', { class: 'card' }, h('h2', null, 'My attempts'), h('p', { class: 'sub' }, 'Newest first. Results of record and practice'),
       d.attempts.length ? h('ul', { class: 'lp-feed' }, d.attempts.slice(0, 40).map((a) => h('li', null,
         h('span', { class: 'muted small lp-when' }, ago(a.at)),
         h('div', { class: 'lp-what' }, h('a', { href: `#module-${a.module}` }, a.moduleTitle), h('span', { class: 'muted small sep-l' }, `${KIND_LABEL[a.kind] || 'Test'}${a.kind === 'explain' ? (a.reviewed ? ', reviewed by your KUDO Trainer' : ', automatic review') : ''}`)),
-        h('div', { class: 'lp-eff' }, h('span', { class: `chip ${a.record ? 'blue' : 'grey'}` }, a.record ? 'Result of record' : 'Practice'), h('b', null, a.pct != null ? `${a.pct}%` : 'None'))))) : h('p', { class: 'muted', style: 'margin:8px 0 0' }, 'No test yet. Open a module and take its test.'));
-    const sbx = h('section', { class: 'card' }, h('h2', null, 'Sandbox exercises'), h('p', { class: 'sub keep' }, 'Hands-on tasks on replicas of the KUDO screens and the client\'s tools. Your first run is the result of record; pass mark 80%.'), h('div', { class: 'muted' }, 'Loading…'));
+        h('div', { class: 'lp-eff' }, h('span', { class: `chip ${a.record ? 'blue' : 'grey'}` }, a.record ? 'Result of record' : 'Practice'), h('b', null, a.pct != null ? `${a.pct}%` : 'None'))))) : null) : null;
+    const sbx = h('section', { class: 'card' }, h('h2', null, 'Sandbox exercises'), h('p', { class: 'sub keep' }, 'Hands-on tasks on replicas of the KUDO screens and the client\'s tools, inside your courses. Your first run is the result of record; pass mark 80%.'), h('div', { class: 'muted' }, 'Loading…'));
     api('GET', '/api/me/sandbox').then(({ scenarios }) => {
       sbx.lastChild.replaceWith(h('div', { class: 'stiles' }, [...scenarios].sort((a2, b2) => (SANDBOXES[a2.key]?.num || 99) - (SANDBOXES[b2.key]?.num || 99)).map((x) => {
         const r = x.record, ok = r && r.score >= 80;
@@ -190,7 +190,7 @@ function academyResults() {
           h('span', { class: 'st-score' }, r ? `${r.score}%` : 'Not taken'));
       })));
     }).catch(() => sbx.lastChild.replaceWith(h('div', { class: 'muted' }, 'Could not load the sandbox results.')));
-    box.replaceChildren(head, table, sbx, list);
+    box.replaceChildren(...[head, table, sbx, list].filter(Boolean));
   }).catch((e) => box.replaceChildren(failed(e)));
   return box;
 }
@@ -204,8 +204,8 @@ function progressLive() {
     const counted = d.feed.length;
     const dOverall = d.overall.now - d.overall.start;
     const head = h('div', { class: 'jm-head' },
-      fact('Readiness now', `${d.overall.now}%`, `${d.overall.start}% in October, ${signed(dOverall)} points`, dOverall > 0 ? 'good' : dOverall < 0 ? 'late' : ''),
-      fact('Tests that moved a level', String(counted), counted ? `Across ${tested.length} scenario${tested.length > 1 ? 's' : ''}` : 'Take a module test to start'),
+      fact('My Readiness', `${d.overall.now}%`, `${d.overall.start}% in October, ${signed(dOverall)} points`, dOverall > 0 ? 'good' : dOverall < 0 ? 'late' : ''),
+      fact('Tests that moved a level', String(counted), counted ? `Across ${tested.length} scenario${tested.length > 1 ? 's' : ''}` : 'Take your first course to start'),
       fact('Biggest gain', up && up.delta > 0 ? `${up.short} ${signed(up.delta)}` : 'Not yet', up && up.delta > 0 ? `${up.start}% → ${up.now}%` : 'A good test result lifts a level', up && up.delta > 0 ? 'good' : ''),
       fact('To watch', down && down.delta < 0 ? `${down.short} ${signed(down.delta)}` : 'Nothing went down', down && down.delta < 0 ? `${down.start}% → ${down.now}%: go back to the lesson, then practise` : 'No scenario is below October', down && down.delta < 0 ? 'late' : ''));
     const rows = [...sc].sort((a, b) => b.delta - a.delta || b.tests - a.tests).map((s) => ({ ...s, label: s.short }));
@@ -224,18 +224,20 @@ function progressLive() {
     };
     pick.addEventListener('change', drawLine); drawLine();
     const over = h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'One scenario over time'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, 'October, then each test that moved it. The dashed line is your target')), pick), lineBox);
-    const feed = h('div', { class: 'card' }, h('h2', null, 'What moved your level'), h('p', { class: 'sub' }, 'Newest first, with what each test did'),
+    const feed = h('div', { class: 'card' }, h('h2', null, 'What moved my level'), h('p', { class: 'sub' }, 'Newest first, with what each test did'),
       d.feed.length ? h('ul', { class: 'lp-feed' }, d.feed.slice(0, 30).map((e) => { const ch = e.to - e.from; return h('li', null,
         h('span', { class: 'muted small lp-when' }, ago(e.at)),
         h('div', { class: 'lp-what' }, e.module !== 'baseline' ? h('a', { href: `#module-${e.module}` }, e.moduleTitle) : h('b', null, e.moduleTitle), h('span', { class: 'muted small sep-l' }, `${KIND_LABEL[e.kind] || 'Test'}${e.kind === 'explain' ? (e.reviewed ? ', reviewed by your KUDO Trainer' : ', automatic review') : ''}, you scored ${e.score}%`)),
         h('div', { class: 'lp-eff' }, h('span', null, `${e.short} ${e.from}% → ${e.to}%`), h('span', { class: `lp-d ${ch > 0 ? 'up' : ch < 0 ? 'down' : ''}` }, signed(ch)))); }))
-        : h('p', { class: 'muted', style: 'margin:8px 0 0' }, 'Nothing yet. Your first attempt at a module test moves your level.'));
-    const rules = h('div', { class: 'card lp-rules' }, h('h2', null, 'What moves your level'),
+        : h('p', { class: 'muted', style: 'margin:8px 0 0' }, 'Nothing yet. Your first course test moves your level.'));
+    const rules = h('div', { class: 'card lp-rules' }, h('h2', null, 'What moves my level'),
       h('div', { class: 'grid g2' },
-        h('div', null, h('b', { class: 'lp-yes' }, 'Counts'), h('ul', null, h('li', null, 'Your first attempt at each module test'), h('li', null, 'Your first decision walkthrough in each module'), h('li', null, 'Your first explain-it recording. If your KUDO Trainer reviews it, their score replaces the automatic one'), h('li', null, 'The baseline check'), h('li', null, 'The quarterly knowledge test, which resets your starting point'))),
-        h('div', null, h('b', { class: 'lp-no' }, 'Does not count'), h('ul', null, h('li', null, 'Reading the lessons and watching the videos'), h('li', null, 'Practice tasks (feedback only)'), h('li', null, 'Retakes, the weekly challenge and spaced reviews'), h('li', null, 'Ticking steps off your plan')))),
-      h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'Each test pulls your level most of the way towards its score: a good result lifts it, a poor one lowers it. Only your first attempt counts, so read the lesson and take the test when you feel ready'));
-    box.replaceChildren(head, chart, over, feed, rules);
+        h('div', null, h('b', { class: 'lp-yes' }, 'Counts'), h('ul', null, h('li', null, 'Your first attempt at each course test (Prove it)'), h('li', null, 'Your first decision walkthrough in each course'), h('li', null, 'Your first explain-it recording. If your KUDO Trainer reviews it, their score replaces the automatic one'), h('li', null, 'The baseline check'), h('li', null, 'The quarterly knowledge test, which resets your starting point'))),
+        h('div', null, h('b', { class: 'lp-no' }, 'Does not count'), h('ul', null, h('li', null, 'Reading the lesson and watching the videos'), h('li', null, 'Practice tasks and sandbox exercises (feedback only)'), h('li', null, 'Retakes, the weekly challenge and spaced reviews'), h('li', null, 'Marking a step as done')))),
+      h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'Each test pulls your level most of the way towards its score: a good result lifts it, a poor one lowers it. Only your first attempt counts, so work through the course and take the test when you feel ready'));
+    // Nothing has moved yet: one clear next step instead of two empty cards.
+    const none = h('div', { class: 'card empty-cta' }, h('div', null, h('h2', null, 'What moved my level'), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, 'Nothing yet. Your level moves after the Prove it step of your first course. Each test that moves it shows here, newest first, with a chart per scenario.')), h('a', { class: 'btn primary', href: '#training' }, 'Go to My courses'));
+    box.replaceChildren(...(d.feed.length ? [head, chart, over, feed, rules] : [head, chart, none, rules]));
   }).catch((e) => box.replaceChildren(failed(e)));
   return box;
 }

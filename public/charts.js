@@ -103,7 +103,7 @@ export function progressDumbbell(rows) {
     if (d !== 0) g += `<line x1="${x(r.start)}" x2="${x(r.now)}" y1="${y}" y2="${y}" stroke="${col}" stroke-width="6" stroke-linecap="round"/>`;
     g += `<circle cx="${x(r.start)}" cy="${y}" r="5.5" fill="var(--white)" stroke="${P.faint}" stroke-width="2"/>`;
     g += `<circle cx="${x(r.now)}" cy="${y}" r="7" fill="${d === 0 ? P.deep : col}" stroke="var(--white)" stroke-width="2"/>`;
-    const txt = d > 0 ? `+${d}` : d < 0 ? `−${-d}` : (r.tests ? '±0' : 'None');
+    const txt = d > 0 ? `+${d}` : d < 0 ? `−${-d}` : (r.tests ? '±0' : 'Not yet');
     g += `<text x="${w - 4}" y="${y + 4}" font-size="13" font-weight="600" fill="${d > 0 ? P.green : d < 0 ? 'var(--c-b44e28)' : P.muted}" text-anchor="end">${txt}</text></g>`;
   });
   return svg(`<svg class="chart" viewBox="0 0 ${w} ${H}" width="100%" role="img" aria-label="Change in each scenario since October">${g}</svg>`);

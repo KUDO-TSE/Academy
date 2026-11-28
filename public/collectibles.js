@@ -54,7 +54,8 @@ const G = {
 
 /** One card as SVG. Earned cards are in colour; locked cards are grey, with a lock. */
 export function cardArt(c, { earned = c.earned, size = 168 } = {}) {
-  const [c1, c2] = earned ? SET[c.set] : ['var(--n-50)', 'var(--n-150)'];
+  const MT = { 'phase-1': ['#F1F8FD', '#DCEEFA'], 'phase-2': ['#FFF9EC', '#FBEBC4'], 'phase-3': ['#EFF8F3', '#D3EEDF'] };
+  const [c1, c2] = earned ? SET[c.set] : MT[c.key] || ['var(--n-50)', 'var(--n-150)'];
   const fg = earned ? 'var(--white)' : 'var(--n-400)', fgt = earned ? 'var(--white)' : 'var(--n-500)';
   const [ring] = earned ? TIER[c.tier] : ['var(--border)'];
   const id = `g${c.key.replace(/[^a-z0-9]/gi, '')}${earned ? 'e' : 'l'}`;
@@ -80,7 +81,7 @@ const fmt = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', mon
 export async function collectionView() {
   const d = await api('GET', '/api/me/collectibles');
   const sets = ['Journey', 'Scenarios', 'Topics', 'Hands-on', 'Craft', 'Habit'];
-  const intro = { Journey: 'Milestones of your 12 weeks. "First step" is yours from your first connection; every other card is earned by working in the Academy.', Scenarios: 'One card per client scenario: reach your target level (October assessment and Academy tests combined) with at least one lesson, test or sandbox exercise on it in the Academy.', Topics: 'One card per cross-cutting module: reach your target on its module test, first attempt.', 'Hands-on': 'Sandbox exercises on the replica of the KUDO screens: finish them, pass them, then do them fast and flawless.', Craft: 'Work done well: tests, decisions, explanations, honest judgement, progress.', Habit: 'Steady practice over the 12 weeks.' };
+  const intro = { Journey: 'Milestones of your Quarter\'s Program, one per month. "First step" is yours from your first connection; every other card is earned by working in the Academy.', Scenarios: 'One card per client scenario. Your level combines your October results and your Academy tests; at least one course step, test or sandbox exercise on the scenario must be done in the Academy.', Topics: 'One card per cross-cutting course: reach your target on its course test, first attempt.', 'Hands-on': 'Sandbox exercises on the replica of the KUDO screens: finish them, pass them, then do them fast and flawless.', Craft: 'Work done well: tests, decisions, explanations, honest judgement, progress.', Habit: 'Steady practice over your Quarter\'s Program.' };
   const pct = Math.round((d.earned / d.total) * 100);
   const bySet = sets.map((st) => { const cs = d.cards.filter((c) => c.set === st); return { st, cs, got: cs.filter((c) => c.earned).length }; });
   let filter = 'all';
@@ -89,13 +90,13 @@ export async function collectionView() {
     const shown = cs.filter((c) => filter === 'all' || (filter === 'earned' ? c.earned : !c.earned));
     if (!shown.length) return null;
     return h('section', { class: 'coll-set', id: `set-${st.replace(/\W/g, '')}` }, h('div', { class: 'coll-set-h' }, h('h2', null, st), h('span', { class: 'chip grey' }, `${got} of ${cs.length}`)), h('p', { class: 'sub keep' }, intro[st]),
-      h('div', { class: 'coll-grid' }, shown.map((c) => h('div', { class: `coll-card ${c.earned ? 'earned' : 'locked'}`, tabindex: 0, 'data-set': c.set },
+      h('div', { class: 'coll-grid' }, shown.map((c) => h('div', { class: `coll-card ${c.earned ? 'earned' : 'locked'}${/^phase-\d$/.test(c.key) ? ` m${c.key.slice(6)}` : ''}`, tabindex: 0, 'data-set': c.set },
         cardArt(c), h('div', { class: 'coll-meta' }, c.earned ? [h('span', { class: 'muted small' }, `Earned ${fmt(c.earned_at)}`, c.live ? ', kept while every new exercise is passed' : ''), rarityLine(c), d.brag?.on && !c.bragged ? h('button', { type: 'button', class: 'link-btn brag-link', on: { click: (e) => bragModal(c, d.brag, e.currentTarget) } }, 'Brag to the team') : c.bragged ? h('span', { class: 'muted small' }, ' Bragged.') : null] : [h('span', { class: 'small' }, h('b', null, 'How to earn: '), c.earn, c.progress ? h('div', { class: 'muted small' }, c.progress) : null), rarityLine(c)])))));
   }).filter(Boolean));
   const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Show' }, [['all', 'All'], ['earned', 'Earned'], ['todo', 'To earn']].map(([k, l]) => h('button', { type: 'button', 'aria-pressed': String(k === filter), on: { click: (e) => { filter = k; seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b === e.currentTarget))); draw(); } } }, l)));
   draw();
   const page = h('div', { class: 'page coll-page' },
-    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My collection'), h('p', null, 'Cards you earn at real milestones of your programme. They are yours to keep: none can be lost, and nobody else sees your collection unless you brag about a card.')), seg),
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My collection'), h('p', null, 'Cards you earn at real milestones of your Quarter\'s Program. They are yours to keep: none can be lost, and nobody else sees your collection unless you brag about a card.')), seg),
     h('section', { class: 'card coll-head' },
       h('div', { class: 'coll-top' }, h('div', { class: 'coll-count' }, h('b', null, d.earned), h('span', null, ` of ${d.total} collected`)), h('div', { class: 'bar', style: 'flex:1' }, h('i', { style: `width:${pct}%` }))),
       h('div', { class: 'coll-sets-nav' }, bySet.map(({ st, cs, got }) => h('button', { type: 'button', class: 'csn', on: { click: () => document.getElementById(`set-${st.replace(/\W/g, '')}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) } },
@@ -213,6 +214,6 @@ export function rarityLine(c) {
     else if (r.n === 1) text = 'You are the first trainee to earn it. Good job!';
     else if (r.pct <= 35) text = `Only ${r.pct}% of trainees have this one. Good job!`;
     else text = `${r.pct}% of trainees have this one. Welcome to the club.`;
-  } else text = r.n === 0 ? 'Nobody has it yet. Be the first.' : `${r.pct}% of trainees have earned it so far.`;
+  } else text = r.n === 0 ? 'Be the first.' : `${r.pct}% of trainees have earned it so far.`;
   return h('div', { class: 'rarity' }, tag, h('span', null, text));
 }

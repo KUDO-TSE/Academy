@@ -184,7 +184,11 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
   let items = planItems;
   const mineOf = () => items.filter((i) => i.module === m.key);
   const mine = mineOf();
-  const why = mine.find((i) => i.why && i.kind === 'lesson')?.why || mine.find((i) => i.why)?.why;
+  // The reason this course is in the plan. Step-by-step instructions (practise, decide, explain, prove it) already sit in their step cards.
+  const HOWTO = new Set(['practice', 'scenario', 'explain']);
+  const why = mine.find((i) => i.why && i.kind === 'lesson')?.why || mine.find((i) => i.why && !HOWTO.has(i.kind) && !/^Your first attempt/.test(i.why))?.why;
+  // When the course sits in the Quarter's Program: the month colour of Home and My courses.
+  const firstWk = mine.filter((i) => i.week).sort((x, y) => x.week - y.week)[0];
   const reviewKey = m.reviewKey || null;
   const itemOf = (kind) => mineOf().find((i) => i.kind === kind);
   const baseline = m.key === 'baseline';
@@ -215,14 +219,14 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
   const goTo = (k, { flash = true } = {}) => { const c = steps[k]?.card; if (!c) return; c.scrollIntoView({ behavior: 'smooth', block: 'start' }); if (flash) { c.classList.remove('step-flash'); void c.offsetWidth; c.classList.add('step-flash'); } };
 
   // The step tracker, sticky at the top of the page.
-  const tracker = h('nav', { class: 'mtrack', 'aria-label': 'Steps in this module' });
+  const tracker = h('nav', { class: 'mtrack', 'aria-label': 'Steps in this course' });
   const nextBars = []; // "next step" hand-offs inside cards, redrawn with the state
   const nextBar = (after) => { const box = h('div', { class: 'step-next', hidden: true }); nextBars.push({ box, after }); return box; };
   const paint = () => {
     if (admin || baseline) return;
     const pl = planned(), done = pl.filter((k) => itemOf(k).done).length, nx = nextOpen();
     tracker.replaceChildren(
-      h('div', { class: 'mtrack-sum' }, pl.length ? (done === pl.length ? h('b', null, 'Module complete') : h('span', null, h('b', null, `${done} of ${pl.length}`), ' steps done')) : h('span', { class: 'muted' }, 'Not in your plan: every step is optional')),
+      h('div', { class: 'mtrack-sum' }, pl.length ? (done === pl.length ? h('b', null, 'Course complete') : h('span', null, h('b', null, `${done} of ${pl.length}`), ' steps done')) : h('span', { class: 'muted' }, 'Not in your plan: every step is optional')),
       h('ol', { class: 'mtrack-steps' }, kinds.map((k) => { const st = stateOf(k);
         return h('li', null, h('button', { type: 'button', class: `mtrack-step ${st}`, 'aria-current': st === 'next' ? 'step' : null, on: { click: () => goTo(k) } },
           h('span', { class: 'mtrack-dot', 'aria-hidden': 'true' }, st === 'done' || st === 'extra' ? check() : String(num(k))),
@@ -238,7 +242,7 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
       nb.box.hidden = false;
       nb.box.replaceChildren(nx
         ? h('div', { class: 'row spread' }, h('span', null, mark(true), ' ', h('b', null, `${STEP_NAME[after]}: done.`), ` Next is step ${num(nx)}, ${STEP_NAME[nx]}.`), h('button', { type: 'button', class: 'btn primary sm', on: { click: () => goTo(nx) } }, `Go to step ${num(nx)}`))
-        : pl.length ? h('div', { class: 'row spread' }, h('span', null, mark(true), ' ', h('b', null, 'Every step is done.'), ' KUDOG has your module recap.'), h('button', { type: 'button', class: 'btn primary sm', on: { click: () => finishModule(true) } }, 'See my recap')) : h('span', null, mark(true), ' Done.'));
+        : pl.length ? h('div', { class: 'row spread' }, h('span', null, mark(true), ' ', h('b', null, 'Every step is done.'), ' KUDOG has your course recap.'), h('button', { type: 'button', class: 'btn primary sm', on: { click: () => finishModule(true) } }, 'See my recap')) : h('span', null, mark(true), ' Done.'));
     }
   };
   // The module is finished: KUDOG's recap opens by itself; closing it moves the trainee on.
@@ -285,11 +289,11 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
       // Land on the result, not wherever the long form left the page.
       steps.check?.card ? goTo('check', { flash: false }) : quizBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
       if (!baseline && !m.feedbackGiven && !admin) fbBox.replaceChildren(feedbackCard(m.key));
-      if (baseline || admin) { foot.append(h('a', { class: 'btn primary', href: '#training' }, 'Back to my plan')); return; }
+      if (baseline || admin) { foot.append(h('a', { class: 'btn primary', href: '#training' }, 'Back to My courses')); return; }
       await refresh({ advanceFrom: 'check' });
       const pl = planned(), nx = nextOpen();
       if (pl.length && pl.every((k) => itemOf(k).done)) {
-        foot.append(h('button', { type: 'button', class: 'btn primary', on: { click: () => finishModule(true) } }, 'Finish the module'));
+        foot.append(h('button', { type: 'button', class: 'btn primary', on: { click: () => finishModule(true) } }, 'Finish the course'));
         // KUDOG opens the recap by himself once the trainee has scrolled through the answers.
         const io = new IntersectionObserver((en) => { if (en.some((e) => e.isIntersecting)) { io.disconnect(); setTimeout(() => finishModule(false), 1200); } });
         setTimeout(() => io.observe(foot), 1500); // after the scroll to the result has settled
@@ -298,7 +302,7 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
         const io = new IntersectionObserver((en) => { if (en.some((e) => e.isIntersecting)) { io.disconnect(); setTimeout(() => revealNew(), 800); } });
         setTimeout(() => io.observe(foot), 1500); // after the scroll to the result has settled
       }
-      if (!nx && !(pl.length && pl.every((k) => itemOf(k).done))) foot.append(h('a', { class: 'btn', href: '#training' }, 'Back to my plan'));
+      if (!nx && !(pl.length && pl.every((k) => itemOf(k).done))) foot.append(h('a', { class: 'btn', href: '#training' }, 'Back to My courses'));
     } }));
   };
   if (admin) {
@@ -353,6 +357,7 @@ export function moduleView(m, { mode = 'trainee', planItems = [], onDone } = {})
   const page = h('div', { class: 'page lesson' },
     h('a', { href: admin ? '#curriculum' : '#training', class: 'muted back-link' }, admin ? 'Back to Curriculum' : 'Back to My courses'),
     h('div', { class: 'page-head', style: 'margin-top:8px' }, h('div', null,
+      firstWk && !admin ? h('span', { class: `chip mchip m${firstWk.phase || Math.ceil(firstWk.week / 4)}` }, `Month ${firstWk.phase || Math.ceil(firstWk.week / 4)}, week ${firstWk.week}`) : null,
       h('h1', null, m.title), h('p', null, m.summary),
       h('div', { class: 'lesson-meta' }, metaRow([m.depth ? `${DEPTH_LABEL[m.depth]} depth` : null, m.minutes ? `about ${m.minutes} min` : null, m.delivery && m.delivery !== 'both' ? (m.delivery === 'ai' ? 'AI Translation' : 'Human Interpretation') : null]),
         m.depth ? h('span', null, ' ', tipI('Depth is how far your role takes this scenario: Set up (you do it yourself), Hand over (you prepare it and pass it on), Know (you can explain it).')) : null),

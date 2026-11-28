@@ -741,3 +741,23 @@ td.nowrap{white-space:nowrap;font-variant-numeric:tabular-nums}
 .ch-facts{display:flex;gap:6px;flex-wrap:wrap}
 .ch-body{margin-top:auto}
 .training-top .challenge .ch-body:has(form),.training-top .challenge .ch-body:has(.result){margin-top:0}
+
+/* ---- Round: trainee pages audit (My results, My progress, My collection, course page) ---- */
+.mini-bar{display:inline-flex;align-items:center;gap:8px;justify-content:flex-end;min-width:150px}
+.mini-bar>i{display:block;height:8px;border-radius:4px;max-width:90px;flex:0 0 auto}
+.mini-bar>i.self{background:var(--teal)}.mini-bar>i.live{background:var(--primary-600)}
+.mini-bar>b{min-width:40px;text-align:right;font-variant-numeric:tabular-nums}
+.tbl td.num .mini-bar{width:150px}
+.tbl td.num .mini-bar>i{margin-right:auto}
+.mchip{display:inline-flex;margin-bottom:8px;font-weight:600}
+.mchip.m1{background:#F1F8FD;color:#1B5C84;border-color:#48A1D8}
+.mchip.m2{background:#FFF9EC;color:#7A5A00;border-color:#E2AE2C}
+.mchip.m3{background:#EFF8F3;color:#1E6B48;border-color:#2E9E6B}
+.empty-cta{display:flex;align-items:center;justify-content:space-between;gap:var(--s-5);flex-wrap:wrap}
+.empty-cta>div{flex:1 1 320px}
+.empty-note.row.spread{gap:var(--s-4);flex-wrap:wrap}
+.coll-card.m1.locked .coll-meta b,.coll-card.m2.locked .coll-meta b,.coll-card.m3.locked .coll-meta b{font-weight:700}
+.coll-card.m1 svg rect:first-of-type{stroke:#48A1D8}
+.coll-card.m2 svg rect:first-of-type{stroke:#E2AE2C}
+.coll-card.m3 svg rect:first-of-type{stroke:#2E9E6B}
+@media (max-width:640px){.tbl td.num .mini-bar{width:auto;min-width:0}.mini-bar>i{display:none}}

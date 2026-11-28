@@ -34,14 +34,14 @@ export const SCENARIOS = {
     screens: ['login', 'home', 'meetings', 'new-ai', 'meeting', 'participants', 'users', 'edit', 'recordings'],
   },
   'hi-1': {
-    module: 'hi', num: 5, title: 'Set up a Human Interpretation meeting and book the interpreters',
+    module: 'hi', num: 4, title: 'Set up a Human Interpretation meeting and book the interpreters',
     request: 'A client holds "Board Meeting" on Monday 30 November 2026, in English and French, with interpreters. Create the Human interpretation meeting for that day, then book the interpreters: the subject matter is Banking / Finance and the interpreters should know the topic "Annual results". The client accepts the cost. Finally, open the place where the client will add the agenda and slides for the interpreters.',
     expert: ['Log in with the Client account', 'New meeting, Human interpretation', 'Name "Board Meeting"', 'Start date: Monday 30 November 2026', 'Spoken languages English and French', 'Save', 'Book Interpreters on the Overview', 'Subject matter: Banking / Finance', 'Specific topic: Annual results', 'Tick "I agree to this additional non-refundable cost"', 'Complete Booking', 'Add preparation materials'],
     expertSeconds: 150,
     screens: ['login', 'home', 'meetings', 'new-hi', 'meeting', 'edit', 'interpreters'],
   },
   'rtmp-1': {
-    module: 'rtmp', num: 11, title: 'Stream a meeting to YouTube in two languages (RTMP)', apps: ['studio'],
+    module: 'rtmp', num: 9, title: 'Stream a meeting to YouTube in two languages (RTMP)', apps: ['studio'],
     request: 'Build what the client needs from your notes: the KUDO meeting "Product Day" and its live streams. Then start it and check in the client\'s channel studio that viewers get each language.',
     brief: {
       who: 'Social media manager at the client', event: '"Product Day", today',
@@ -70,7 +70,7 @@ export const SCENARIOS = {
   },
 
   'hls-1': {
-    module: 'hls', num: 12, title: 'Broadcast to the client\'s web page (HLS)', apps: ['site'],
+    module: 'hls', num: 10, title: 'Broadcast to the client\'s web page (HLS)', apps: ['site'],
     request: 'Build what the client needs from your notes: the KUDO meeting "Investor Day" and the client\'s event page. Then start it and check on the published page that viewers get the event in their language.',
     // The call: the brief starts incomplete. Seven questions decide the set-up; two do not. Only what was asked shows in the notes.
     brief: {
@@ -109,7 +109,7 @@ export const SCENARIOS = {
     setup: ({ base }) => { const m = base({ name: 'Partner Summit', date: 'Fri, Nov 27, 2026', time: '10:00 - 12:00', dur: '2 hours', speakers: ['English'], translations: ['English (US)', 'French (France)', 'German'], status: 'scheduled' }); return { list: [m], mine: m }; },
   },
   'widget-1': {
-    module: 'widget', num: 10, title: 'Put the KUDO widget on the client\'s event page', links: true, apps: ['site'],
+    module: 'widget', num: 8, title: 'Put the KUDO widget on the client\'s event page', links: true, apps: ['site'],
     request: 'Build what the client needs from your notes: the KUDO language access on the client\'s event page. Then publish the page and check that viewers see it.',
     brief: {
       who: 'Event manager at the client', event: '"Global Summit", Day 2 tomorrow',
@@ -139,7 +139,7 @@ export const SCENARIOS = {
       const d2 = base({ name: 'Global Summit - Day 2', date: 'Fri, Nov 27, 2026', time: '09:00 - 17:00', dur: '8 hours', speakers: ['English'], translations: ['English (US)', 'Spanish (Spain)', 'Japanese'], status: 'scheduled' }); return { list: [d1, d2], mine: d2 }; },
   },
   'ringcentral-1': {
-    module: 'ringcentral', num: 15, title: 'Give the RingCentral producer the Widget ID', links: true,
+    module: 'ringcentral', num: 11, title: 'Give the RingCentral producer the Widget ID', links: true,
     request: 'The client runs "Sales Town Hall" on RingCentral Events with KUDO AI translation; the KUDO session is already in the account. Their event producer asks for the KUDO Widget ID to add the KUDO app to the event. Find it and give it to them with "Reply to the client".',
     expert: ['Log in with the Client account', 'Open "Sales Town Hall"', 'Copy the Mobile Link', 'Take the 12-digit meeting ID at the end of the Mobile Link', 'Reply to the client: the ID only'],
     expertSeconds: 75,
@@ -148,7 +148,7 @@ export const SCENARIOS = {
     setup: ({ base }) => { const m = base({ name: 'Sales Town Hall', date: 'Mon, Nov 30, 2026', time: '16:00 - 17:30', dur: '1 hour 30 minutes', speakers: ['English'], translations: ['English (US)', 'Portuguese (Brazil)', 'Spanish (Mexico)'], status: 'scheduled' }); return { list: [m], mine: m }; },
   },
   'teams-1': {
-    module: 'teams', num: 4, title: 'Add KUDO to the client\'s Teams meeting and follow it as an attendee', apps: ['teams'], startTab: 'teams',
+    module: 'teams', num: 3, title: 'Add KUDO to the client\'s Teams meeting and follow it as an attendee', apps: ['teams'], startTab: 'teams',
     request: 'Build what the client needs from your notes in their meetings app: KUDO in their Teams meeting, set before the start. Then join, let the KUDO bot in and check the translation the way their Madrid lead wants it.',
     brief: {
       who: 'Internal events lead at the client', event: '"Quarterly All-hands", a scheduled Teams meeting today',
@@ -176,7 +176,7 @@ export const SCENARIOS = {
     screens: ['login', 'home', 'meetings', 'meeting', 'preview'],
   },
   'meet-1': {
-    module: 'external', num: 7, title: 'Bring KUDO AI translation into the client\'s Google Meet call', apps: ['vmeet'],
+    module: 'external', num: 6, title: 'Bring KUDO AI translation into the client\'s Google Meet call', apps: ['vmeet'],
     request: 'Build what the client needs from your notes: create the call in their calendar app and link it in KUDO. Run it: join the call (KUDO starts with it), let the bot in, check what attendees get. Afterwards, get the translated recordings from KUDO.',
     vm: 'meet', want: { name: 'benefits briefing', label: 'Benefits Briefing', time: '11:00', langs: [[de, 'German'], [(l) => l === 'Italian', 'Italian']] },
     brief: {
@@ -204,7 +204,7 @@ export const SCENARIOS = {
     screens: ['login', 'home', 'meetings', 'new-ai', 'meeting', 'preview', 'recordings'],
   },
   'webex-1': {
-    module: 'external', num: 8, title: 'Bring KUDO AI translation into the client\'s Webex meeting', apps: ['vmeet'],
+    module: 'external', num: 7, title: 'Bring KUDO AI translation into the client\'s Webex meeting', apps: ['vmeet'],
     request: 'Build what the client needs from your notes: schedule the meeting in their conferencing app and link it in KUDO. Run it: start the meeting (KUDO starts with it), let the bot in, check what attendees get. Afterwards, get the translated recordings from KUDO.',
     vm: 'webex', want: { name: 'sales kickoff', label: 'Sales Kickoff', time: '15:00', langs: [[(l) => l === 'Japanese', 'Japanese'], [(l) => /^Portuguese/.test(l), 'Portuguese']] },
     brief: {
@@ -231,7 +231,7 @@ export const SCENARIOS = {
     screens: ['login', 'home', 'meetings', 'new-ai', 'meeting', 'preview', 'recordings'],
   },
   'zoom-1': {
-    module: 'zoom', num: 6, title: 'Bring KUDO AI translation into the client\'s Zoom meeting', apps: ['vmeet'],
+    module: 'zoom', num: 5, title: 'Bring KUDO AI translation into the client\'s Zoom meeting', apps: ['vmeet'],
     request: 'Build what the client needs from your notes: schedule the meeting in their video-meeting app and link it in KUDO. Run it: start the meeting (KUDO starts with it), let the bot in, check what attendees get. Afterwards, get the translated recordings from KUDO.',
     vm: 'zoom', want: { name: 'leadership q&a', label: 'Leadership Q&A', time: '14:00', langs: [[fr, 'French'], [es, 'Spanish']] },
     brief: {

@@ -22,14 +22,14 @@ const SHORT = { foundations: 'Foundations', glossary: 'Glossary', network: 'IT &
 export const CATALOG = [
   // Journey: milestones of the 12 weeks
   { key: 'first-step', set: 'Journey', tier: 'bronze', title: 'First step', earn: 'Log in to the KUDO Academy for the first time.', glyph: 'step' },
-  { key: 'first-lesson', set: 'Journey', tier: 'bronze', title: 'Off the blocks', earn: 'Complete your first lesson.', glyph: 'flag' },
-  ...PHASES.map((p, i) => ({ key: `phase-${p.n}`, set: 'Journey', tier: i === PHASES.length - 1 ? 'gold' : 'silver', title: `${p.name} cleared`, earn: `Finish every step of ${p.name} (weeks ${p.weeks[0]} to ${p.weeks[1]}) that is yours to do.`, glyph: ['spark', 'build', 'trophy'][i] })),
+  { key: 'first-lesson', set: 'Journey', tier: 'bronze', title: 'Off the blocks', earn: 'Work through the Learn step of your first course.', glyph: 'flag' },
+  ...PHASES.map((p, i) => ({ key: `phase-${p.n}`, set: 'Journey', tier: i === PHASES.length - 1 ? 'gold' : 'silver', title: `${p.name} cleared`, earn: `Finish every course and step of ${p.name} (weeks ${p.weeks[0]} to ${p.weeks[1]}) in your Quarter's Program.`, glyph: ['spark', 'build', 'trophy'][i] })),
   { key: 'client-ready', set: 'Journey', tier: 'gold', title: 'Client-ready', earn: 'Complete your mock client call with your KUDO Trainer.', glyph: 'handshake' },
-  { key: 'graduate', set: 'Journey', tier: 'gold', title: 'Graduate', earn: 'Take the 3-month retest.', glyph: 'cap' },
+  { key: 'graduate', set: 'Journey', tier: 'gold', title: 'Graduate', earn: 'Take the retest at the end of your Quarter\'s Program.', glyph: 'cap' },
   // Scenarios: the 12 client scenarios
-  ...SCENARIOS.map((s) => ({ key: `sc-${s.key}`, set: 'Scenarios', tier: 'gold', title: s.short, earn: `Reach your target level on ${s.label} (October assessment and Academy tests combined), with at least one lesson, test or sandbox exercise on it in the Academy.`, glyph: `sc-${s.key}`, scenario: s.key })),
+  ...SCENARIOS.map((s) => ({ key: `sc-${s.key}`, set: 'Scenarios', tier: 'gold', title: s.short, earn: `Reach your target on ${s.label}.`, glyph: `sc-${s.key}`, scenario: s.key })),
   // Topics: the cross-cutting modules
-  ...TOPICS.map((m) => ({ key: `tp-${m.key}`, set: 'Topics', tier: 'silver', title: SHORT[m.key] || m.title, earn: `Reach your target on the ${m.title} module test (first attempt).`, glyph: `tp-${m.key}`, module: m.key })),
+  ...TOPICS.map((m) => ({ key: `tp-${m.key}`, set: 'Topics', tier: 'silver', title: SHORT[m.key] || m.title, earn: `Reach your target on the ${m.title} course test, first attempt.`, glyph: `tp-${m.key}`, module: m.key })),
   // Hands-on: the sandbox
   { key: 'sbx-first', set: 'Hands-on', tier: 'bronze', title: 'Hands on', earn: 'Finish your first sandbox exercise.', glyph: 'cursor' },
   { key: 'sbx-pass', set: 'Hands-on', tier: 'silver', title: 'Clean run', earn: 'Pass a sandbox exercise (80% or more) on your first run.', glyph: 'check' },
@@ -37,11 +37,11 @@ export const CATALOG = [
   { key: 'sbx-flawless', set: 'Hands-on', tier: 'gold', title: 'Flawless', earn: 'Score 100% on a sandbox exercise on your first run: no hint, no mistake.', glyph: 'diamond' },
   { key: 'sbx-all', set: 'Hands-on', tier: 'gold', title: 'Sandbox master', earn: `Pass every sandbox exercise in the Academy: the ${SANDBOX_N} live today and each new one as it is added. This card stays yours only while you have passed them all.`, glyph: 'grid', live: true },
   // Craft: work done well
-  { key: 'sharp', set: 'Craft', tier: 'silver', title: 'Sharp', earn: 'Pass 5 module tests on your first attempt.', glyph: 'pencil' },
+  { key: 'sharp', set: 'Craft', tier: 'silver', title: 'Sharp', earn: 'Pass 5 course tests on your first attempt.', glyph: 'pencil' },
   { key: 'climber', set: 'Craft', tier: 'silver', title: 'Climber', earn: 'Raise one scenario 15 points or more above your October level through Academy tests.', glyph: 'trend' },
   { key: 'best-calls', set: 'Craft', tier: 'silver', title: 'Best calls', earn: 'Make the best call at every step of a decision walkthrough.', glyph: 'compass' },
   { key: 'clear-voice', set: 'Craft', tier: 'silver', title: 'Clear voice', earn: 'Get a Solid result on a recorded or written explanation.', glyph: 'mic' },
-  { key: 'self-aware', set: 'Craft', tier: 'silver', title: 'Self-aware', earn: 'Score 80% or more on a check with your certainty well judged.', glyph: 'target' },
+  { key: 'self-aware', set: 'Craft', tier: 'silver', title: 'Self-aware', earn: 'Score 80% or more on a course test with your certainty well judged.', glyph: 'target' },
   { key: 'comeback', set: 'Craft', tier: 'silver', title: 'Comeback', earn: 'Answer every question right in a spaced review of questions you once missed.', glyph: 'loop' },
   { key: 'teacher', set: 'Craft', tier: 'silver', title: 'Teacher', earn: 'Complete a teach-back with a colleague.', glyph: 'people' },
   { key: 'curious', set: 'Craft', tier: 'gold', title: 'Curious mind', earn: 'Ask a question in a session that your KUDO Trainer adds to the Academy.', glyph: 'bulb' },
