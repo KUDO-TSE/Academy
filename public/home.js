@@ -1,4 +1,4 @@
-// Trainee Home: My 12-weeks program (the programme, week by week, course by course), My Readiness (from the starting
+// Trainee Home: My Quarter's Program (the programme, week by week, course by course), My Readiness (from the starting
 // steps), Your readiness (from the starting point, test by test) and Your level (scenario by scenario).
 import { h, icon, svg, fmtDate } from './ui.js';
 import { small } from './charts.js';
@@ -197,7 +197,7 @@ export function levelsCard(levels) {
     })));
 }
 
-// ------------------------------------------------------------------ Months (Home: My 12-weeks program; My courses)
+// ------------------------------------------------------------------ Months (Home: My Quarter's Program; My courses)
 // Three months of four weeks, each with a light colour of its own (sky, sand, mint) so a trainee sees where they are.
 const monthOfWeek = (phases, w) => phases.find((p) => w >= p.weeks[0] && w <= p.weeks[1]) || phases.at(-1);
 const SHORT_MOD = { foundations: 'Foundations', glossary: 'Glossary', network: 'IT and networks', marketplace: 'Marketplace', ringcentral: 'RingCentral' };
@@ -219,7 +219,7 @@ export function monthRecap(its, { levels = [], modules = [] } = {}) {
 }
 
 /** Home: three month cards. Each opens My courses on that month. */
-export function monthsCard({ items, week, phases, levels = [], modules = [], title = 'My 12-weeks program', pace = null, onOpen = null }) {
+export function monthsCard({ items, week, phases, levels = [], modules = [], title = "My Quarter's Program", pace = null, onOpen = null }) {
   const cur = monthOfWeek(phases, week);
   const all = items.filter(mine), allDone = all.filter((i) => i.done).length;
   return h('section', { class: 'card roadmap-card months' },
@@ -287,5 +287,5 @@ export function monthPlan({ items, week, phases, levels = [], modules = [], href
       }));
   };
   draw();
-  return h('section', { class: 'card month-plan plan-weeks' }, h('div', { class: 'sec-head' }, h('h2', null, 'My 12-weeks program, month by month'), h('p', { class: 'muted small' }, 'Pick a month to see it week by week. Each course is all-in-one: learn, practise, decide, explain and check.')), tabs, body);
+  return h('section', { class: 'card month-plan plan-weeks' }, h('div', { class: 'sec-head' }, h('h2', null, "My Quarter's Program, month by month"), h('p', { class: 'muted small' }, 'Pick a month to see it week by week. Each course is all-in-one: learn, practise, decide, explain and check.')), tabs, body);
 }
