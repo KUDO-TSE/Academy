@@ -60,18 +60,6 @@ export function resultsView(data, live = null) {
   const showLive = !!live; // the trainee's own page (the admin preview has no live part)
   const self = latest(data, 'self'); live = latest(data, 'live');
   const rows = data.scenarios.map((s) => ({ key: s.key, label: s.label, short: s.short, self: self?.map[s.key]?.pct ?? null, live: live?.map[s.key]?.pct ?? null, c: live?.map[s.key] }));
-  const liveRounds = roundsOf(data, 'live');
-  let qRound = liveRounds.length ? liveRounds[liveRounds.length - 1].id : null;
-  const qBox = h('div');
-  const drawQ = () => {
-    qBox.replaceChildren();
-    const qs = data.questions.filter((q) => q.round_id === qRound && !q.correct);
-    const all = data.questions.filter((q) => q.round_id === qRound);
-    if (!all.length) { qBox.append(h('div', { class: 'muted' }, 'Question-by-question results are not available for this test.')); return; }
-    if (!qs.length) { qBox.append(h('div', { class: 'ok' }, 'You answered every question correctly. Well done.')); return; }
-    qs.forEach((q) => qBox.append(h('div', { class: 'q-item' }, h('div', { class: 'row' }, h('span', { class: 'chip blue' }, shortOf(data, q.scenario)), q.level ? h('span', { class: 'chip grey' }, q.level) : null), h('div', { style: 'margin-top:6px;font-weight:600' }, q.question), q.answer ? h('div', { class: 'a' }, 'Correct answer: ', q.answer) : null)));
-  };
-  drawQ();
   const lo = live?.map.overall;
   const spCard = (inCard) => (!self && !live ? (inCard ? null : empty('No results yet', 'Your Self Assessment and knowledge test results will appear here.')) :
 h(inCard ? 'section' : 'div', { class: inCard ? 'sp-section' : 'card sp-card' }, inCard ? h('h2', null, 'My Starting Point: Self-assessment and Test Results') : h('h2', null, 'Self rating and test, scenario by scenario'), inCard ? h('p', { class: 'sub keep' }, live ? `Self Assessment and ${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}. These stay as your baseline record.` : 'Self Assessment and live test, your baseline record.') : null,
@@ -87,10 +75,7 @@ h(inCard ? 'section' : 'div', { class: inCard ? 'sp-section' : 'card sp-card' },
   return h('div', { class: 'page' },
     h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My results'), h('p', null, showLive ? 'Your completed courses with every score, then your starting point: your Self Assessment and knowledge test. How results move your level is on My progress; every attempt, with its date and time, is on My Activities.' : live ? `${live.round.label}${lo?.total ? `, ${lo.correct} of ${lo.total} correct` : ''}` : 'Your test results will show here once they are in.'))),
     showLive ? academyResults(spCard(true)) : null,
-    h('div', { class: 'stack' },
-      showLive ? null : spCard(false),
-      h('div', { class: 'card' }, h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'Questions to review'), h('p', { class: 'sub' }, 'The questions you missed, with the correct answer')),
-        liveRounds.length > 1 ? h('select', { style: 'width:auto', 'aria-label': 'Test', on: { change: (e) => { qRound = Number(e.target.value); drawQ(); } } }, liveRounds.map((r) => h('option', { value: r.id, selected: r.id === qRound }, r.label))) : null), qBox)));
+    showLive ? null : spCard(false));
 }
 
 export function progressView(data, live = null) {

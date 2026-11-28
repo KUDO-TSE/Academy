@@ -3,7 +3,7 @@ import { resultsView, progressView } from './views-trainee.js';
 import * as A from './views-admin.js';
 import * as P from './views-admin-programme.js';
 import { programmeView, moduleRoute, missedView } from './views-programme.js';
-import { surveyView } from './assess-ui.js';
+import { surveyView, challengeView } from './assess-ui.js';
 import { boardView } from './views-board.js';
 import { sessionsView, sessionView } from './views-sessions.js';
 import { releasesView, releaseView } from './views-releases.js';
@@ -138,7 +138,7 @@ function shell() {
 // ------------------------------------------------------------ Router
 const TRAINEE_ROUTES = { programme: null, training: null, collection: null, results: resultsView, progress: progressView, news: () => newsView(), activity: () => activityView() };
 const ADMIN_ROUTES = { try: () => P.tryView(me), board: boardView, overview: A.overviewView, team: A.teamView, priorities: A.prioritiesView, programme: P.programmeOverview, reviews: P.reviewsView, sessions: sessionsView, releases: releasesView, feedback: P.feedbackView, curriculum: () => P.curriculumView(), imports: A.importView, users: A.usersView, audit: A.auditView, logic: A.logicView, news: () => newsView(), activity: () => activityView() };
-const isTraineeDyn = (r) => r.startsWith('module-') || r.startsWith('sandbox-') || r === 'missed' || r === 'survey';
+const isTraineeDyn = (r) => r.startsWith('module-') || r.startsWith('sandbox-') || r === 'missed' || r === 'survey' || r === 'challenge';
 const isAdminDyn = (r) => r.startsWith('session-') || r.startsWith('release-') || r.startsWith('person-') || r.startsWith('preview') || r.startsWith('pview-') || r.startsWith('curriculum-');
 
 // An admin who is also on the team uses their own Academy under "me-" addresses. While they are there, in-page links
@@ -189,6 +189,7 @@ async function route() {
       if (r === 'programme' || r === 'training') view = programmeView(prog, { part: r === 'training' ? 'training' : 'home' });
       else if (r === 'missed') view = await missedView({ rerender, planItems: items });
       else if (r === 'survey') view = await surveyView();
+      else if (r === 'challenge') view = await challengeView();
       else if (r.startsWith('sandbox-')) { const key = r.slice(8); view = sandboxView(key, { onExit: (again) => { if (again) route(); else { try { sessionStorage.setItem('academy.focusStep', 'sandbox'); } catch { /* not kept */ } location.hash = `${meMode ? 'me-' : ''}module-${SANDBOXES[key]?.module || 'platform'}`; } } }); }
       else view = await moduleRoute(r.slice(7), { planItems: items, rerender });
     } else {

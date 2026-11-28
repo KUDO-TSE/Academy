@@ -195,14 +195,49 @@ export function challengeCard() {
     const c = await api('GET', '/api/me/challenge');
     const head = h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'Weekly challenge'), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, 'Four mixed questions from what you have already studied. Two minutes. Mixing topics is what makes it stick.')),
       h('div', { class: 'streak', title: 'Weeks with a challenge done. It never resets: a busy week costs nothing.' }, h('b', null, c.weeksSoFar ? `${c.weeksActive} of ${c.weeksSoFar}` : c.weeksActive), h('span', null, c.weeksSoFar ? 'weeks active so far' : (c.weeksActive === 1 ? 'week active' : 'weeks active'))));
-    if (c.doneThisWeek) { box.replaceChildren(head, h('div', { class: 'ok', style: 'margin-top:10px' }, 'Done for this week. A new one opens on Monday.')); return; }
+    if (c.doneThisWeek) { box.replaceChildren(head, h('div', { class: 'ok', style: 'margin-top:10px' }, 'Done for this week. A new one opens on Monday.'), h('div', { class: 'ch-body' }, h('a', { class: 'btn', href: `#${document.body.dataset.me === '1' ? 'me-' : ''}challenge` }, 'Questions to review'))); return; }
     const facts = h('div', { class: 'ch-facts' }, h('span', { class: 'chip grey' }, '4 questions'), h('span', { class: 'chip grey' }, '2 minutes'), h('span', { class: 'chip grey' }, 'Never changes your score'));
-    const body = h('div', { class: 'ch-body' }, h('button', { class: 'btn primary', on: { click: () => {
-      body.replaceChildren(checkForm(c.items, { url: '/api/me/challenge', onResult: (r, items) => { body.replaceChildren(resultView({ ...r, passed: true, counts: false }, items, { baseline: true }), h('div', { class: 'ok', style: 'margin-top:8px' }, `Done for this week. Weeks active: ${r.weeksActive}${r.weeksSoFar ? ` of ${r.weeksSoFar}` : ''}.`)); } }));
-    } } }, 'Take this week\'s challenge'));
+    // The challenge opens on its own page, with the questions to review under it.
+    const body = h('div', { class: 'ch-body' }, h('a', { class: 'btn primary', href: `#${document.body.dataset.me === '1' ? 'me-' : ''}challenge` }, 'Take this week\'s challenge'));
     box.replaceChildren(head, facts, body);
   })().catch(() => box.replaceChildren(h('div', { class: 'muted' }, 'The weekly challenge could not load.')));
   return box;
+}
+
+/** The weekly challenge page: this week's four questions, then the questions missed in the initial assessment. */
+export async function challengeView() {
+  const me = document.body.dataset.me === '1' ? 'me-' : '';
+  const [c, data] = await Promise.all([api('GET', '/api/me/challenge'), api('GET', '/api/me').catch(() => null)]);
+  const facts = h('div', { class: 'ch-facts' }, h('span', { class: 'chip grey' }, '4 questions'), h('span', { class: 'chip grey' }, '2 minutes'), h('span', { class: 'chip grey' }, 'Never changes your score'));
+  const streak = h('div', { class: 'streak', title: 'Weeks with a challenge done. It never resets: a busy week costs nothing.' }, h('b', null, c.weeksSoFar ? `${c.weeksActive} of ${c.weeksSoFar}` : c.weeksActive), h('span', null, c.weeksSoFar ? 'weeks active so far' : 'weeks active'));
+  const body = h('div', { class: 'ch-page-body' });
+  if (c.doneThisWeek) body.append(h('div', { class: 'ok' }, 'Done for this week. A new challenge opens on Monday. Meanwhile, go through the questions to review below.'));
+  else body.append(checkForm(c.items, { url: '/api/me/challenge', onResult: (r, items) => { body.replaceChildren(resultView({ ...r, passed: true, counts: false }, items, { baseline: true }), h('div', { class: 'ok', style: 'margin-top:8px' }, 'Done for this week. A new challenge opens on Monday.')); body.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }));
+  const challenge = h('section', { class: 'card challenge ch-page' },
+    h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'This week\'s questions'), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, 'Four mixed questions from what you have already studied. Mixing topics is what makes it stick.')), streak),
+    facts, body);
+  return h('div', { class: 'page lesson' }, h('a', { href: `#${me}training`, class: 'muted back-link' }, 'Back to My courses'),
+    h('div', { class: 'page-head', style: 'margin-top:8px' }, h('div', null, h('h1', null, 'Weekly challenge'), h('p', null, 'A short weekly workout, then the questions from your initial assessment to go through again.'))),
+    h('div', { class: 'stack' }, challenge, data ? questionsToReview(data) : null));
+}
+
+/** The questions missed in the knowledge test, with the correct answer. */
+export function questionsToReview(data) {
+  const live = data.rounds.filter((r) => r.kind === 'live' && data.scores.some((s) => s.round_id === r.id));
+  let round = live.length ? live[live.length - 1].id : null;
+  const short = (k) => data.scenarios.find((s) => s.key === k)?.short || k;
+  const box = h('div');
+  const draw = () => {
+    box.replaceChildren();
+    const all = data.questions.filter((q) => q.round_id === round), qs = all.filter((q) => !q.correct);
+    if (!all.length) { box.append(h('div', { class: 'muted' }, 'Question-by-question results are not available for your test.')); return; }
+    if (!qs.length) { box.append(h('div', { class: 'ok' }, 'You answered every question correctly. Well done.')); return; }
+    box.append(h('p', { class: 'muted small', style: 'margin:0 0 4px' }, `${qs.length} question${qs.length > 1 ? 's' : ''} to go through.`));
+    qs.forEach((q) => box.append(h('div', { class: 'q-item' }, h('div', { class: 'row' }, h('span', { class: 'chip blue' }, short(q.scenario)), q.level ? h('span', { class: 'chip grey' }, q.level) : null), h('div', { style: 'margin-top:6px;font-weight:600' }, q.question), q.answer ? h('div', { class: 'a' }, 'Correct answer: ', q.answer) : null)));
+  };
+  draw();
+  return h('section', { class: 'card q-review' }, h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'Questions to review'), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, 'These are the questions you missed during your initial assessment, with their correct answer. Going through these regularly will boost your knowledge.')),
+    live.length > 1 ? h('select', { style: 'width:auto', 'aria-label': 'Test', on: { change: (e) => { round = Number(e.target.value); draw(); } } }, live.map((r) => h('option', { value: r.id, selected: r.id === round }, r.label))) : null), box);
 }
 
 // ------------------------------------------------------------------ end-of-programme survey

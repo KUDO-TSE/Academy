@@ -940,3 +940,5 @@ td.nowrap{white-space:nowrap;font-variant-numeric:tabular-nums}
 .sp-section{margin-top:var(--s-6);padding-top:var(--s-5);border-top:1px solid var(--border-soft)}
 .sp-section>h2{font-size:17px;margin:0}
 .sp-section>.sub{margin:2px 0 0}
+.ch-page .ch-facts{margin:var(--s-2) 0 var(--s-4)}
+.q-review .q-item:first-of-type{border-top:0}
