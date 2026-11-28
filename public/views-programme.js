@@ -118,7 +118,7 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
             nextUp ? h('a', { class: 'btn primary lg', href: nextHref || '#training', on: { click: () => focusStep(nextUp.kind) } }, 'Take the course') : null,
             h('span', { class: 'hero-next' }, nextUp ? nextUp.title : 'Everything on your side is done for now.')))),
       h('section', { class: 'card span-3 prog-tile' },
-        h('div', { class: 'row spread' }, h('h2', null, 'My Progress'), h('span', { class: `chip ${paceChip[0]}` }, paceChip[1])),
+        h('div', { class: 'row spread' }, h('h2', null, "My Program's completion"), h('span', { class: `chip ${paceChip[0]}` }, paceChip[1])),
         h('div', { class: 'pt-ring' }, h('div', { class: 'ring big', style: `--p:${myPct}`, role: 'img', 'aria-label': `${myPct}% of your steps done` }, h('b', null, `${myPct}%`)),
           h('div', null, h('div', { class: 'pt-big' }, `${myDone} of ${mySteps.length}`), h('div', { class: 'muted small' }, 'steps done'))),
         h('div', { class: 'muted small' }, `${data.phases.find((p) => st.week >= p.weeks[0] && st.week <= p.weeks[1])?.name || ''}, weeks ${(data.phases.find((p) => st.week >= p.weeks[0] && st.week <= p.weeks[1]) || { weeks: [1, 3] }).weeks.join(' to ')}`)),
