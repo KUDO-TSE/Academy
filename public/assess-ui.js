@@ -187,21 +187,6 @@ export function feedbackCard(moduleKey, { onDone } = {}) {
   return box;
 }
 
-// ------------------------------------------------------------------ spaced review (My courses)
-export function spacedCard() {
-  const box = h('div');
-  (async () => {
-    const r = await api('GET', '/api/me/review');
-    if (!r.due && !r.waiting) return;
-    const head = h('div', null, h('h2', null, 'Come back to these'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, 'Questions you missed or guessed on return one week later, then three weeks later. Answering them again is what moves them into long-term memory. Practice only: it never changes your score.'));
-    if (!r.due) { box.replaceChildren(h('div', { class: 'card' }, head, h('div', { class: 'muted', style: 'margin-top:8px' }, `${r.waiting} question${r.waiting > 1 ? 's' : ''} will come back over the next weeks.`))); return; }
-    const body = h('div', { style: 'margin-top:10px' }, h('button', { class: 'btn primary', on: { click: () => {
-      body.replaceChildren(checkForm(r.items, { url: '/api/me/review', onResult: (res, items) => body.replaceChildren(resultView({ ...res, passed: true }, items, { baseline: true }), h('div', { class: 'muted small', style: 'margin-top:8px' }, 'The ones you got right come back once more in two weeks; the others in a week.')) }));
-    } } }, `Review ${r.items.length} question${r.items.length > 1 ? 's' : ''} now`));
-    box.replaceChildren(h('div', { class: 'card' }, head, body));
-  })().catch(() => {});
-  return box;
-}
 
 // ------------------------------------------------------------------ weekly challenge (My courses)
 export function challengeCard() {

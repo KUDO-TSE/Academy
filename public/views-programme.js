@@ -4,7 +4,7 @@ import { SCENARIOS as SANDBOXES } from './sandbox.js';
 import { storyPlayer } from './story.js';
 import { revealNew } from './collectibles.js';
 import { recapBanner, revealRecap } from './recap.js';
-import { checkForm, resultView, walkthroughCard, explainCard, feedbackCard, challengeCard, spacedCard } from './assess-ui.js';
+import { checkForm, resultView, walkthroughCard, explainCard, feedbackCard, challengeCard } from './assess-ui.js';
 
 
 // ------------------------------------------------------------------ shared bits
@@ -131,7 +131,6 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
           plan.tip ? h('div', { class: 'tip' }, h('b', null, 'How you like to learn: '), plan.tip) : null,
           readOnly ? null : focusChoice()),
       readOnly ? null : challengeCard()),
-    readOnly ? null : spacedCard(),
     monthPlan({ items: st.items, week: st.week, phases: data.phases, levels: st.levels, modules: data.modules, hrefFor: readOnly ? () => null : itemHref, onStep: (it) => focusStep(it.kind) }),
   ];
   const trainingHead = h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My courses'), h('p', null, `Week ${st.week} of ${st.weeks}, ${myDone} of ${mySteps.length} steps done`)));
