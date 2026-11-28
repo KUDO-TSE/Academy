@@ -13,12 +13,14 @@
     "dev": "node --watch server/index.js",
     "seed:demo": "node scripts/seed-demo.js",
     "import:private": "node scripts/import-private.js",
-    "test": "node --test test/api.test.js"
+    "test": "node --test test/api.test.js",
+    "build:kudog": "esbuild client-src/kudog3d.js --bundle --format=esm --minify --target=es2020 --outfile=public/kudog3d.bundle.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
     "bcryptjs": "^2.4.3",
     "cfb": "^1.2.2",
+    "compression": "^1.8.2",
     "connect-pg-simple": "^10.0.0",
     "csv-parse": "^5.5.6",
     "express": "^4.21.2",
@@ -27,5 +29,9 @@
     "ffmpeg-static": "^5.3.0",
     "helmet": "^8.0.0",
     "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "three": "^0.187.0"
   }
 }

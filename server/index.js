@@ -14,6 +14,7 @@ import { meProgramme, adminProgramme, applyDefaultVideos } from './programme.js'
 import { ensureDemo } from './demo.js';
 import { ensureHalfway } from './demo-halfway.js';
 import { trackVisit, meActivity, adminActivity } from './activity.js';
+import compression from 'compression';
 import { boardRouter } from './board.js';
 import { warmUp, resumePending } from './autoreview.js';
 import { sessionsRouter, loadFieldItems, failInterrupted } from './sessions.js';
@@ -38,6 +39,7 @@ export async function createApp() {
   const app = express();
   app.set('trust proxy', 1); // Railway terminates TLS in front of the app
   app.disable('x-powered-by');
+  app.use(compression()); // text files (the KUDOG 3D bundle is ~550 KB, ~150 KB compressed)
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
