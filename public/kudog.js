@@ -76,7 +76,7 @@ const MOODS = {
   wake: (u) => ({ ...hop(u, 2.5, 220), earL: damp(u - 150, -12, 220, 120), earR: damp(u - 200, -8, 240, 120), done: u > 900 }),
 };
 
-export function kudogPuppet({ size = 96, label = 'Pet KUDOG', onPet } = {}) {
+export function kudog2D({ size = 96, label = 'Pet KUDOG', onPet } = {}) {
   const layer = (cls) => h('i', { class: `kd-l kd-${cls}`, style: `background-image:url(${SRC});clip-path:${pct(CLIP[cls])};transform-origin:${PIVOT[cls] || '50% 50%'}` });
   const lid = (e) => h('i', { class: 'kd-lid', style: `left:${(e.cx - e.rx) / 5}%;top:${(e.cy - e.ry) / 5}%;width:${2 * e.rx / 5}%;height:${2 * e.ry / 5}%` }, h('i'));
   const earL = layer('earL'), earR = layer('earR'), tongue = layer('tongue'), lids = EYES.map(lid);
@@ -123,6 +123,29 @@ export function kudogPuppet({ size = 96, label = 'Pet KUDOG', onPet } = {}) {
     el, mood, state: () => cur,
     start() { if (still || raf) return; since = performance.now(); raf = requestAnimationFrame(frame); },
     stop() { cancelAnimationFrame(raf); raf = 0; },
+  };
+}
+
+// ---- KUDOG in 3D everywhere he talks to the trainee (tour, cards, recaps, brags).
+// kudogPuppet() returns at once with the 2D puppet, loads the 3D dog (public/kudog3d.bundle.js) and swaps it in with
+// the same interface, carrying over the current mood. Without WebGL (or if the file cannot load) the 2D puppet stays.
+let load3d = null;
+const get3d = () => load3d || (load3d = import('/kudog3d.bundle.js'));
+export function kudogPuppet({ size = 96, label = 'Pet KUDOG', onPet, scale = 1.6 } = {}) {
+  const flat = kudog2D({ size, label, onPet });
+  const box = h('div', { class: 'kd-live', style: `width:${Math.round(size * scale)}px;height:${Math.round(size * scale)}px` }, flat.el);
+  let impl = flat, mood = 'idle', running = false;
+  get3d().then((mod) => {
+    const d3 = mod.createKudog3D({ label: `${label}. KUDOG, your virtual coach`, onPet });
+    d3.el.classList.add('kd-3d'); flat.stop(); flat.el.replaceWith(d3.el); impl = d3;
+    if (running) { d3.start(); d3.mood(mood); }
+  }).catch(() => {});
+  return {
+    el: box,
+    mood(m) { mood = m; impl.mood(m); },
+    state: () => impl.state(),
+    start() { running = true; impl.start(); },
+    stop() { running = false; impl.stop(); },
   };
 }
 

@@ -7,7 +7,7 @@
 // KUDOG is a three.js model (public/kudog3d.bundle.js, built from client-src/kudog3d.js), loaded when the panel first
 // opens; without WebGL he falls back to the 2D puppet (kudog.js).
 import { h, api, icon } from './ui.js';
-import { kudogPuppet, kudogFace } from './kudog.js';
+import { kudog2D, kudogFace } from './kudog.js';
 
 const SUGGEST = [
   ['plan', 'What\'s next in my programme?'], ['user', 'When is my next 1:1 with my KUDO Trainer?'], ['team', 'When is the next group session, and what is the topic?'],
@@ -56,7 +56,7 @@ export function coachWidget({ name = '' } = {}) {
   const loadDog = () => dogReady || (dogReady = (async () => {
     let d;
     try { const mod = await import('/kudog3d.bundle.js'); d = mod.createKudog3D({ label: 'KUDOG, your virtual coach. Click to pet him.', onPet }); }
-    catch { d = kudogPuppet({ size: 160, label: 'Pet KUDOG', onPet }); d.el.classList.add('kg-2d'); }
+    catch { d = kudog2D({ size: 160, label: 'Pet KUDOG', onPet }); d.el.classList.add('kg-2d'); }
     dog.el.replaceWith(d.el); dog = d; if (open) { dog.start(); dog.mood(busy ? 'thinking' : 'happy'); }
   })());
   let napTimer = 0;
