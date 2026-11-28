@@ -208,13 +208,14 @@ export function challengeCard() {
   const box = h('div', { class: 'card challenge' }, h('div', { class: 'muted' }, 'Loading…'));
   (async () => {
     const c = await api('GET', '/api/me/challenge');
-    const head = h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'Weekly challenge'), h('p', { class: 'sub', style: 'margin:2px 0 0' }, 'Four mixed questions from what you have already studied. Two minutes. Mixing topics is what makes it stick.')),
+    const head = h('div', { class: 'row spread' }, h('div', null, h('h2', null, 'Weekly challenge'), h('p', { class: 'sub keep', style: 'margin:2px 0 0' }, 'Four mixed questions from what you have already studied. Two minutes. Mixing topics is what makes it stick.')),
       h('div', { class: 'streak', title: 'Weeks with a challenge done. It never resets: a busy week costs nothing.' }, h('b', null, c.weeksSoFar ? `${c.weeksActive} of ${c.weeksSoFar}` : c.weeksActive), h('span', null, c.weeksSoFar ? 'weeks active so far' : (c.weeksActive === 1 ? 'week active' : 'weeks active'))));
     if (c.doneThisWeek) { box.replaceChildren(head, h('div', { class: 'ok', style: 'margin-top:10px' }, 'Done for this week. A new one opens on Monday.')); return; }
-    const body = h('div', { style: 'margin-top:10px' }, h('button', { class: 'btn primary', on: { click: () => {
+    const facts = h('div', { class: 'ch-facts' }, h('span', { class: 'chip grey' }, '4 questions'), h('span', { class: 'chip grey' }, '2 minutes'), h('span', { class: 'chip grey' }, 'Never changes your score'));
+    const body = h('div', { class: 'ch-body' }, h('button', { class: 'btn primary', on: { click: () => {
       body.replaceChildren(checkForm(c.items, { url: '/api/me/challenge', onResult: (r, items) => { body.replaceChildren(resultView({ ...r, passed: true, counts: false }, items, { baseline: true }), h('div', { class: 'ok', style: 'margin-top:8px' }, `Done for this week. Weeks active: ${r.weeksActive}${r.weeksSoFar ? ` of ${r.weeksSoFar}` : ''}.`)); } }));
     } } }, 'Take this week\'s challenge'));
-    box.replaceChildren(head, body);
+    box.replaceChildren(head, facts, body);
   })().catch(() => box.replaceChildren(h('div', { class: 'muted' }, 'The weekly challenge could not load.')));
   return box;
 }

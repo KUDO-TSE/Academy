@@ -1,5 +1,5 @@
 import { h, api, toast, fmtDate, svg, tipI, metaRow, mark } from './ui.js';
-import { monthsCard, monthPlan, courseList, readinessCard, levelsCard } from './home.js';
+import { monthsCard, monthPlan, readinessCard, levelsCard } from './home.js';
 import { SCENARIOS as SANDBOXES } from './sandbox.js';
 import { storyPlayer } from './story.js';
 import { revealNew } from './collectibles.js';
@@ -97,11 +97,9 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
   const paceChip = { on: ['green', 'On pace'], close: ['amber', 'Slightly behind pace'], behind: ['coral', 'Behind pace'] }[st.progress.pace];
   // This week = what is due by now and not done yet, on the trainee's side, oldest first.
   const thisWeek = st.items.filter((i) => !i.done && (i.owner || 'you') === 'you' && i.week <= st.week).sort((a, b) => a.week - b.week).slice(0, 6);
-  const fmtMin = (m) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? `${m % 60} min` : ''}`.trim() : `${m} min`);
   // Your steps only (the KUDO Trainer's sessions are theirs to book): the same count as the 12-week map.
   const mySteps = st.items.filter((i) => (i.owner || 'you') === 'you'), myDone = mySteps.filter((i) => i.done).length, myPct = mySteps.length ? Math.round((myDone / mySteps.length) * 100) : 0;
 
-  const minWeek = thisWeek.reduce((t, i) => t + (i.minutes || 0), 0);
   const nextUp = thisWeek[0] || st.next[0] || null;
 
   // ---- Home: a tiled dashboard built around what to do next. One step leads; everything else is context.
@@ -130,24 +128,17 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
 
   // ---- My courses: the work on the left (this week, then the plan month by month, week by week), support on the right.
   const training = [
-    h('div', { class: 'bento training-grid' },
-      h('div', { class: 'span-8 stack' },
-        h('section', { class: 'card this-week' }, h('div', { class: 'row spread' }, h('h2', null, thisWeek.length ? 'This week' : 'My next courses'),
-            h('span', { class: 'chip blue' }, thisWeek.length ? `${thisWeek.length} step${thisWeek.length > 1 ? 's' : ''}, about ${fmtMin(minWeek)}` : 'You are ahead of your plan')),
-          thisWeek.length ? courseList(thisWeek, { hrefFor: readOnly ? () => null : itemHref, onStep: (it) => focusStep(it.kind), strong: true }) : st.next.length ? courseList(st.next, { hrefFor: readOnly ? () => null : itemHref, onStep: (it) => focusStep(it.kind), strong: true }) : h('div', { class: 'ok', style: 'margin-top:10px' }, 'Everything on your side is done. Well done.')),
-        monthPlan({ items: st.items, week: st.week, phases: data.phases, levels: st.levels, modules: data.modules, hrefFor: readOnly ? () => null : itemHref, onStep: (it) => focusStep(it.kind) })),
-      h('aside', { class: 'span-4 stack' },
+    readOnly ? null : h('div', { class: 'group-line' }, groupNext()),
+    h('div', { class: `training-top ${readOnly ? 'solo' : ''}` },
         h('section', { class: 'card focus-card' }, h('h2', null, 'Your three focus areas'), h('p', { class: 'sub keep' }, plan.focusPinned ? 'Chosen with your KUDO Trainer' : 'Picked from your results, your clients and the team priorities'),
           plan.focus.length ? plan.focus.map((s2) => { const l = st.levels.find((x) => x.scenario === s2); const pct = Math.min(100, Math.round((l.now / Math.max(1, l.target)) * 100));
             return h('div', { class: 'focus-why' }, h('div', { class: 'row spread' }, h('b', null, l.label, ' ', tipI(`Because ${plan.focusReasons[s2]}.`)), h('span', { class: 'small muted' }, `${l.now}% of ${l.target}%`)), h('div', { class: 'bar' }, h('i', { style: `width:${pct}%` }))); })
             : h('div', { class: 'muted' }, 'You are already at target on every scenario: your plan keeps it sharp and proves it.'),
           plan.tip ? h('div', { class: 'tip' }, h('b', null, 'How you like to learn: '), plan.tip) : null,
           readOnly ? null : focusChoice()),
-        readOnly ? null : challengeCard(),
-        readOnly ? null : spacedCard(),
-        h('section', { class: 'card trainer-tile' }, h('h2', null, 'With your KUDO Trainer'),
-          st.jackNext.length ? st.jackNext.slice(0, 4).map((i) => h('div', { class: 'tt-row' }, h('span', { class: 'tt-wk' }, `W${i.week}`), h('span', null, i.title.replace(/\s*with your KUDO Trainer:?\s*/i, ': ').replace(/^: /, '').replace(/:\s*$/, '')))) : h('p', { class: 'muted small' }, 'No session planned yet.'),
-          readOnly ? null : groupNext()))),
+      readOnly ? null : challengeCard()),
+    readOnly ? null : spacedCard(),
+    monthPlan({ items: st.items, week: st.week, phases: data.phases, levels: st.levels, modules: data.modules, hrefFor: readOnly ? () => null : itemHref, onStep: (it) => focusStep(it.kind) }),
   ];
   const trainingHead = h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'My courses'), h('p', null, `Week ${st.week} of ${st.weeks}, ${myDone} of ${mySteps.length} steps done`)));
 

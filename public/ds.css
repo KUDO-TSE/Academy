@@ -728,3 +728,16 @@ td.nowrap{white-space:nowrap;font-variant-numeric:tabular-nums}
   .mo-card:hover,.mp-tab:hover,.mp-week:hover,.btn:hover,.prog-tile:hover,.card.readiness-card:hover,.mtile:hover,.stile:hover,.coll-card.earned:hover{transform:none!important}
   .mo-bar>i,.lvl-fill{animation:none}
 }
+
+/* My courses: focus areas and the weekly challenge side by side, then the quarter */
+.training-top{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:var(--s-5);align-items:stretch}
+.training-top.solo{grid-template-columns:minmax(0,1fr)}
+.training-top>.card{margin:0}
+.group-line:empty{display:none}
+.group-line .jack-next{margin:0;padding:var(--s-3) var(--s-4);border-radius:var(--radius-md);background:#F3F8FC;border:1px solid #DCEAF4;font-size:14px}
+@media (max-width:900px){.training-top{grid-template-columns:minmax(0,1fr)}}
+.training-top .challenge{display:flex;flex-direction:column;gap:var(--s-3);background:linear-gradient(180deg,#FFFCF3 0%,var(--white) 60%)}
+.training-top .challenge .row.spread{align-items:flex-start;gap:var(--s-4)}
+.ch-facts{display:flex;gap:6px;flex-wrap:wrap}
+.ch-body{margin-top:auto}
+.training-top .challenge .ch-body:has(form),.training-top .challenge .ch-body:has(.result){margin-top:0}
