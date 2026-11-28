@@ -141,3 +141,40 @@ export function kudogSays({ title, say, mood = 'happy', body = null, actions = n
   dog.start(); setTimeout(() => dog.mood(mood), 250);
   return Object.assign(close, { dog });
 }
+
+// ---- KUDOG's quips: short jokes about dogs and multilingual meetings, in speech bubbles beside him.
+// The first one is a party trick: he offers to say Woof in five languages, barks, and the translations pop up one by
+// one around him. Decorative (hidden from screen readers, who already get his real answers in the chat).
+const QUIPS = [
+  { say: 'Want me to say Woof in 5 languages?', woof: true },
+  { say: 'I speak fluent Woof. The interpreters handle every other language.' },
+  { say: 'Mic on, mic off… paws off the mute button!' },
+  { say: 'I never drop a relay. I fetch it.' },
+  { say: 'My favourite language channel? The one with the treats.' },
+  { say: 'Headset on, tail on: ready for my next meeting.' },
+  { say: 'Interpreters work in pairs. So do my ears.' },
+  { say: 'Zero language barriers. Plenty of belly rubs.' },
+  { say: 'Sit. Stay. Select your language.' },
+];
+const WOOF = [['Japanese', 'ワンワン (wan wan)'], ['French', 'Wouf wouf'], ['German', 'Wau wau'], ['Spanish', 'Guau guau'], ['Italian', 'Bau bau']];
+
+/** Speech bubbles on top of `host` (KUDOG's stage). `bark()` makes him bark. Returns { next, clear, busy }. */
+export function kudogQuips(host, { bark } = {}) {
+  const layer = h('div', { class: 'kq-layer', 'aria-hidden': 'true' });
+  host.append(layer);
+  let i = 0, timers = [], showing = false;
+  const later = (ms, fn) => timers.push(setTimeout(fn, ms));
+  const clear = () => { timers.forEach(clearTimeout); timers = []; layer.replaceChildren(); showing = false; };
+  const bubble = (text) => { const b = h('div', { class: 'kq kq-main' }, text); layer.replaceChildren(b); return b; };
+  function next() {
+    if (showing) return;
+    const q = QUIPS[i]; i = (i + 1) % QUIPS.length; showing = true;
+    bubble(q.say);
+    if (!q.woof) { later(5200, clear); return; }
+    later(1900, () => { bark?.(); bubble('Woof!'); });
+    WOOF.forEach(([lang, w], k) => later(2500 + k * 520, () => layer.append(h('div', { class: `kq kq-lang kq-l${k}` }, h('b', null, lang), w))));
+    later(2500 + WOOF.length * 520 + 700, () => { layer.querySelector('.kq-main')?.replaceChildren('Live interpretation, dog edition.'); });
+    later(10500, clear);
+  }
+  return { next, clear, busy: () => showing };
+}

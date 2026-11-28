@@ -1090,3 +1090,15 @@ td.nowrap{white-space:nowrap;font-variant-numeric:tabular-nums}
 .kd-live{position:relative;flex:none;display:grid;place-items:center}
 .kd-live>.kd-3d{width:100%;height:100%}
 .kd-live>.kd{margin:auto}
+
+/* KUDOG's quips: speech bubbles around him on the coach's welcome screen */
+.kg-stage{position:relative}
+.kq-layer{position:absolute;inset:0;pointer-events:none;z-index:2}
+.kq{position:absolute;background:#fff;color:#163A5C;border:1.5px solid #163A5C;border-radius:14px;padding:6px 10px;font-size:12.5px;line-height:1.3;font-weight:600;box-shadow:0 4px 0 rgba(22,58,92,.14);animation:kq-in .38s cubic-bezier(.2,1.5,.45,1) both;text-align:left}
+.kq-main{top:-6px;left:56%;width:148px}
+.kq-main::after{content:"";position:absolute;left:14px;bottom:-7px;width:11px;height:11px;background:#fff;border:1.5px solid #163A5C;border-top:0;border-left:0;transform:rotate(45deg)}
+.kq-lang{width:max-content;max-width:140px;white-space:nowrap;padding:4px 9px;font-size:12px;background:#F4FAE6;border-color:#6F9E14}
+.kq-lang b{display:block;font-size:10.5px;font-weight:600;color:#4B6B0E}
+.kq-l0{top:30%;left:-30%}.kq-l1{top:52%;left:-36%}.kq-l2{top:44%;left:88%}.kq-l3{top:66%;left:84%}.kq-l4{top:78%;left:-24%}
+@keyframes kq-in{from{opacity:0;transform:translateY(6px) scale(.85)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.kq{animation:none}}

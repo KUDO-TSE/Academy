@@ -1,7 +1,7 @@
 /* global document, window, ResizeObserver, requestAnimationFrame, cancelAnimationFrame */
 // KUDOG in 3D: a real, rigged dog model (Quaternius "Ultimate Animated Animals", CC0, public/kudog/LICENSE-model.txt)
-// recoloured as KUDOG (tan and cream coat, soft floppy ears), wearing his lime headset with a microphone and his gold
-// KUDOG medal, both attached to his head and neck bones so they follow every move.
+// recoloured as KUDOG (tan and cream coat, soft floppy ears), wearing his lime headset with a microphone and his lime
+// collar with KUDOG written on it and a gold KUDOG medal, attached to his head and neck bones so they follow every move.
 // Bundled with esbuild into public/kudog3d.bundle.js (npm run build:kudog); the model is public/kudog/kudog.glb.
 //
 // Motion: the model's own animation clips (idle, look around, sniff, eat, walk, gallop, jump, shake) are blended with
@@ -11,7 +11,7 @@
 import {
   Scene, PerspectiveCamera, WebGLRenderer, Group, Mesh, SphereGeometry, CapsuleGeometry, TorusGeometry, CylinderGeometry,
   CircleGeometry, MeshStandardMaterial, MeshBasicMaterial, HemisphereLight, DirectionalLight, AmbientLight, AnimationMixer, LoopOnce, LoopRepeat,
-  CanvasTexture, SRGBColorSpace, Raycaster, Vector2, Vector3, Quaternion, Sprite, SpriteMaterial, ACESFilmicToneMapping, Color,
+  CanvasTexture, SRGBColorSpace, Matrix4, DoubleSide, Raycaster, Vector2, Vector3, Quaternion, Sprite, SpriteMaterial, ACESFilmicToneMapping, Color,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
@@ -19,7 +19,7 @@ import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 const MODEL_URL = '/kudog/kudog.glb';
 const COAT = { Main: 0xc98340, Main_Light: 0xf2e4cc, Black: 0x2b1d16, Eyes_White: 0xffffff, Eyes_Black: 0x140d09, Eyes_Pupil: 0x4a2a12 };
-const LIME = 0xa8d82c, LIME_DARK = 0x6f9e14, CUSHION = 0x34401a, GOLD = 0xe7b42c, GOLD_DARK = 0xc98b10;
+const NAVY = 0x163a5c, LIME = 0xa8d82c, LIME_DARK = 0x6f9e14, CUSHION = 0x34401a, GOLD = 0xe7b42c, GOLD_DARK = 0xc98b10;
 
 // ---- one load and clean-up of the model, shared by every KUDOG on the page
 let modelP = null;
@@ -42,6 +42,12 @@ const medalTexture = () => canvasTex(256, 256, (x) => {
   x.strokeStyle = '#B57A0C'; x.lineWidth = 10; x.beginPath(); x.arc(128, 128, 104, 0, Math.PI * 2); x.stroke();
   x.fillStyle = '#7A4A05'; x.font = 'bold 58px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('KUDOG', 128, 132);
 });
+const collarTexture = () => { const t = canvasTex(1024, 96, (x) => {
+  x.fillStyle = '#A6D22E'; x.fillRect(0, 0, 1024, 96);
+  x.strokeStyle = '#6E9418'; x.lineWidth = 3; x.setLineDash([10, 8]); for (const y of [14, 82]) { x.beginPath(); x.moveTo(0, y); x.lineTo(1024, y); x.stroke(); }
+  x.fillStyle = '#163A5C'; x.font = 'bold 58px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  for (const cx of [140, 512, 884]) x.fillText('KUDOG', cx, 50); // either side of the medal, and at the back
+}); return t; };
 const wordTexture = (word) => canvasTex(256, 128, (x) => {
   x.fillStyle = '#ffffff'; x.strokeStyle = '#1B5C84'; x.lineWidth = 6; x.beginPath(); x.roundRect(8, 8, 240, 96, 40); x.fill(); x.stroke();
   x.fillStyle = '#1B5C84'; x.font = 'bold 60px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(word, 128, 58);
@@ -81,6 +87,7 @@ const MOODS = {
   idle: null,
   listening: [{ clip: 'Idle', pose: 'listen', dur: 99, fx: 'wagSoft' }],
   thinking: [{ clip: 'Idle', pose: 'think', dur: 2.5 }, { clip: 'Idle', pose: 'scratch', dur: 1.8, fx: 'scratch' }, { clip: 'Idle', pose: 'think', dur: 99 }],
+  bark: [...R.bark, { clip: 'Idle', pose: 'sit', dur: 2, fx: 'wagSoft' }],
   happy: [{ clip: 'Jump_ToIdle', pose: 'stand', dur: 1.33, fx: 'wagFast' }, { clip: 'Idle', pose: 'stand', dur: 2, fx: 'wagFast' }, { clip: 'Idle', pose: 'sit', dur: 2 }],
   excited: [{ clip: 'Gallop', pose: 'stand', dur: 2.6, move: 'circleFast', fx: 'wagFast' }, { clip: 'Gallop_Jump', pose: 'stand', dur: 0.93 }, { clip: 'Idle', pose: 'stand', dur: 1.7, fx: 'bark' }, { clip: 'Idle', pose: 'sit', dur: 2 }],
   concerned: [{ clip: 'Idle', pose: 'sad', dur: 7, fx: 'earsDown' }, { clip: 'Idle', pose: 'sit', dur: 2 }],
@@ -185,32 +192,55 @@ export function createKudog3D({ label = 'KUDOG', onPet = null, closeUp = null, f
     const put = (parentBone, obj) => { scene.add(obj); obj.updateMatrixWorld(true); bones[parentBone].attach(obj); return obj; };
     const stick = (a, b, r, mat) => { const A = new Vector3(...a), B = new Vector3(...b), dir = B.clone().sub(A), len = dir.length();
       const o = new Mesh(new CapsuleGeometry(r, len, 4, 10), mat); o.position.copy(A).add(B).multiplyScalar(0.5); o.quaternion.copy(new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), dir.normalize())); return o; };
-    // Headset: built at the rest pose around the head, then attached to the Head bone.
+    // Conferencing headset (the interpreter's tool, the heart of KUDO): padded navy headband with a lime stripe, large
+    // over-ear cups with cushions and a lime accent ring, a boom microphone with a foam windscreen at his mouth and a
+    // small lime "live" light. Built at the rest pose around the head, then attached to the Head bone.
+    const navy = std(NAVY, { roughness: 0.5 }), foam = std(0x1d2126, { roughness: 1 }), live = new MeshBasicMaterial({ color: LIME });
     const hd = W('Head');
     const set = new Group(); set.position.set(hd.x, hd.y + 0.02, hd.z - 0.08);
-    const band = new Mesh(new TorusGeometry(0.36, 0.045, 12, 40, Math.PI), lime); band.position.set(0, 0.02, 0); band.scale.set(1, 1.08, 1); set.add(band);
+    const band = new Mesh(new TorusGeometry(0.37, 0.05, 12, 44, Math.PI), navy); band.scale.set(1, 1.1, 1.25); set.add(band);
+    const stripe = new Mesh(new TorusGeometry(0.42, 0.018, 8, 44, Math.PI), lime); stripe.scale.set(0.98, 1.06, 1.3); set.add(stripe);
+    const under = new Mesh(new TorusGeometry(0.33, 0.035, 10, 44, Math.PI * 0.7), cush); under.rotation.z = Math.PI * 0.15; under.scale.set(1, 1.1, 1.6); set.add(under);
     for (const s of [-1, 1]) {
-      const cup = new Mesh(new CylinderGeometry(0.14, 0.14, 0.1, 28), lime); cup.rotation.z = Math.PI / 2; cup.position.set(0.37 * s, 0, 0); set.add(cup);
-      const pad = new Mesh(new TorusGeometry(0.12, 0.035, 10, 24), cush); pad.rotation.y = Math.PI / 2; pad.position.set(0.32 * s, 0, 0); set.add(pad);
-      const cap = new Mesh(new CylinderGeometry(0.07, 0.07, 0.02, 20), limeDark); cap.rotation.z = Math.PI / 2; cap.position.set(0.43 * s, 0, 0); set.add(cap);
+      const cup = new Mesh(new CylinderGeometry(0.17, 0.16, 0.12, 32), navy); cup.rotation.z = Math.PI / 2; cup.position.set(0.39 * s, -0.02, 0); set.add(cup);
+      const ringA = new Mesh(new TorusGeometry(0.15, 0.02, 8, 32), lime); ringA.rotation.y = Math.PI / 2; ringA.position.set(0.455 * s, -0.02, 0); set.add(ringA);
+      const cap = new Mesh(new CylinderGeometry(0.09, 0.09, 0.02, 24), limeDark); cap.rotation.z = Math.PI / 2; cap.position.set(0.46 * s, -0.02, 0); set.add(cap);
+      const pad = new Mesh(new TorusGeometry(0.135, 0.045, 10, 28), cush); pad.rotation.y = Math.PI / 2; pad.position.set(0.32 * s, -0.02, 0); set.add(pad);
+      set.add(stick([0.4 * s, 0.13, 0], [0.37 * s, 0.25, 0], 0.03, lime)); // yoke
     }
-    set.add(stick([0.4, -0.04, 0.05], [0.33, -0.22, 0.38], 0.02, limeDark)); set.add(stick([0.33, -0.22, 0.38], [0.15, -0.3, 0.62], 0.02, limeDark));
-    const mic = new Mesh(new SphereGeometry(0.05, 16, 12), cush); mic.position.set(0.13, -0.3, 0.65); set.add(mic);
+    // Boom microphone from the right cup to the corner of his mouth.
+    set.add(stick([0.46, -0.06, 0.06], [0.38, -0.24, 0.4], 0.024, navy)); set.add(stick([0.38, -0.24, 0.4], [0.17, -0.3, 0.64], 0.022, navy));
+    const pivot = new Mesh(new SphereGeometry(0.045, 14, 10), navy); pivot.position.set(0.46, -0.06, 0.06); set.add(pivot);
+    const led = new Mesh(new SphereGeometry(0.02, 10, 8), live); led.position.set(0.5, -0.03, 0.09); set.add(led);
+    const mic = new Mesh(new CapsuleGeometry(0.055, 0.06, 6, 14), foam); mic.position.set(0.13, -0.31, 0.67); mic.rotation.z = Math.PI / 2.4; set.add(mic);
     put('Head', set);
-    // Gold necklace and the KUDOG medal, attached to the lower neck so it sways with him.
-    const n1 = W('Neck1'), n2 = W('Neck2'), up = n2.clone().sub(n1);
-    const neck = new Group(); neck.position.copy(n1);
-    for (const s of [-1, 1]) {
-      neck.add(stick([0.26 * s, up.y * 0.7, up.z * 0.6 - 0.08], [0.14 * s, -0.12, 0.3], 0.022, gold));
-      neck.add(stick([0.14 * s, -0.12, 0.3], [0, -0.2, 0.36], 0.022, gold));
-    }
-    medal = new Group(); medal.position.set(0, -0.36, 0.4); medal.scale.setScalar(1.15);
-    const disc = new Mesh(new CylinderGeometry(0.15, 0.15, 0.035, 36), gold); disc.rotation.x = Math.PI / 2; medal.add(disc);
-    medal.add(new Mesh(new TorusGeometry(0.15, 0.018, 8, 36), goldDark));
-    const face = new Mesh(new CircleGeometry(0.14, 36), new MeshBasicMaterial({ map: medalTexture() })); face.position.z = 0.019; medal.add(face);
-    const ring = new Mesh(new TorusGeometry(0.03, 0.012, 8, 14), gold); ring.position.y = 0.17; medal.add(ring);
-    neck.add(medal);
-    put('Neck1', neck);
+    // Collar: a lime band around the base of his neck with KUDOG written along it, a gold ring at the front and the
+    // KUDOG medal hanging from it. Fitted to his neck: the band follows the coat's own cross-section there.
+    const n1 = W('Neck1'), n2 = W('Neck2'), axis = n2.clone().sub(n1).normalize();
+    const C = n1.clone().addScaledVector(axis, n2.distanceTo(n1) * 0.65);
+    const side = new Vector3(1, 0, 0), fwd = new Vector3().crossVectors(side, axis); if (fwd.z < 0) fwd.negate();
+    const ring = [], v = new Vector3();
+    model.traverse((o) => { if (!o.isMesh || o.material.name !== 'Main' && o.material.name !== 'Main_Light') return; const pa = o.geometry.attributes.position;
+      for (let i = 0; i < pa.count; i++) { v.fromBufferAttribute(pa, i); if (o.isSkinnedMesh) o.applyBoneTransform(i, v); v.applyMatrix4(o.matrixWorld).sub(C); if (Math.abs(v.dot(axis)) < 0.09) ring.push(v.clone()); } });
+    const ext = (dir) => { const d = ring.map((p) => p.dot(dir)).sort((x, y) => x - y); return d.length ? [d[0], d[d.length - 1]] : [-0.3, 0.3]; };
+    const [s0, s1] = ext(side), [f0, f1] = ext(fwd);
+    const centre = C.clone().addScaledVector(side, (s0 + s1) / 2).addScaledVector(fwd, (f0 + f1) / 2);
+    const rx = (s1 - s0) / 2 + 0.015, rz = (f1 - f0) / 2 + 0.015;
+    const collar = new Group(); collar.position.copy(centre);
+    collar.quaternion.setFromRotationMatrix(new Matrix4().makeBasis(side, axis, fwd));
+    const strap = new Mesh(new CylinderGeometry(1, 1, 0.19, 64, 1, true), new MeshStandardMaterial({ map: collarTexture(), roughness: 0.6, side: DoubleSide }));
+    strap.scale.set(rx, 1, rz); strap.rotation.y = -Math.PI / 2; collar.add(strap);
+    for (const e of [-1, 1]) { const rim = new Mesh(new TorusGeometry(1, 0.012, 6, 64), limeDark); rim.rotation.x = Math.PI / 2; rim.scale.set(rx, rz, 1); rim.position.y = e * 0.095; collar.add(rim); }
+    const dring = new Mesh(new TorusGeometry(0.045, 0.013, 8, 18), gold); dring.position.set(0, -0.04, rz + 0.01); collar.add(dring);
+    // The medal hangs from the ring, pivoting at the top so it swings like a tag.
+    medal = new Group(); medal.position.set(0, -0.08, rz + 0.03); collar.add(medal);
+    const tag = new Group(); tag.position.y = -0.2; tag.scale.setScalar(1.25); medal.add(tag);
+    const disc = new Mesh(new CylinderGeometry(0.15, 0.15, 0.035, 36), gold); disc.rotation.x = Math.PI / 2; tag.add(disc);
+    tag.add(new Mesh(new TorusGeometry(0.15, 0.018, 8, 36), goldDark));
+    const face = new Mesh(new CircleGeometry(0.14, 36), new MeshBasicMaterial({ map: medalTexture() })); face.position.z = 0.019; tag.add(face);
+    const loop = new Mesh(new TorusGeometry(0.03, 0.012, 8, 14), gold); loop.position.y = 0.16; tag.add(loop);
+    scene.add(collar); collar.updateMatrixWorld(true); medal.quaternion.premultiply(collar.quaternion.clone().invert()); // keep the medal upright, facing forward
+    put('Neck1', collar);
     mixer = new AnimationMixer(model);
     for (const c of g.animations) actions[c.name] = mixer.clipAction(c);
     if (mood === 'held' && step) fade(step.clip, step.speed || 1); else next();

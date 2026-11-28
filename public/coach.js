@@ -7,7 +7,7 @@
 // KUDOG is a three.js model (public/kudog3d.bundle.js, built from client-src/kudog3d.js), loaded when the panel first
 // opens; without WebGL he falls back to the 2D puppet (kudog.js).
 import { h, api, icon } from './ui.js';
-import { kudog2D, kudogFace } from './kudog.js';
+import { kudog2D, kudogFace, kudogQuips } from './kudog.js';
 
 const SUGGEST = [
   ['plan', 'What\'s next in my programme?'], ['user', 'When is my next 1:1 with my KUDO Trainer?'], ['team', 'When is the next group session, and what is the topic?'],
@@ -50,7 +50,7 @@ export function coachWidget({ name = '' } = {}) {
 
   // ---- KUDOG himself: the 3D model when it loads, the 2D puppet otherwise.
   let pets = [];
-  const onPet = () => { const now = Date.now(); pets = [...pets.filter((x) => now - x < 4000), now]; if (pets.length >= 5) { pets = []; setTimeout(() => dog.mood('excited'), 300); } };
+  const onPet = () => { if (!started && !quips.busy()) quips.next(); const now = Date.now(); pets = [...pets.filter((x) => now - x < 4000), now]; if (pets.length >= 5) { pets = []; setTimeout(() => dog.mood('excited'), 300); } };
   let dog = { el: h('div', { class: 'kg-dog-wait' }, kudogFace()), mood() {}, state: () => 'idle', start() {}, stop() {} };
   let dogReady = null;
   const loadDog = () => dogReady || (dogReady = (async () => {
@@ -66,6 +66,10 @@ export function coachWidget({ name = '' } = {}) {
   const welcomeText = () => `I know your programme, your results and your sessions. ${ai ? 'Ask me anything about the Academy and your training.' : 'Pick a question or type your own.'} For anything else, write to your KUDO Trainer.`;
   const welcomeSub = h('p', null, welcomeText());
   const stage = h('div', { class: 'kg-stage' }, dog.el);
+  // Now and then, while the welcome screen shows, KUDOG cracks a joke in a bubble (petting him asks for the next one).
+  const quips = kudogQuips(stage, { bark: () => dog.mood('bark') });
+  let quipTimer = 0;
+  const quipLoop = (ms) => { clearTimeout(quipTimer); quipTimer = setTimeout(() => { if (open && !started && !busy) quips.next(); quipLoop(30000); }, ms); };
   const welcome = h('div', { class: 'kg-welcome' }, stage,
     h('h2', null, first ? `Hi ${first}, I'm KUDOG` : 'Hi, I\'m KUDOG'), welcomeSub,
     h('div', { class: 'kg-sugg' }, SUGGEST.map(([k, q]) => h('button', { type: 'button', on: { click: () => send(q) } }, h('span', { class: 'kg-sugg-i' }, icon(k)), h('span', null, q)))));
@@ -98,7 +102,7 @@ export function coachWidget({ name = '' } = {}) {
     log.append(r); return { r, bubble, linkRow };
   }
   function startChat() {
-    if (started) return; started = true; panel.classList.add('has-chat');
+    if (started) return; started = true; panel.classList.add('has-chat'); quips.clear();
     headAv.append(dog.el); // KUDOG moves from the welcome screen to the header
   }
   // Answers appear word by word (instantly when the device asks for reduced motion), then take their final format.
@@ -194,8 +198,8 @@ export function coachWidget({ name = '' } = {}) {
   window.addEventListener('kudog', (e) => { if (open) dog.mood(e.detail); else { fab.classList.remove('kd-hop'); void fab.offsetWidth; fab.classList.add('kd-hop'); } });
   function toggle(v = !open) {
     open = v; panel.hidden = !open; fab.hidden = open;
-    if (open) { loadDog(); dog.start(); awake(); dog.mood('happy'); setTimeout(() => (panel.dataset.view === 'trainer' ? msg : input).focus(), 60); }
-    else { dog.stop(); clearTimeout(napTimer); }
+    if (open) { loadDog(); dog.start(); awake(); dog.mood('happy'); quipLoop(3200); setTimeout(() => (panel.dataset.view === 'trainer' ? msg : input).focus(), 60); }
+    else { dog.stop(); clearTimeout(napTimer); clearTimeout(quipTimer); quips.clear(); }
   }
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && open) toggle(false); });
   return h('div', { class: 'kg co' }, panel, fab);
