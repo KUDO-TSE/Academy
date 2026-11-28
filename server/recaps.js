@@ -10,7 +10,7 @@ import { PASS, explainScore } from './engine.js';
 import { POOLS } from './assess.js';
 
 const STEP = ['lesson', 'practice', 'scenario', 'explain', 'check'];
-const LABEL = { lesson: 'Lesson', practice: 'Practice task', scenario: 'Decide walkthrough', explain: 'Explain it to the client', check: 'Module check' };
+const LABEL = { lesson: 'Lesson', practice: 'Practice task', scenario: 'Decide walkthrough', explain: 'Explain it to the client', check: 'Course test' };
 
 /** The recap of one module for one trainee, or null when the module is not in their plan. */
 export async function moduleRecap(uid, key, prog = null) {

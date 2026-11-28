@@ -133,7 +133,7 @@ export function computeLevels(u, ctx, { forPlanning = false } = {}) {
       const from = per[s].est;
       per[s].est = (1 - w) * per[s].est + w * sc; per[s].source = 'check';
       per[s].note = a.kind === 'scenario' ? `Updated by your ${short(s)} decision walkthrough` : `Updated by your ${MODULE_BY_KEY[a.module_key].title} check`;
-      per[s].history.push({ at: a.created_at, what: a.kind === 'scenario' ? 'Walkthrough' : 'Module check', v: round(per[s].est), from: round(from), score: round(sc), module: a.module_key, kind: a.kind });
+      per[s].history.push({ at: a.created_at, what: a.kind === 'scenario' ? 'Walkthrough' : 'Course test', v: round(per[s].est), from: round(from), score: round(sc), module: a.module_key, kind: a.kind });
     } else if (e.type === 'explain' && !forPlanning) {
       const sb = e.sb, s = MODULE_BY_KEY[sb.module_key]?.scenario; if (!s) continue;
       const sc = explainScore(sb.rubric); if (sc == null) continue;

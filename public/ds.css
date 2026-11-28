@@ -816,3 +816,18 @@ td.nowrap{white-space:nowrap;font-variant-numeric:tabular-nums}
 .wk-course.ct-flash{animation:ctflash 3.2s var(--ease);border-radius:10px}
 @keyframes ctflash{0%,65%{background:#FFF4CC;box-shadow:0 0 0 2px var(--kudo-amber)}100%{background:transparent;box-shadow:none}}
 @media (prefers-reduced-motion:reduce){.ctile{transition:none}.ctile:hover{transform:none}.wk-course.ct-flash{animation:none;outline:2px solid var(--kudo-amber)}}
+
+/* ---- Home: two merged cards. Completion inside My Quarter's Program; My Readiness beside My Knowledge's breakdown ---- */
+.mo-wrap{display:grid;grid-template-columns:190px minmax(0,1fr);gap:var(--s-4);margin-top:var(--s-4);align-items:stretch}
+.mo-wrap .mo-grid{margin-top:0}
+.mo-done{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:var(--s-4) var(--s-3);border:1px solid var(--border-soft);border-radius:var(--radius-lg);background:var(--n-50);text-align:center}
+.mo-done-k{font-family:var(--font-head);font-weight:650;font-size:13.5px;color:var(--ink-900)}
+.mo-done .ring.big{--sz:104px;background:conic-gradient(var(--primary) calc(var(--p)*1%),var(--n-100) 0)}
+.mo-done .ring b{background:var(--n-50);color:var(--ink-900);font-family:var(--font-head)}
+.mo-done-n b{display:block;font-family:var(--font-head);font-size:var(--fs-xl);color:var(--ink-900);line-height:1.1}
+.mo-done-n span{font-size:12.5px;color:var(--ink-500)}
+.rl-grid{display:grid;grid-template-columns:minmax(280px,4fr) minmax(0,8fr);gap:var(--s-6);align-items:start}
+.rl-card .readiness-card,.rl-card .levels-card{border:0;box-shadow:none!important;padding:0;background:none;transform:none!important;margin:0}
+.rl-card .readiness-card{padding-right:var(--s-6);border-right:1px solid var(--border-soft);height:100%}
+@media (max-width:1000px){.rl-grid{grid-template-columns:minmax(0,1fr)}.rl-card .readiness-card{border-right:0;padding-right:0;padding-bottom:var(--s-5);border-bottom:1px solid var(--border-soft)}}
+@media (max-width:900px){.mo-wrap{grid-template-columns:minmax(0,1fr)}.mo-done{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto auto;column-gap:var(--s-4);row-gap:4px;justify-items:start;text-align:left}.mo-done-k{grid-column:1/-1}.mo-done .ring.big{--sz:76px;grid-row:2/4}.mo-done .chip{grid-column:2}}

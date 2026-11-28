@@ -1,12 +1,11 @@
 import { h, api, toast, fmtDate, svg, tipI, metaRow, mark } from './ui.js';
-import { monthsCard, monthPlan, readinessCard, levelsCard, isStarted, courseLabel, COURSE_KINDS } from './home.js';
+import { monthsCard, monthPlan, readinessLevelsCard, isStarted, courseLabel, COURSE_KINDS } from './home.js';
 import { SCENARIOS as SANDBOXES } from './sandbox.js';
 import { storyPlayer } from './story.js';
 import { revealNew } from './collectibles.js';
 import { recapBanner, revealRecap } from './recap.js';
 import { checkForm, resultView, walkthroughCard, explainCard, feedbackCard, challengeCard, spacedCard } from './assess-ui.js';
 
-const mine = (i) => (i.owner || 'you') === 'you';
 
 // ------------------------------------------------------------------ shared bits
 export const KIND_LABEL = { scenario: 'Decision walkthrough', explain: 'Explain it', survey: 'Survey', lesson: 'Lesson', practice: 'Practice', check: 'Check', review: 'Spaced review', baseline: 'Baseline check', one_to_one: 'With your KUDO Trainer', milestone: 'Milestone', missed: 'Review', teach: 'Teach-back' };
@@ -98,7 +97,7 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
   // This week = what is due by now and not done yet, on the trainee's side, oldest first.
   const thisWeek = st.items.filter((i) => !i.done && (i.owner || 'you') === 'you' && i.week <= st.week).sort((a, b) => a.week - b.week).slice(0, 6);
   // Your steps only (the KUDO Trainer's sessions are theirs to book): the same count as the 12-week map.
-  const mySteps = st.items.filter((i) => (i.owner || 'you') === 'you'), myDone = mySteps.filter((i) => i.done).length, myPct = mySteps.length ? Math.round((myDone / mySteps.length) * 100) : 0;
+  const mySteps = st.items.filter((i) => (i.owner || 'you') === 'you'), myDone = mySteps.filter((i) => i.done).length;
 
   const nextUp = thisWeek[0] || st.next[0] || null;
 
@@ -107,7 +106,7 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
   const nextStarted = !!nextUp?.module && COURSE_KINDS.has(nextUp.kind) && isStarted(st.items.filter((i) => i.module === nextUp.module && COURSE_KINDS.has(i.kind)));
   const home = [
     h('div', { class: 'bento home-top' },
-      h('section', { class: 'hero span-5' },
+      h('section', { class: 'hero span-12' },
         h('div', { class: 'hero-main' },
           h('div', { class: 'hero-kicker' }, metaRow([`Week ${st.week} of ${st.weeks}`, data.phases.find((p) => st.week >= p.weeks[0] && st.week <= p.weeks[1])?.short])),
           h('h1', null, `Welcome back, ${first(data.user?.name) || 'there'}`),
@@ -115,15 +114,9 @@ export function programmeView(data, { readOnly = false, banner = null, part = 'h
           data.message ? h('div', { class: 'hero-msg' }, h('b', null, 'From your KUDO Trainer: '), data.message) : null,
           readOnly ? null : h('div', { class: 'hero-cta' },
             nextUp ? h('a', { class: `btn lg ${nextStarted ? 'continue' : 'primary'}`, href: nextHref || '#training', on: { click: () => focusStep(nextUp.kind) } }, courseLabel(nextStarted)) : null,
-            h('span', { class: 'hero-next' }, nextUp ? nextUp.title : 'Everything on your side is done for now.')))),
-      h('section', { class: 'card span-3 prog-tile' },
-        h('div', { class: 'row spread' }, h('h2', null, "My Program's completion"), h('span', { class: `chip ${paceChip[0]}` }, paceChip[1])),
-        h('div', { class: 'pt-ring' }, h('div', { class: 'ring big', style: `--p:${myPct}`, role: 'img', 'aria-label': `${myPct}% of your steps done` }, h('b', null, `${myPct}%`)),
-          h('div', null, h('div', { class: 'pt-big' }, `${myDone} of ${mySteps.length}`), h('div', { class: 'muted small' }, 'steps done'))),
-        h('div', { class: 'muted small' }, `${data.phases.find((p) => st.week >= p.weeks[0] && st.week <= p.weeks[1])?.name || ''}, weeks ${(data.phases.find((p) => st.week >= p.weeks[0] && st.week <= p.weeks[1]) || { weeks: [1, 3] }).weeks.join(' to ')}`)),
-      readinessCard({ progression: st.progression || [], start: st.readiness.start, now: st.readiness.now, compact: true, cls: 'span-4', firstCheck: st.items.find((i) => mine(i) && !i.done && ['check', 'baseline', 'review'].includes(i.kind))?.title || null })),
-    monthsCard({ items: st.items, week: st.week, phases: data.phases, levels: st.levels, modules: data.modules, pace: paceChip, onOpen: readOnly ? () => {} : null }),
-    levelsCard(st.levels),
+            h('span', { class: 'hero-next' }, nextUp ? nextUp.title : 'Everything on your side is done for now.'))))),
+    monthsCard({ items: st.items, week: st.week, phases: data.phases, levels: st.levels, modules: data.modules, pace: paceChip, onOpen: readOnly ? () => {} : null, completion: true }),
+    readinessLevelsCard({ progression: st.progression || [], start: st.readiness.start, now: st.readiness.now, levels: st.levels }),
     data.shared?.length ? h('div', { class: 'card' }, h('h2', null, 'Notes from your KUDO Trainer sessions'), data.shared.map((n) => h('div', { class: 'note-box' }, h('b', null, n.title), h('div', null, n.text), h('div', { class: 'when' }, fmtDate(n.on))))) : null,
   ];
 

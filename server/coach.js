@@ -35,7 +35,7 @@ THE PROGRAMME
 - Group sessions, when your KUDO Trainer schedules them, appear with their date, time and topic.
 
 HOW YOU ARE SCORED
-- Module check (Prove it, the last step): mixed formats; the pass mark is 80%. Your first attempt is your result of record; retakes are practice and never change it. You also say how sure you are of each answer.
+- Course test (Prove it, the last step of each course): mixed formats; the pass mark is 80%. Your first attempt is your result of record; retakes are practice and never change it. You also say how sure you are of each answer.
 - Your level per scenario is an estimate that starts from the October Self Assessment and live knowledge test, and moves only with tests: the first attempt of each module check, decision walkthrough and explain-it recording (a review by your KUDO Trainer replaces the automatic score). Lessons, practice and retakes never move it. Small moves within the estimate's range do not change your plan.
 - Targets depend on what your role needs on that scenario: Set up 80%, Hand over 70%, Know 60%. Bands: Ready (at target), Nearly there (within 10 points), Developing (50 or more), Gap (below 50).
 - Explain-it recordings and written practice are reviewed automatically within a minute (key points covered, clarity, whether you said when to hand over); your KUDO Trainer spot-checks some, and you can ask for a human review.
@@ -156,7 +156,7 @@ export function builtInAnswer(question, c) {
 
   if (intent === 'score') {
     const f = c.focus.map((x) => x.level).filter(Boolean);
-    return { intent, links: [{ label: 'My progress', href: '#progress' }, { label: 'My results', href: '#results' }], text: `Module checks: the pass mark is ${Math.round(PASS * 100)}%, and your first attempt is your result of record; retakes are practice.\n\nYour level per scenario starts from the October assessment and moves only with tests: the first attempt of each module check, decision walkthrough and explain-it recording (a review by your KUDO Trainer replaces the automatic score). Lessons, practice, retakes, the weekly challenge and spaced reviews never change it.\n\nTargets depend on what your role needs: Set up 80%, Hand over 70%, Know 60%.${f.length ? ` For your focus areas: ${f.map((l) => `${l.short} ${l.now}% (target ${l.target}%)`).join(', ')}.` : ''}\n\nSandbox exercises score outcome, path and time (plus the client call and your choice when there is one); 80% passes, first run counts. They do not move your level for now.` };
+    return { intent, links: [{ label: 'My progress', href: '#progress' }, { label: 'My results', href: '#results' }], text: `Course tests: the pass mark is ${Math.round(PASS * 100)}%, and your first attempt is your result of record; retakes are practice.\n\nYour level per scenario starts from the October assessment and moves only with tests: the first attempt of each module check, decision walkthrough and explain-it recording (a review by your KUDO Trainer replaces the automatic score). Lessons, practice, retakes, the weekly challenge and spaced reviews never change it.\n\nTargets depend on what your role needs: Set up 80%, Hand over 70%, Know 60%.${f.length ? ` For your focus areas: ${f.map((l) => `${l.short} ${l.now}% (target ${l.target}%)`).join(', ')}.` : ''}\n\nSandbox exercises score outcome, path and time (plus the client call and your choice when there is one); 80% passes, first run counts. They do not move your level for now.` };
   }
 
   if (intent === 'focus') {

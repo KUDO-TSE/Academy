@@ -137,7 +137,7 @@ export function weeksCard({ items, week, weeks = 12, phases, levels = [], module
 
 // ------------------------------------------------------------------ Your readiness
 /** From the starting point (Self Assessment and knowledge test) to now, one step each time a result moves a level. */
-export function readinessCard({ progression = [], start, now, firstCheck = null, compact = false, cls = '' }) {
+export function readinessCard({ progression = [], start, now, compact = false, cls = '' }) {
   const pts = progression.length ? progression : [{ v: start, what: 'Starting point', changes: [] }];
   const diff = now - start;
   const W = compact ? 360 : 440, H = compact ? 120 : 170, P = { l: 30, r: 12, t: 10, b: 12 };
@@ -170,13 +170,14 @@ export function readinessCard({ progression = [], start, now, firstCheck = null,
       return h('li', null,
         h('div', null, h('b', null, p.moduleTitle || p.what), h('span', null, `${p.moduleTitle ? `${p.what}, ` : ''}${p.at ? fmtDate(p.at) : ''}${p.changes?.length ? `. ${p.changes.map((c) => `${c.short} ${c.from}% to ${c.to}%`).join(', ')}` : ''}`)),
         h('span', { class: `rd-d ${dv > 0 ? 'up' : dv < 0 ? 'down' : ''}` }, dv ? `${dv > 0 ? '+' : ''}${dv}` : '±0'));
-    })) : h('p', { class: compact ? 'rd-empty' : 'empty-note' }, firstCheck ? `It starts moving with your first test: ${firstCheck}.` : 'It starts moving with your first course test.'));
+    })) : h('p', { class: compact ? 'rd-empty' : 'empty-note' }, 'It starts moving upon your first course\'s completion.'));
 }
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // ------------------------------------------------------------------ Your level, scenario by scenario
 const BAND = { ready: 'green', nearly: 'blue', developing: 'amber', gap: 'coral', none: 'grey' };
 const DEPTH = { setup: 'Set up', handover: 'Hand over' };
+const LVL_NAME = { external: 'External Meeting Platform' };
 export function levelsCard(levels) {
   const rows = [...levels].sort((a, b) => Number(b.focus) - Number(a.focus) || (a.now - a.target) - (b.now - b.target));
   return h('section', { class: 'card levels-card' },
@@ -187,7 +188,7 @@ export function levelsCard(levels) {
       const b = l.band?.key || 'none', dv = l.baseline != null ? l.now - l.baseline : 0;
       return h('div', { class: `lvl-row ${l.focus ? 'focus' : ''}` },
         h('div', { class: 'lvl-top' },
-          h('div', { class: 'lvl-name' }, h('b', null, l.short), h('span', null, DEPTH[l.depth] || ''), l.focus ? h('span', { class: 'chip coral' }, 'Focus') : null),
+          h('div', { class: 'lvl-name' }, h('b', null, LVL_NAME[l.scenario] || l.short), h('span', null, DEPTH[l.depth] || ''), l.focus ? h('span', { class: 'chip coral' }, 'Focus') : null),
           h('span', { class: `chip ${BAND[b]}` }, l.band?.label || '')),
         h('div', { class: `lvl-track b-${b}`, role: 'img', 'aria-label': `${l.label}: ${l.now}% now, started at ${l.baseline}%, target ${l.target}%` },
           h('i', { class: 'lvl-fill', style: `width:${l.now}%` }),
@@ -219,14 +220,20 @@ export function monthRecap(its, { levels = [], modules = [] } = {}) {
 }
 
 /** Home: three month cards. Each opens My courses on that month. */
-export function monthsCard({ items, week, phases, levels = [], modules = [], title = "My Quarter's Program", pace = null, onOpen = null }) {
+export function monthsCard({ items, week, phases, levels = [], modules = [], title = "My Quarter's Program", pace = null, onOpen = null, completion = false }) {
   const cur = monthOfWeek(phases, week);
-  const all = items.filter(mine), allDone = all.filter((i) => i.done).length;
-  return h('section', { class: 'card roadmap-card months' },
+  const all = items.filter(mine), allDone = all.filter((i) => i.done).length, allPct = all.length ? Math.round((allDone / all.length) * 100) : 0;
+  // Home: the program's completion sits in the same card as the three months it sums up.
+  const done = completion ? h('div', { class: 'mo-done' },
+    h('span', { class: 'mo-done-k' }, "My Program's completion"),
+    h('div', { class: 'ring big', style: `--p:${allPct}`, role: 'img', 'aria-label': `${allPct}% of your steps done` }, h('b', null, `${allPct}%`)),
+    h('div', { class: 'mo-done-n' }, h('b', null, `${allDone} of ${all.length}`), h('span', null, 'steps done')),
+    pace ? h('span', { class: `chip ${pace[0]}` }, pace[1]) : null) : null;
+  return h('section', { class: `card roadmap-card months ${completion ? 'with-done' : ''}` },
     h('div', { class: 'wk-head' },
-      h('div', null, h('h2', null, title), h('p', { class: 'sub' }, `Week ${week} of 12, ${cur.name}. ${allDone} of ${all.length} steps done.`)),
-      pace ? h('span', { class: `chip ${pace[0]}` }, pace[1]) : null),
-    h('div', { class: 'mo-grid' }, phases.map((p) => {
+      h('div', null, h('h2', null, title), h('p', { class: 'sub' }, completion ? `Week ${week} of 12, ${cur.name}. Click a month to open it in My courses, week by week.` : `Week ${week} of 12, ${cur.name}. ${allDone} of ${all.length} steps done.`)),
+      pace && !completion ? h('span', { class: `chip ${pace[0]}` }, pace[1]) : null),
+    h('div', { class: completion ? 'mo-wrap' : '' }, done, h('div', { class: 'mo-grid' }, phases.map((p) => {
       const its = items.filter((i) => i.week >= p.weeks[0] && i.week <= p.weeks[1]), mi = its.filter(mine), d = mi.filter((i) => i.done).length;
       const pct = mi.length ? Math.round((d / mi.length) * 100) : 0;
       const state = p.n === cur.n ? 'now' : week > p.weeks[1] ? 'past' : 'next';
@@ -239,7 +246,14 @@ export function monthsCard({ items, week, phases, levels = [], modules = [], tit
           h('div', { class: 'mo-bar', role: 'img', 'aria-label': `${d} of ${mi.length} steps done` }, h('i', { style: `--w:${pct}%` })),
           h('div', { class: 'mo-meta' }, h('span', { class: `mo-status ${state}` }, status), h('span', null, `${d} of ${mi.length}`)),
           h('span', { class: 'mo-open' }, 'Open the month')));
-    })));
+    }))));
+}
+
+/** Home: My Readiness and the scenario levels it averages, in one card. */
+export function readinessLevelsCard({ progression, start, now, levels }) {
+  return h('section', { class: 'card rl-card' }, h('div', { class: 'rl-grid' },
+    readinessCard({ progression, start, now }),
+    levelsCard(levels)));
 }
 
 /** A course is started once one of its steps is done: its button then reads Continue the course, in the amber "in progress" colour. */
