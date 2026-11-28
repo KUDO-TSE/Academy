@@ -185,7 +185,7 @@ function academyResults() {
           return h('li', { class: `ct-step ${ok ? 'on' : ''} ${v != null ? (k === 'check' ? state : (v >= passPct ? 'pass' : 'below')) : ''}` },
             h('span', { class: 'ct-fill', style: `--v:${v != null ? v : ok ? 100 : 0}%` }), h('span', { class: 'ct-l' }, l), h('b', null, v != null ? `${v}%` : ok ? 'Done' : '–')); })),
         h('div', { class: 'ct-foot' },
-          h('span', { class: 'muted small' }, c ? (c.passed ? `Passed on ${fmtDate(c.at)}` : `Below ${passPct}% on ${fmtDate(c.at)}, retake to practise`) : `${nDone} of ${steps.length} steps done`),
+          h('span', { class: 'muted small' }, c ? (c.passed ? `Passed on ${fmtDate(c.at)}` : `Below ${passPct}% on ${fmtDate(c.at)}`) : `${nDone} of ${steps.length} steps done`),
           h('button', { type: 'button', class: `btn sm ${started ? 'continue' : ''}`, on: { click: () => goCourse(m.key, inPlan) } }, 'Go to course')));
     };
     const weekOf = (m) => plan.filter((i) => i.module === m.key && COURSE.has(i.kind) && i.week).reduce((w, i) => Math.min(w, i.week), 99);

@@ -43,6 +43,9 @@ async function ensureOne(email) {
 export async function resetDemo(id) {
   const r = await q('DELETE FROM users WHERE id=$1 AND is_demo RETURNING email,name', [id]);
   if (!r.rowCount) return null;
+  // The halfway test trainee goes back to halfway, not to a first connection.
+  const { isHalfway, createHalfway } = await import('./demo-halfway.js');
+  if (isHalfway(r.rows[0].email)) return createHalfway(r.rows[0].email, r.rows[0].name);
   return createDemo(r.rows[0].email, r.rows[0].name);
 }
 

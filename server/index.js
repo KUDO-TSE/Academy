@@ -12,6 +12,7 @@ import { meRouter } from './routes-me.js';
 import { adminRouter } from './routes-admin.js';
 import { meProgramme, adminProgramme, applyDefaultVideos } from './programme.js';
 import { ensureDemo } from './demo.js';
+import { ensureHalfway } from './demo-halfway.js';
 import { boardRouter } from './board.js';
 import { warmUp, resumePending } from './autoreview.js';
 import { sessionsRouter, loadFieldItems, failInterrupted } from './sessions.js';
@@ -27,6 +28,7 @@ export async function createApp() {
   await migrate();
   await ensureAdmins();
   await ensureDemo();
+  ensureHalfway().catch((e) => console.error('Halfway test trainee not created:', e.message));
   await applyDefaultVideos();
   loadReleaseHistory().catch((e) => console.error('Release history:', e.message));
   await loadFieldItems(); await failInterrupted(); await loadContentEdits();
